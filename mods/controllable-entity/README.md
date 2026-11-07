@@ -93,6 +93,29 @@ Taking control of the monster is plain possession. Monsters are `ACharacter`s (`
 `CharacterMovementComponent`), so movement replicates without extra work once the entity player's controller
 possesses the squid and its AI controller is set aside.
 
+## How the mission's monster is chosen
+
+`BP_GameManager` (placed in each mission map, runs on the host) decides the specimen when the mission starts:
+
+1. If `BP_MyGameInstance.spawnForceSessionMonster` is set (not 0 or 1), it spawns that monster.
+2. Otherwise it picks one at random (`Get Random`).
+
+The game instance survives map travel, so setting `spawnForceSessionMonster` on the host while still in the lobby
+makes the next mission spawn the squid, through the game's own spawn path (`GetMonsterSoftClass` ->
+`SpawnMonsterEvent`). Nothing in the game sets the variable itself; it reads like a leftover debug override.
+
+`MonsterList` values (from `BP_Lobby_FunctionLibrairy.GetMonsterSoftClass`):
+
+| Value | Monster |
+|-------|---------|
+| 0, 1 | None (0 also means "pick at random") |
+| 2 | `BP_Monster_Poulpi` (the squid) |
+| 3 | `BP_Monster_Michel` (Mike) |
+| 4 | `BP_Monster_Eye` |
+| 5 | `BP_Monster_Ghost` |
+| 6 | `BP_Monster_ZombieMaster` |
+| 7 | `BP_BigRobot` (the Terminator) |
+
 ## Names
 
 | Game name | Our name |
@@ -103,7 +126,6 @@ possesses the squid and its AI controller is set aside.
 
 ## Still to trace
 
-- How a contract chooses its specimen, so the squid can be forced in.
 - The three frenzy triggers: picking up the black box, getting the special weapon, activating the engines.
 - Which game sounds are reported as AI noise events.
 - How the squid's moves are triggered by its AI (`SpecialAttack`, `GrabHeadPlayer`, `PredictJumpAttack`, the vent
