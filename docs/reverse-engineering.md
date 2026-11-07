@@ -39,13 +39,40 @@ parameter names, but not the logic inside a function.
 | [UAssetGUI](https://github.com/atenfyr/UAssetGUI) | Views and edits single assets (Windows; runs under Wine) |
 | [FModel](https://fmodel.app) | Browses the whole container with previews (Windows; heavier) |
 
-Facts that save time:
+### Converting assets with retoc
+
+retoc converts only the assets whose path matches `--filter`, in about a second, so there's no need to unpack the
+whole 6.6 GB container. Point it at the `Paks` directory, not a single `.utoc`: the script objects every asset
+imports live in `global.utoc`, and a lone game `.utoc` fails with `does not contain ... ScriptObjects`.
+
+```bash
+paks="<install>/SpeciesUnknown/Content/Paks/"
+nice -n 19 ionice -c3 retoc to-legacy --version UE5_7 --no-shaders --no-parallel \
+  --filter "Blueprints/Core/" "$paks" extracted/legacy
+```
+
+### Reading a Blueprint's names without a parser
+
+A converted `.uasset` holds the asset's name table: every function, variable, called node, local and string
+literal it uses. `strings` on the `.uasset`/`.uexp` pair answers "what does this Blueprint touch?" before any
+bytecode tool is involved:
+
+```bash
+strings -n 4 BP_LobbyGameMode.uasset BP_LobbyGameMode.uexp | grep -i -E "lobby|session|kick|max" | sort -u
+```
+
+It shows names, not control flow. To see which value a check compares against, read the bytecode.
+
+### Facts that save time
 
 - **No AES key needed.** The containers aren't encrypted (see [game-internals.md](game-internals.md)).
 - **Oodle.** Every tool needs the Oodle decompressor. retoc and FModel download it on first run; nothing in Python's
   standard library can read these files.
 - **Unversioned properties.** Cooked assets omit property names, so readers need the game's `.usmap` mappings
-  file. Dump it with UE4SS (`DumpUSMAP()`) and pass it to the tool.
+  file. Dump it with UE4SS (`DumpUSMAP()`, or the GUI's Dumpers tab) and pass it to the tool.
+- **UE4SS source is partly private.** UE4SS's Unreal layer (UEPseudo) is a private repository, so how hooks expose
+  the parameters of a native function called from Blueprint can't be checked in source. Prefer hooks that read
+  object properties, or call UFunctions from Lua, over hooks that read call parameters.
 - **Engine version.** Tell tools the game is `UE5_7`.
 
 Unpack into a scratch directory outside this repository; extracted game assets are never committed.
