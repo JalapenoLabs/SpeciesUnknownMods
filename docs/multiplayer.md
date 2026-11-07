@@ -24,10 +24,13 @@ How Species Unknown connects players, and how to decide whether a mod can be hos
 
 ## Limits inside the game
 
-The game's Blueprints enforce four players on their own, on the host: `BP_LobbyGameMode` checks for more than four
-players in the lobby and acts on it, and `BP_MyGameState` auto-kicks past `playerLobbyCapacity`. Any player-count
-mod has to handle these as well as the session and lobby caps. Details in
-[Unlimited Lobby Size](../mods/unlimited-lobby-size/README.md#remaining-work).
+The game's own player cap is one variable, `BP_MyGameInstance.playerLobbyCapacity` (default 4). The player and
+chat EOS lobbies, the main session, the player-id slots and the auto-kick in `BP_MyGameState` all read it on the
+host. Join-by-code and public sessions hard-code their own slot counts (10, and 4 + 4). Details in
+[Unlimited Lobby Size](../mods/unlimited-lobby-size/README.md#how-the-game-caps-players).
+
+The game reports gameplay events, including an `ASSERT_FAILED_MORE_THAN_4_PLAYER_IN_LOBBY` diagnostic, through its
+own analytics subsystem. Mods that change player counts show up in the developers' telemetry.
 
 ## Host-only or everyone?
 

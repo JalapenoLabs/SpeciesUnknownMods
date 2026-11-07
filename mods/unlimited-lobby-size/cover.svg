@@ -110,7 +110,7 @@
     <path d="M 1270 350 L 1340 350 M 1312 318 L 1346 350 L 1312 382" fill="none" stroke="#8fb8c0"
           stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
     <text x="1560" y="520" font-size="420" fill="#ffb43a" filter="url(#glow)">64</text>
-    <text x="1560" y="604" font-size="54" letter-spacing="18" fill="#f2f7f8">PLAYERS</text>
+    <text x="1560" y="604" font-size="54" letter-spacing="18" fill="#f2f7f8">SLOTS</text>
   </g>
 
   <!-- Host-only badge -->

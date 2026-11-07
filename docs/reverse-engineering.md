@@ -35,7 +35,7 @@ parameter names, but not the logic inside a function.
 |------|-----|
 | [retoc](https://github.com/trumank/retoc) | Reads and writes IoStore. `retoc to-legacy` turns the game's container into loose `.uasset` files; `retoc to-zen` builds mod containers |
 | [repak](https://github.com/trumank/repak) | Lists and unpacks the legacy `.pak` (config `.ini` files) |
-| [kismet-analyzer](https://github.com/trumank/kismet-analyzer) | Turns a Blueprint's Kismet bytecode into readable graphs |
+| [kismet-analyzer](https://github.com/trumank/kismet-analyzer) | Parses a Blueprint's Kismet bytecode into JSON (see below) |
 | [UAssetGUI](https://github.com/atenfyr/UAssetGUI) | Views and edits single assets (Windows; runs under Wine) |
 | [FModel](https://fmodel.app) | Browses the whole container with previews (Windows; heavier) |
 
@@ -62,6 +62,30 @@ strings -n 4 BP_LobbyGameMode.uasset BP_LobbyGameMode.uexp | grep -i -E "lobby|s
 ```
 
 It shows names, not control flow. To see which value a check compares against, read the bytecode.
+
+### Reading Blueprint bytecode
+
+[kismet-analyzer](https://github.com/trumank/kismet-analyzer) (the `latest` development build) converts an asset to
+JSON with every function's bytecode parsed into expression trees. Two catches with this game's assets:
+
+- **Exports stay raw without mappings.** With unversioned properties and no `.usmap`, every export comes back as
+  `RawExport` and there is no bytecode. Function exports have no tagged properties, so a mappings file with empty
+  schemas for the `Object -> Field -> Struct -> Function` and `Class -> BlueprintGeneratedClass` chain is enough:
+  `scripts/make_minimal_usmap.py` writes one. Class and CDO exports stay raw, so default values (such as a
+  variable's starting value) still need a real `.usmap` dumped by UE4SS.
+- **`gen-cfg` needs a parsed class export**, so it prints `No ClassExport` and writes empty graphs. Use `to-json`
+  and `scripts/kismet_pseudocode.py` instead.
+
+```bash
+scripts/make_minimal_usmap.py minimal.usmap
+kismet-analyzer --ue-version VER_UE5_7 -m minimal.usmap to-json extracted/legacy/.../BP_LobbyGameMode.uasset \
+  > BP_LobbyGameMode.json
+scripts/kismet_pseudocode.py BP_LobbyGameMode.json "More Than 4"
+```
+
+The pseudo-code prints one statement per line, resolves called functions and objects by name, and shows jumps as
+byte offsets. Latent nodes and the event graph (`ExecuteUbergraph_*`) jump around a lot; read events through the
+small stub functions (`K2_PostLogin`, custom events) that call into it with an entry offset.
 
 ### Facts that save time
 

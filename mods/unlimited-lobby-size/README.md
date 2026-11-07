@@ -2,13 +2,12 @@
 
 ![Cover](cover.png)
 
-Lets a host run a Species Unknown lobby with more than the stock four players, up to 64 (the most an EOS lobby can
-hold). Only the host installs it.
+Lets a host run a Species Unknown lobby with more than the stock four players: as many as an EOS lobby allows
+(64 members, minus the game's spectator slots). Only the host installs it.
 
 - **Type:** UE4SS Lua mod (see [docs/ue4ss.md](../../docs/ue4ss.md))
 - **Payload:** [`UnlimitedLobbySize/`](UnlimitedLobbySize/), copied or linked into `Win64/ue4ss/Mods/`
-- **Status:** incomplete. It raises the session, lobby and engine caps, but the game's own Blueprints also kick
-  players past four, and that check isn't handled yet (see [Remaining work](#remaining-work)). Not yet playtested.
+- **Status:** complete against the 2026-11-06 build, awaiting its first playtest (see [Test plan](#test-plan))
 
 ## Install
 
@@ -18,77 +17,74 @@ hold). Only the host installs it.
    `scripts/link-mod.sh unlimited-lobby-size` to symlink it instead.
 3. Host a game. The `enabled.txt` inside the folder turns the mod on without editing `mods.txt`.
 
-To change the cap, edit `MAX_PLAYERS` at the top of `Scripts/main.lua`.
+To set a lower cap, lower `MAX_LOBBY_MEMBERS` at the top of `Scripts/main.lua`.
 
-## How it works
+## How the game caps players
 
-Three caps that the mod raises, all on the host:
+Read from the game's Blueprint bytecode (see [docs/reverse-engineering.md](../../docs/reverse-engineering.md)).
+Everything below runs on the host.
 
-| Cap | Where it is enforced | What the mod does |
-|-----|----------------------|-------------------|
-| Session slots | The session the host creates (`CreateSession`) | Raises `NumPublicConnections` / `NumPrivateConnections` |
-| EOS lobby capacity | Epic's lobby service; the game's player, chat and spectator lobbies | Calls `SetCapacity(64)` on each lobby transaction |
-| Engine login check (`AGameSession::AtCapacity`) | The host's server, on every join | Sets `net.MaxPlayersOverride` |
+**One variable drives the cap.** `BP_MyGameInstance.playerLobbyCapacity` (int64, class default, never assigned
+by the Blueprints) feeds:
 
-**Session and lobbies.** The game creates both through OnlineSubsystemBlueprints (OSB) async nodes. When a
-Blueprint calls one, OSB copies the inputs into the node's `__Store__*` properties (`__Store__NewSessionSettings`,
-`__Store__Transaction`), and the node's native `Activate()` then hands them to the Redpoint EOS subsystem. The
-mod pre-hooks `/Script/Engine.BlueprintAsyncActionBase:Activate` and, for create and update nodes:
+- the player EOS lobby: `Make Player Lobby Transaction` calls `SetCapacity(playerLobbyCapacity)`;
+- the voice chat EOS lobby: `SetCapacity(playerLobbyCapacity + spectatorLobbyCapacity)`;
+- the main session: `MakeMainSessionSettings(playerLobbyCapacity)` sets `NumPublicConnections`;
+- player-id slots: `CheckAllowConnectionLobby`, `PlayerIdFromUNetId` and `RegisterPlayerFunc` loop over slots
+  `0 .. playerLobbyCapacity - 1`;
+- the auto-kick: `BP_MyGameState.CheckAutoKickMaxPlayersNumber` kicks a joining player when `PlayerArray` is longer
+  than `playerLobbyCapacity`.
 
-- **Sessions:** grows the connection pool the game uses until the total is `MAX_PLAYERS`.
-- **Lobbies:** calls the transaction's `SetCapacity`. The transaction keeps its capacity in a field Lua can't
-  see, so the mod calls the setter instead of editing a property. A Lua call goes through `ProcessEvent` with a
-  proper parameter frame.
+**Two session builders hard-code their slots** instead: `MakePrivateSessionSettings` (join-by-code sessions) uses
+10 public connections, and `MakePublicSessionSettings` uses 4 public + 4 private.
 
-The hook reads the node's own properties, never the hooked call's parameters, and keys on OSB's native class
-names rather than the game's Blueprint names, so routine game patches don't break it.
+**The "more than 4 players" check doesn't kick.** `BP_LobbyGameMode.Check More Than 4Players` counts players in
+the scene, and when there are more than four it sets `had_more_than_4_players`, prints a debug message (only with
+the game's online debug tag on) and calls `TryFixModeThan4Players`, which is empty. It also reports an
+`ASSERT_FAILED_MORE_THAN_4_PLAYER_IN_LOBBY` event through the game's analytics subsystem, so **the developers'
+telemetry will see lobbies with more than four players.**
 
-**Server capacity.** `net.MaxPlayersOverride` is an engine console variable that `AGameSession::AtCapacity` reads on
-every login. A console variable survives map travel, while the `GameSession` actor and its `MaxPlayers` are rebuilt
-on every travel, so the console variable is the one setting that holds for a whole play session.
+## How the mod works
 
-All of this happens only on the machine that creates the session and lobbies. On a client the mod loads and does
-nothing.
+The mod pre-hooks `/Script/Engine.BlueprintAsyncActionBase:Activate`, which every async Blueprint node runs
+through. The game starts one (`AutoLogin`) at launch, long before anyone can host.
 
-## Remaining work
+1. **On the first async node**, it raises `playerLobbyCapacity` to `MAX_LOBBY_MEMBERS - spectatorLobbyCapacity`,
+   so the chat lobby (players + spectators) stays within the 64-member EOS limit. From then on, the game builds
+   every lobby, session, slot loop and kick check from the new number by itself. It also sets the engine's
+   `net.MaxPlayersOverride` to the same number, because `AGameSession::AtCapacity` checks logins against the
+   engine's own cap and a console variable survives map travel.
+2. **On every create or update session node**, it raises the session's slots to the player capacity. That covers
+   the two builders that hard-code 10 and 4 + 4. OSB copies a node's inputs into `__Store__NewSessionSettings` /
+   `__Store__UpdatedSessionSettings`, and the hook edits them before the native `Activate()` reads them.
 
-The game also enforces four players in its own Blueprints. Function and variable names from the cooked assets
-(unpacked with retoc; see [docs/reverse-engineering.md](../../docs/reverse-engineering.md)):
+The hook reads object properties, never the hooked call's parameters, so it doesn't depend on how UE4SS passes
+the arguments of a native function called from Blueprint.
 
-- **`BP_LobbyGameMode`** has `Check More Than 4Players` and `TryFixModeThan4Players`, with the messages
-  `ASSERT_FAILED_MORE_THAN_4_PLAYER_IN_LOBBY` and `TRY_FIX_MORE_THAN_4_PLAYER_IN_LOBBY`. It counts players in the EOS
-  lobby (`OWNER Get Online Nb Players in Lobby`) and acts on more than four. That four may be a hard-coded literal.
-- **`BP_MyGameState`** has `CheckAutoKickMaxPlayersNumber`, which compares players against an int64
-  `playerLobbyCapacity` and calls `OWNER_KickPlayerFromLobby`. If `playerLobbyCapacity` comes from the lobby's
-  capacity, the lobby change above already fixes it.
-- **`BP_MyGameInstance`** builds the lobbies (`Make Player / Chat / Spectator Lobby Transaction`) and runs
-  `CheckAllowConnectionLobby` before letting a player connect.
+## Who installs it
 
-All three run on the host, so the mod stays host-only. Choosing the right hook needs the Blueprint bytecode,
-which the asset names alone don't show. Still to check on clients: lobby slot widgets and per-player arrays sized
-for four (for example `DEBUGColorsEnum`). Out-of-range reads in Blueprint log a warning and return a default, so
-the worst likely symptom is a missing name tag or colour.
+The host. Everything that enforces the cap runs on the host.
+
+A client that also installs it raises its own copy of `playerLobbyCapacity`. That does nothing to the cap, but the
+player-id slot loops also run on clients (for example while registering players), so unmodded clients may not
+resolve the ids of players five and up. If a playtest shows missing names, voice or colours for those players on
+unmodded clients, have everyone install the mod.
 
 ## Test plan
 
 UE4SS writes everything the mod prints to `Win64/ue4ss/UE4SS.log`.
 
 1. Launch with UE4SS and the mod installed. The log shows
-   `[UnlimitedLobbySize] Loaded, hosted lobbies will allow up to 64 players`.
-   On this first launch, also dump the game's `.usmap` mappings from the UE4SS GUI's Dumpers tab. Asset tools
-   need it to read the Blueprint bytecode behind [Remaining work](#remaining-work).
-2. Host a lobby. The log shows capacity lines for the session and each lobby, for example
-   `[UnlimitedLobbySize] OnlineSessionSubsystemCreateSession: public 4 -> 64, private 0 -> 0` and
-   `[UnlimitedLobbySize] OnlineLobbySubsystemCreateLobby: capacity set to 64`. If it doesn't:
-   - `Saw online node` lines but no capacity line: the game creates its lobby through a node this mod doesn't
-     handle yet. Report the node names.
-   - No `Saw online node` lines at all: the hook never fired, so OSB's nodes don't run through
-     `BlueprintAsyncActionBase:Activate` in this build. Report that; the mod needs a different hook point.
-3. Open the UE4SS console (`F10` or `@`) and run `net.MaxPlayersOverride`. It reports `64`.
-4. Have five or more players join, with the host as the only one running the mod. Until the Blueprint check is
-   handled, expect the fifth player to be kicked; note when it happens and what the kicked player sees. Note
-   anything else that breaks: failed joins, missing names or colours, spawn problems, a scoreboard that cuts off.
+   `[UnlimitedLobbySize] playerLobbyCapacity 4 -> N (64 EOS slots minus S spectator slots)` shortly after the
+   main menu loads. Note `N`: it is the real cap.
+   - `No BP_MyGameInstance_C yet` repeating without the capacity line means a game patch renamed the class.
+   - No line at all means the hook never fired; report it.
+2. Host a lobby by code. The log shows
+   `[UnlimitedLobbySize] OnlineSessionSubsystemCreateSession: public 10 -> N, private 0 -> 0`.
+3. Open the UE4SS console (`F10` or `@`) and run `net.MaxPlayersOverride`. It reports `N`.
+4. Have five or more players join, with the host as the only one running the mod. Note anything that breaks:
+   failed joins, kicks, missing names, colours or voice for players five and up, spawn problems, a scoreboard
+   that cuts off.
 5. Start a contract with five or more players and travel back to the lobby. Check that everyone stays connected
    and a new player can still join after the travel.
-6. As a client (mod installed, not hosting), join a stock four-player lobby. The log has no capacity lines and
-   nothing changes.
+6. Repeat step 4 with every player running the mod, if step 4 showed client-side glitches.

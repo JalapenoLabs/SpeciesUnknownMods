@@ -49,6 +49,7 @@ All in `SpeciesUnknown/Content/Paks/`:
 | `/Game/Blueprints/Core/BP_FirstPersonGameMode` | Base first-person mode |
 | `/Game/Blueprints/Lobby/BP_Lobby_FunctionLibrairy` | Lobby helper functions (the misspelling is the game's) |
 | `/Game/Blueprints/BPI/BPI_GameInstance` | Interface the game instance implements |
+| `/Game/Blueprints/Online/BP_Online_FunctionLibrary` | Builds session settings (main, private by code, public) |
 
 ## Paths on this machine
 

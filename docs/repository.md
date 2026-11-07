@@ -39,6 +39,8 @@ scripts/                  repository tooling
 |--------|--------------|
 | `scripts/link-mod.sh <mod-name>` | Symlinks a mod's payload into the game's `ue4ss/Mods/` for development |
 | `scripts/render-covers.sh` | Renders every `mods/*/cover.svg` to `cover.png` |
+| `scripts/make_minimal_usmap.py <out>` | Writes the mappings file that lets kismet-analyzer parse Blueprint functions |
+| `scripts/kismet_pseudocode.py <asset.json>` | Prints a Blueprint's bytecode as pseudo-code |
 
 `link-mod.sh` takes the game location from `SPECIES_UNKNOWN_DIR` when it is set, otherwise the Steam library path
 in [game-internals.md](game-internals.md#paths-on-this-machine).
