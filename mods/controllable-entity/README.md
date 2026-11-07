@@ -41,6 +41,23 @@ When the crew reaches the mission's turning point, kills stop costing meter. Eac
 
 Partial frenzy is still to be defined (for example, a faster meter instead of free kills).
 
+How the mod detects each trigger, on the host. None of the game's functions fire exactly once (re-grabs and every
+engine state change call them again), so the mod keeps its own once-per-mission flag for each.
+
+| Trigger | Post-hook | Condition |
+|---------|-----------|-----------|
+| Black box picked up | `/Game/Blueprints/Core/BP_MyGameState.BP_MyGameState_C:BPI_GameState_SetGrabBlackBox` | Host only (it also runs on clients through `OnRep_IsGrabbed`) |
+| Special weapon obtained | `/Game/Weapon/Weapon_Base.Weapon_Base_C:BPI_Weapon_SetGrabbed` | The weapon's `IsObjectiveWeapon` and `IsGrabbed` are true, and the contract is kill or capture |
+| Engines activated | `/Game/Blueprints/Engine/BP_Engine.BP_Engine_C:OnRep_EngineState` | Any engine's `EngineState >= 1` (0 ready, 1 starting, 2 turning, 3 critical) on a destruction contract |
+
+- The contract type is `BP_MyGameState.Contract.ContractType_2_...` (replicated, valid once `ContractInit` is
+  true): 0 elimination (kill), 1 destruction (self destruct), 2 capture, 3 extraction. The map is
+  `Contract.Map_33_...`: 0 Hawking, 1 Polar.
+- A weapon is the special weapon when its damage type matches the weakness of `GameManager.MonsterToSpawn`
+  (`Weapon_Base.DetermineWeaponObjective`, about 5 seconds after it spawns at level load).
+- When both engines go critical, `BPI_GameState_LaunchEmergency` arms the self destruct and sets
+  `LightStatut = 2`. `OnRep_LightStatut` with `LightStatut == 2` is a map-independent fallback trigger.
+
 ### Losing
 
 If the crew kills or captures the entity, the entity player loses. No respawn.
@@ -205,6 +222,12 @@ makes the next mission spawn the squid, through the game's own spawn path (`GetM
 | `BP_BigRobot` | the Terminator |
 | `BP_Monster_Michel` | Mike |
 
-## Still to trace
+## Open questions
 
-- The three frenzy triggers: picking up the black box, getting the special weapon, activating the engines.
+- Partial frenzy (kill and capture contracts): what it gives instead of free kills.
+- Without meter, how the leap and vent drop stop short of the kill: end the attack before the grab, or release the
+  grab before the decapitation.
+- Whether the score screen should show the entity player as something other than a dead crew member.
+- Destruction contracts on the Polar map: no engine path was found there; `LightStatut == 2` is the fallback trigger.
+- To confirm live with UE4SS: the AI hearing range (4000), weapon `HearingLoudness`/`HearingRange`, the special
+  guns' `IsUnique` flag, and whether the host's own gunshots make noise.
