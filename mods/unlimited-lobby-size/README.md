@@ -7,7 +7,8 @@ Lets a host run a Species Unknown lobby with more than the stock four players: a
 
 - **Type:** UE4SS Lua mod (see [docs/ue4ss.md](../../docs/ue4ss.md))
 - **Payload:** [`UnlimitedLobbySize/`](UnlimitedLobbySize/), copied or linked into `Win64/ue4ss/Mods/`
-- **Status:** complete against the 2026-11-06 build, awaiting its first playtest (see [Test plan](#test-plan))
+- **Status:** lets more than four players join, but the shuttle can't launch with them yet: it has four seats and
+  only launches when everyone is seated (see [Shuttle seats](#shuttle-seats)). Not yet playtested.
 
 ## Install
 
@@ -43,6 +44,21 @@ the scene, and when there are more than four it sets `had_more_than_4_players`, 
 the game's online debug tag on) and calls `TryFixModeThan4Players`, which is empty. It also reports an
 `ASSERT_FAILED_MORE_THAN_4_PLAYER_IN_LOBBY` event through the game's analytics subsystem, so **the developers'
 telemetry will see lobbies with more than four players.**
+
+## Shuttle seats
+
+`BP_PlayerShip` spawns exactly four `BP_Seat` actors (`SpawnSingleChair` for `SceneChair1` to `SceneChair4`), and
+every launch waits for seated players:
+
+- **Starting a mission** (`CheckForLaunch`, lobby state): launches only when the number seated equals the number of
+  in-game players, then `LaunchLobby` travels everyone to the mission.
+- **Escaping at mission end** (`CheckForLaunch`, emergency state): launches only when every player inside the ship is
+  seated, the doors are closed and no monster is inside. `LaunchEscape` receives the seated players; the escape
+  sequence treats only those as escaped.
+- **Seats unlock** (`Check Can Sit`) only once every in-game player is inside the shuttle.
+- **End-of-mission score** (`Check Player Sit End`) waits for the number seated to reach the number of in-game players.
+
+With five or more players none of these can be met. This is still to solve.
 
 ## How the mod works
 
