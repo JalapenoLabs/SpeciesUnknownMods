@@ -66,6 +66,11 @@ must be aboard to start a mission, and the doors must be closed with no monster 
   game reads that list for one thing: during the escape cinematic, a seated player's HUD hides and their music
   fades. Standing players keep their HUD up for the cinematic. Nothing in scoring or survival reads the list.
 
+The shuttle's screens need no change. The door monitor shows `aboard/total` from two live counts
+(`NbPlayerInShip` and the game state's in-game player list), so it reads `6/6` with six players. The boarding list
+(`UMG_OnBoardPlayers_Shuttle`) adds one row per player with a seated tick, so standing players show as not seated,
+which is accurate. A long list may overflow the screen; the playtest checks that.
+
 ## How the mod works
 
 The mod pre-hooks `/Script/Engine.BlueprintAsyncActionBase:Activate`, which every async Blueprint node runs
@@ -113,8 +118,8 @@ UE4SS writes everything the mod prints to `Win64/ue4ss/UE4SS.log`.
    failed joins, kicks, missing names, colours or voice for players five and up, spawn problems, a scoreboard
    that cuts off.
 5. With five or more players, fill all four seats with the others standing inside the shuttle. The shuttle
-   launches to the mission (the log shows `Shuttle class loaded` once per map). Then try with one player still
-   outside: it must not launch.
+   launches to the mission (the log shows `Shuttle class loaded` once per map). The door monitor reads `N/N` and
+   the boarding screen lists every player. Then try with one player still outside: it must not launch.
 6. At the end of the mission, board with four seated and the rest standing, doors closed. The escape launches,
    everyone reaches the score screen, and the standing players arrive back in the lobby with their rewards.
    Note anything odd for the standing players during the escape cinematic.
