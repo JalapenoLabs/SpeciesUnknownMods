@@ -132,6 +132,48 @@ Possession notes:
 - Motion warping targets are set only on the host, so the leap and vent jumps may rubber-band on the squid
   player's screen. Playtest.
 
+## How the game makes noise
+
+Monsters have no sight sense; they hunt by hearing, through two channels:
+
+| Channel | Sources | How it reaches the monster |
+|---------|---------|----------------------------|
+| Native `ReportNoiseEvent`, heard by the `AIPerception` component on the AI controller | Every gun (`Weapon_Base.MakeNoiseAI`, tag `Shoot`, per-weapon `HearingLoudness` and `HearingRange`); crew footsteps (`BP_ParentCharacter.BPI_Footsteps_PlaySound`, range `Volume^1.3 x 1100`, doubled in water, roughly 566 units at a full sprint, only when the character's `FootstepsNoise` is on); zombie footsteps | `BP_Basic_AI_Controller` forwards hearing stimuli to `BPI_Monster_HearSoundFromPerception(actor, location)` |
+| `BP_MyGameState.BPI_GameState_ForceSound(actor, location, maxDistance, minDistance, fromActors)` | Big door cycles (difficulty 2 to 4), the decontamination airlock alarm (`BP_Sas_Controller`, up to 8000 units), explosive canisters | Calls `BPI_Monster_HearSoundFromPerception` on the monster directly, after its own distance rules |
+
+- The perception listener lives on the AI controller, so once a player possesses the squid, channel 1 delivers
+  nothing. The mod therefore watches the sources itself, on the host: post-hooks on `Weapon_Base_C:MakeNoiseAI`
+  (no parameters; read `PawnOwner`, `HearingLoudness`, `HearingRange` from the weapon),
+  `BP_ParentCharacter_C:BPI_Footsteps_PlaySound` and `BP_MyGameState_C:BPI_GameState_ForceSound`. It applies the
+  same range rules the AI would (the AI controller's hearing range reads as 4000 units, to be confirmed live) and
+  sends each surviving noise to the squid player as a ping.
+- None of these hooks read a native function's parameters, so they don't depend on how UE4SS exposes them.
+- Possible gap: on a listen server, the host's own gunshots may never call `MakeNoiseAI` (the call path runs only for
+  shooters who aren't locally controlled). Test in play.
+
+## Keeping the entity player out of the crew
+
+`BP_MyGameState."In Game Player State "` is the crew list (note the trailing space in the name). The shuttle's launch
+and seat checks, the score screen and the crew-count scaling (monster difficulty, spawners, labs) all read it.
+
+- Its only writer is `BP_MyGameState.UpdateInGamePlayers(playerState, add)`. It updates `InGamePlayersNumber`,
+  replicates through push-model replication and an OnRep, and **calls `GameOver` when the last entry is removed**.
+- A player is added when their crew character is possessed (`BP_Character.ReceivePossessed` ->
+  `SetInGamePlayerState(true)`), and removed on game-over death, player-state destruction or logout. Dead players
+  who can still respawn stay in the list.
+
+The mod's approach, on the host:
+
+1. Post-hook `UpdateInGamePlayers`. When the entity player is added, call `UpdateInGamePlayers(entity, false)`
+   through the game's own function (a raw array write may not replicate), but only once someone else is in the list,
+   so it never triggers `GameOver`.
+2. Also call `SetPlayers(theirCharacter, false)`, which drops them from the spectate list.
+3. The score screen's end data marks anyone missing from the list as dead, so the entity shows as a dead crew member
+   unless the mod also adjusts `SetUpEndData`. To be decided.
+
+Faking a death instead is worse: it runs the whole death flow (notifications, item drop, a possible zombie, a
+respawn that re-adds them).
+
 ## How the mission's monster is chosen
 
 `BP_GameManager` (placed in each mission map, runs on the host) decides the specimen when the mission starts:
@@ -166,5 +208,3 @@ makes the next mission spawn the squid, through the game's own spawn path (`GetM
 ## Still to trace
 
 - The three frenzy triggers: picking up the black box, getting the special weapon, activating the engines.
-- Which game sounds are reported as AI noise events.
-- How the entity player is kept out of the shuttle seat count and the crew list.
