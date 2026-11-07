@@ -1,0 +1,4 @@
+# Release zips and anything unpacked from the game never belong in the repository.
+/dist/
+/extracted/
+*.zip
