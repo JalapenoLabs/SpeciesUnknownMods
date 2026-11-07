@@ -120,4 +120,72 @@ RegisterHook("/Script/Engine.BlueprintAsyncActionBase:Activate", function(contex
   end
 end)
 
+-- ---------------------------------------------------------------------------------------------------------------
+-- Standing room in the shuttle
+-- ---------------------------------------------------------------------------------------------------------------
+
+-- The shuttle (BP_PlayerShip) spawns exactly four seats, and its launch checks compare the number of seated
+-- players (NbPlayerSited) with the number of players: everyone in the game to start a mission, everyone inside the
+-- ship to escape at the end, everyone in the game for the end-of-mission score. Past four players those checks
+-- can never pass. Standing room: once every seat is taken, players standing inside the ship count as seated.
+--
+-- The ship re-runs both checks on server timers (CheckForLaunch every 0.5 s via CheckEmergency, Check Player Sit
+-- End every second once a mission is finished), so a post-hook on each gets a chance on every tick. When the seats
+-- are full and more players are inside, the hook raises NbPlayerSited to the number inside, re-runs the game's own
+-- check (which still enforces closed doors, no monster aboard, everyone aboard, and so on), and restores the real
+-- count. NbPlayerSited is read only by these checks and isn't replicated, so the temporary value is never seen
+-- anywhere else.
+local SHIP_CLASS = "/Game/Blueprints/Ship/BP_PlayerShip.BP_PlayerShip_C"
+local SHIP_SEATED_CHECKS = { "CheckForLaunch", "Check Player Sit End" }
+
+-- Set while the mod re-runs a check, so the post-hook ignores its own nested call.
+local isRerunningSeatedCheck = false
+
+-- The shuttle class the hooks are registered on. A map change can unload and reload the class, which creates new
+-- functions that need hooking again; the same class must not be hooked twice.
+local hookedShipClassAddress = nil
+
+local function rerunWithStandingRoom(ship, checkName)
+  if isRerunningSeatedCheck or not ship:HasAuthority() then
+    return
+  end
+
+  local seatedCount = ship.NbPlayerSited
+  local insideCount = ship.NbPlayerInShip
+  local seatsFull = seatedCount >= #ship.ChairArray
+  if not seatsFull or insideCount <= seatedCount then
+    return
+  end
+
+  isRerunningSeatedCheck = true
+  ship.NbPlayerSited = insideCount
+  local isOk, errorMessage = pcall(function()
+    ship[checkName](ship)
+  end)
+  ship.NbPlayerSited = seatedCount
+  isRerunningSeatedCheck = false
+
+  if not isOk then
+    print(string.format("[UnlimitedLobbySize] Standing room re-run of %s failed: %s\n", checkName, errorMessage))
+  end
+end
+
+-- Blueprint functions only exist once their class loads, so hook them when a shuttle is constructed. Blueprint
+-- hooks run after the function, which is exactly when the game's own check has just failed.
+NotifyOnNewObject(SHIP_CLASS, function(ship)
+  local shipClassAddress = ship:GetClass():GetAddress()
+  if shipClassAddress == hookedShipClassAddress then
+    return
+  end
+  hookedShipClassAddress = shipClassAddress
+
+  for _, checkName in ipairs(SHIP_SEATED_CHECKS) do
+    RegisterHook(SHIP_CLASS .. ":" .. checkName, function(context)
+      rerunWithStandingRoom(context:get(), checkName)
+    end)
+  end
+
+  print("[UnlimitedLobbySize] Shuttle class loaded; standing room applies once all seats are taken\n")
+end)
+
 print("[UnlimitedLobbySize] Loaded; the player cap is raised when the game's first online call starts\n")

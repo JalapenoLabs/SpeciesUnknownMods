@@ -7,8 +7,7 @@ Lets a host run a Species Unknown lobby with more than the stock four players: a
 
 - **Type:** UE4SS Lua mod (see [docs/ue4ss.md](../../docs/ue4ss.md))
 - **Payload:** [`UnlimitedLobbySize/`](UnlimitedLobbySize/), copied or linked into `Win64/ue4ss/Mods/`
-- **Status:** lets more than four players join, but the shuttle can't launch with them yet: it has four seats and
-  only launches when everyone is seated (see [Shuttle seats](#shuttle-seats)). Not yet playtested.
+- **Status:** complete against the 2026-11-06 build, awaiting its first playtest (see [Test plan](#test-plan))
 
 ## Install
 
@@ -58,7 +57,14 @@ every launch waits for seated players:
 - **Seats unlock** (`Check Can Sit`) only once every in-game player is inside the shuttle.
 - **End-of-mission score** (`Check Player Sit End`) waits for the number seated to reach the number of in-game players.
 
-With five or more players none of these can be met. This is still to solve.
+With five or more players none of these can be met, so the mod adds **standing room**: once all four seats are
+taken, players standing inside the shuttle count as seated. Everything else the game checks still applies: everyone
+must be aboard to start a mission, and the doors must be closed with no monster inside to escape.
+
+- **Starting a mission** travels every player to the mission map, seated or standing.
+- **Escaping** launches with everyone aboard. `LaunchEscape` still gets only the four seated players, and the
+  game reads that list for one thing: during the escape cinematic, a seated player's HUD hides and their music
+  fades. Standing players keep their HUD up for the cinematic. Nothing in scoring or survival reads the list.
 
 ## How the mod works
 
@@ -73,6 +79,11 @@ through. The game starts one (`AutoLogin`) at launch, long before anyone can hos
 2. **On every create or update session node**, it raises the session's slots to the player capacity. That covers
    the two builders that hard-code 10 and 4 + 4. OSB copies a node's inputs into `__Store__NewSessionSettings` /
    `__Store__UpdatedSessionSettings`, and the hook edits them before the native `Activate()` reads them.
+3. **Standing room.** When a shuttle class loads, the mod post-hooks its `CheckForLaunch` and
+   `Check Player Sit End`, which the ship re-runs on server timers. When the game's check has just failed with every
+   seat taken and more players inside, the mod raises `NbPlayerSited` to the number inside, runs the game's own
+   check again, and restores the real count. `NbPlayerSited` is read only by those checks and isn't replicated, so
+   nothing else sees the temporary value.
 
 The hook reads object properties, never the hooked call's parameters, so it doesn't depend on how UE4SS passes
 the arguments of a native function called from Blueprint.
@@ -101,6 +112,11 @@ UE4SS writes everything the mod prints to `Win64/ue4ss/UE4SS.log`.
 4. Have five or more players join, with the host as the only one running the mod. Note anything that breaks:
    failed joins, kicks, missing names, colours or voice for players five and up, spawn problems, a scoreboard
    that cuts off.
-5. Start a contract with five or more players and travel back to the lobby. Check that everyone stays connected
-   and a new player can still join after the travel.
-6. Repeat step 4 with every player running the mod, if step 4 showed client-side glitches.
+5. With five or more players, fill all four seats with the others standing inside the shuttle. The shuttle
+   launches to the mission (the log shows `Shuttle class loaded` once per map). Then try with one player still
+   outside: it must not launch.
+6. At the end of the mission, board with four seated and the rest standing, doors closed. The escape launches,
+   everyone reaches the score screen, and the standing players arrive back in the lobby with their rewards.
+   Note anything odd for the standing players during the escape cinematic.
+7. After travelling back to the lobby, check that everyone stays connected and a new player can still join.
+8. Repeat steps 4 to 6 with every player running the mod, if they showed client-side glitches.
