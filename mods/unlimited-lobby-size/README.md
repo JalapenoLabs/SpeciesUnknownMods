@@ -71,6 +71,18 @@ The shuttle's screens need no change. The door monitor shows `aboard/total` from
 (`UMG_OnBoardPlayers_Shuttle`) adds one row per player with a seated tick, so standing players show as not seated,
 which is accurate. A long list may overflow the screen; the playtest checks that.
 
+## Known limitations
+
+- **Pause menu crew panel shows four players.** `WBP_PauseMenu_CrewMembers` has four rows built in the widget
+  designer (`WBP_PauseMenu_PlayerInfos_0..3` and `WBP_PauseMenu_PlayerActions_0..3`), each with a fixed
+  `PlayerIndex` matching a lobby player id. Players five and up have no row, so their name, mic and rank aren't
+  shown and their volume, mute and kick controls aren't reachable from the menu. Lookups past row four return
+  nothing (a Blueprint warning, no crash).
+- **Player colours stop at four.** A crew row's colour is a switch on `PlayerIndex` (0 green, 1 purple, 2 yellow,
+  3 red) whose default is an unset colour; other per-player colours in the game likely follow the same scheme.
+
+Both are client-side UI, so a fix would apply to each player who installs the mod.
+
 ## How the mod works
 
 The mod pre-hooks `/Script/Engine.BlueprintAsyncActionBase:Activate`, which every async Blueprint node runs
