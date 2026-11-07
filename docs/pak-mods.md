@@ -20,8 +20,9 @@ SpeciesUnknown/Content/Paks/~mods/
 ```
 
 - The game's containers are unencrypted and unsigned, so mod containers need no key and no signature.
-- A legacy `.pak` full of `.uasset` files doesn't load on its own in an IoStore game. Convert it to IoStore with
-  [retoc](https://github.com/trumank/retoc) (`retoc to-zen`), or have the editor write IoStore output directly.
+- The confirmed path is the IoStore `_P` triple. Whether a legacy `.pak` of `.uasset` files also mounts in this
+  build is untested. Convert legacy output with [retoc](https://github.com/trumank/retoc) (`retoc to-zen`), or have
+  the editor write IoStore output directly.
 - Asset paths must match the game's (`/Game/...`) to replace an asset. A new asset goes under a mod-specific path
   such as `/Game/Mods/<ModName>/`.
 

@@ -62,7 +62,11 @@ UE4SS writes everything the mod prints to `Win64/ue4ss/UE4SS.log`.
    `[UnlimitedLobbySize] Loaded, hosted lobbies will allow up to 64 players`.
 2. Host a lobby. The log shows
    `[UnlimitedLobbySize] OnlineSessionSubsystemCreateSession: public 4 -> 64, private 0 -> 0`
-   (numbers may differ). If it doesn't, look for `Saw online node` lines and report them.
+   (numbers may differ). If it doesn't:
+   - `Saw online node` lines but no capacity line: the game creates its lobby through a node this mod doesn't
+     handle yet. Report the node names.
+   - No `Saw online node` lines at all: the hook never fired, so OSB's nodes don't run through
+     `BlueprintAsyncActionBase:Activate` in this build. Report that; the mod needs a different hook point.
 3. Open the UE4SS console (`F10` or `@`) and run `net.MaxPlayersOverride`. It reports `64`.
 4. Have five or more players join, with the host as the only one running the mod. Note anything that breaks:
    failed joins, missing names or colours, spawn problems, a scoreboard that cuts off.

@@ -9,8 +9,8 @@ How Species Unknown connects players, and how to decide whether a mod can be hos
   split between the two is unconfirmed.
 - **Blueprint access:** **OnlineSubsystemBlueprints** (OSB) is compiled in, and since the game is Blueprint-only it
   is almost certainly how the game drives sessions; reading the game's Blueprints will confirm it. OSB exposes
-  async nodes (`OnlineSessionSubsystemCreateSession`, `...UpdateSession`, `...FindSessions` and so on). Every node copies its
-  inputs into `__Store__*` properties that a UE4SS pre-hook on `Activate()` can rewrite (see
+  async nodes (`OnlineSessionSubsystemCreateSession`, `...UpdateSession`, `...FindSessions` and so on). Every
+  node copies its inputs into `__Store__*` properties that a UE4SS pre-hook on `Activate()` can rewrite (see
   [ue4ss.md](ue4ss.md#changing-what-an-async-blueprint-node-does)).
 - **Topology:** listen server (inferred: the game ships no dedicated server). The host's game is the server;
   everyone else is a client. The host creates the session (an EOS lobby), and clients find and join it.
