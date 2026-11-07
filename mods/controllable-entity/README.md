@@ -93,6 +93,45 @@ Taking control of the monster is plain possession. Monsters are `ACharacter`s (`
 `CharacterMovementComponent`), so movement replicates without extra work once the entity player's controller
 possesses the squid and its AI controller is set aside.
 
+## How the squid's moves work
+
+Read from `BP_Monster_Poulpi`, `BP_BaseMonster`, `BP_ParentMonster`, the AI's behavior-tree tasks and the montages'
+anim notifies. Every move can be started on the host without the behavior tree, and nothing in the squid stops a
+player controller from possessing it. Every trigger must run on the host: the moves end in multicast events, and
+damage, sphere checks and the kill only run where `IsServer` is true.
+
+| Move | How the AI starts it | How the mod starts it (on the host) |
+|------|----------------------|-------------------------------------|
+| Basic attack | `BTService_CheckBasicAttack` -> `BPI_BasicMonster_SetSimpleAttack(target, location, distance)` | Same call, with the aimed actor |
+| Leap | `BPI_Monster_CanSpecialAttack` (checks angle, 300 to 500 units, a clear `PredictJumpAttack` arc, then writes `LastSpecialAttackPlayerLocation`) -> `BPI_Monster_SetSpecialAttack(target)` | Write `LastSpecialAttackPlayerLocation` from the aim point (validated with `PredictJumpAttack`), then `SetSpecialAttack` |
+| Head grab | The leap's forward sphere check hits a grabbable player -> `GrabHeadAnim (Multi)` + `Timeline_GrabHead_Start` | Comes from the leap, or from a vent drop |
+| Enter vent | A navmesh smart link calls `MonsterUseVent` -> `BPI_Monster_JumpToVent(vent, true)` | Find the nearest `BP_Vent_Up` and call `JumpToVent` (smart links only fire for AI path following) |
+| Leave vent / drop attack | `BTService_CheckPlayerDownVent` -> `BPI_Monster_AttackFromVent(vent, player)` | Same call; `player` may be none |
+| Peek down | `BTTask_LookFromVent` -> `BPI_Monster_LookFromVent(vent, on, noise)` | Same call |
+| Speed | `BTTask_SetSpeedType` -> `GetSpeedByType(type)` -> `BPI_Monster_SetSpeed` (0 walk, 1 combat, 2 combat loose, 3 escape, 4 max, 5 escape from capture; `IsAngry` forces max) | Same calls |
+
+- **The head grab kills outright.** `AnimNotify_Decapitation` in the grab montages calls `Decapitation`, which
+  calls the player's `BPI_Human_CustomDeath`. A shield turns it into 150 damage and a failed attack instead.
+- **The grab can be interrupted.** Enough damage to the squid triggers `KnockBack`, which calls `StopGrabPlayer`.
+- **The leap itself does no damage.** It only grabs on contact; a shield takes 25 damage and fails the leap.
+- **Vents are navmesh.** Entering switches the squid to flying for the jump and makes it invulnerable while it plays.
+  Inside, `SetInVent` crouches it automatically, and it walks crouched along the ducts. There are no splines.
+- **For the kill meter:** the meter has to gate the head grab, because the head grab is the only instant kill. So
+  without meter, the leap and the vent drop must not grab: the mod can end the attack (clear `IsAttacking`) before
+  the sphere check grabs, or let the grab start and release it with `StopGrabPlayer` before the decapitation notify.
+  To be decided when building.
+
+Possession notes:
+
+- `CanMove` gates movement on `IsAttacking`, `IsLookingDownVent` and similar flags; the input handler should
+  respect it.
+- The AI's own timers (`CheckTarget`, `Check If Stuck`) only start when the controller is a
+  `BP_Basic_AI_Controller`, so possessing at spawn skips them. Taking over a live squid needs them cleared.
+- `BP_ParentMonster` can teleport a monster back onto the navmesh when it walks off it
+  (`OutOfNavCheckEvent` -> `TeleportToNavigationPoint`). What triggers it is untraced.
+- Motion warping targets are set only on the host, so the leap and vent jumps may rubber-band on the squid
+  player's screen. Playtest.
+
 ## How the mission's monster is chosen
 
 `BP_GameManager` (placed in each mission map, runs on the host) decides the specimen when the mission starts:
@@ -128,6 +167,4 @@ makes the next mission spawn the squid, through the game's own spawn path (`GetM
 
 - The three frenzy triggers: picking up the black box, getting the special weapon, activating the engines.
 - Which game sounds are reported as AI noise events.
-- How the squid's moves are triggered by its AI (`SpecialAttack`, `GrabHeadPlayer`, `PredictJumpAttack`, the vent
-  functions), so the Blueprint layer can drive the same functions from input.
 - How the entity player is kept out of the shuttle seat count and the crew list.
