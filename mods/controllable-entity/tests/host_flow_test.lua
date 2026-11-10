@@ -114,10 +114,10 @@ local squid = fake.object("BP_Monster_Poulpi_C", {
   K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
   BPI_Monster_GetSpeedByType = function(_, speedType, out) out.Speed = 400 + speedType end,
 })
-local crewBody = fake.object("BP_Character_C", nil, {
+local crewBody = fake.object("BP_Character_C", { CharacterMovement = fake.object("CharacterMovementComponent") }, {
   K2_GetActorLocation = function() return { X = 200, Y = 0, Z = 0 } end,
 })
-local entityBody = fake.object("BP_Character_C")
+local entityBody = fake.object("BP_Character_C", { CharacterMovement = fake.object("CharacterMovementComponent") })
 crewController.Pawn = entityBody
 hostController.Pawn = crewBody
 crewList.elements = { hostState, crewState }
@@ -129,7 +129,7 @@ end
 fake.runLoops()
 assert(crewController.Pawn == squid, "the volunteer drives the squid")
 assert(aiController.destroyed, "the squid's AI is removed")
-assert(entityBody.destroyed, "the entity player's crew body is removed")
+assert(entityBody.destroyed, "with other crew aboard, the entity player's crew body is removed")
 local speedCalls = fake.callsTo(squid, "BPI_Monster_SetSpeed")
 assert(#speedCalls == 1 and speedCalls[1].args[1] == 401, "combat speed comes from the out parameter")
 assert(lastEvent(crewController) == "BecameEntity")

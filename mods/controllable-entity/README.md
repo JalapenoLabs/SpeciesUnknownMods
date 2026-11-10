@@ -269,6 +269,10 @@ The mod's approach, on the host:
 Faking a death instead is worse: it runs the whole death flow (notifications, item drop, a possible zombie, a
 respawn that re-adds them).
 
+The entity player's crew body is parked at the takeover (hidden, no collision, movement disabled) and destroyed
+only once another crew body exists. Destroying a body takes it off `BP_MyGameState.ActualPlayersPawn`, and when
+that list empties the game travels everyone back to the lobby. Alone in a mission the body simply stays parked.
+
 ## How the mission's monster is chosen
 
 `BP_GameManager` (placed in each mission map, runs on the host) decides the specimen when the mission starts:
@@ -311,9 +315,11 @@ makes the next mission spawn the squid, through the game's own spawn path (`GetM
 
 ## Test plan
 
-The mod needs at least two players: the crew list can't be emptied (the game ends the mission), so a solo host
-can't be the entity. UE4SS writes the mod's log lines, all starting `[ControllableEntity]`, to
-`Win64/ue4ss/UE4SS.log` on each machine.
+UE4SS writes the mod's log lines, all starting `[ControllableEntity]`, to `Win64/ue4ss/UE4SS.log` on each machine.
+
+**Testing alone** works for steps 1 to 5 (volunteering, the takeover, moving, the moves and the HUD). There's nobody
+to lash, grab or hear, and the shuttle can't launch: as the only player you stay on the crew list (emptying it ends
+the mission), and the squid can't sit. Leave through the pause menu. Steps 6 to 10 need at least one friend.
 
 1. **Loads.** Every player launches with UE4SS, the pak and the Lua installed. The log shows
    `Loaded. F8 in the lobby volunteers to be the entity.` and, once in the lobby, `Hooked ... BP_MyPlayerController`.

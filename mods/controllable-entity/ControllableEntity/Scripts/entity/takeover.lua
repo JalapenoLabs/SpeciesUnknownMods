@@ -157,6 +157,36 @@ local function liveSquid()
   return squid
 end
 
+-- The entity player's crew body can't simply be destroyed: BP_MyGameState sends everyone back to the lobby when
+-- its list of player bodies (ActualPlayersPawn) empties, and destroying a body takes it off that list. So the body is
+-- parked first (hidden, without collision, frozen so it can't fall out of the map) and destroyed only once another
+-- crew body exists. Alone in a mission (testing solo), it stays parked.
+local function parkBody(body)
+  body:SetActorHiddenInGame(true)
+  body:SetActorEnableCollision(false)
+  body.CharacterMovement:DisableMovement()
+end
+
+local function anotherCrewBodyExists(body)
+  local bodyAddress = body:GetAddress()
+  for _, crewMember in ipairs(FindAllOf(game.classNames.crewCharacter) or {}) do
+    if crewMember:IsValid() and crewMember:GetAddress() ~= bodyAddress then
+      return true
+    end
+  end
+  return false
+end
+
+local function releaseParkedBody(entity)
+  local body = entity.parkedBody
+  if not body or not body:IsValid() or not anotherCrewBodyExists(body) then
+    return
+  end
+  body:K2_DestroyActor()
+  entity.parkedBody = nil
+  game.log("Removed the entity's parked crew body")
+end
+
 local function takeControl(controller, squid)
   local crewBody = controller.Pawn
 
@@ -169,9 +199,10 @@ local function takeControl(controller, squid)
 
   controller:Possess(squid)
 
-  -- The player has no crew body as the entity; leaving it would stand an empty crew member in the shuttle
+  local parkedBody = nil
   if crewBody:IsValid() and crewBody:GetAddress() ~= squid:GetAddress() then
-    crewBody:K2_DestroyActor()
+    parkBody(crewBody)
+    parkedBody = crewBody
   end
 
   -- Combat speed (MonsterSpeed_DataTable type 1) suits a player better than the AI's patrol walk. The speed comes
@@ -180,7 +211,14 @@ local function takeControl(controller, squid)
   squid:BPI_Monster_GetSpeedByType(1, speed)
   squid:BPI_Monster_SetSpeed(speed.Speed)
 
-  activeEntity = { key = volunteerKey, controller = controller, squid = squid, playerState = controller.PlayerState }
+  activeEntity = {
+    key = volunteerKey,
+    controller = controller,
+    squid = squid,
+    playerState = controller.PlayerState,
+    parkedBody = parkedBody,
+  }
+  releaseParkedBody(activeEntity)
   links.sendEvent(controller, "BecameEntity")
   game.log("%s took control of the squid", volunteerKey)
 end
@@ -212,6 +250,7 @@ function takeover.reconcile()
       noticeLoss()
       return
     end
+    releaseParkedBody(activeEntity)
     excludeFromCrew(activeEntity)
     return
   end
