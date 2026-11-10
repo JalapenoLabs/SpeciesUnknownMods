@@ -7,7 +7,7 @@ Mods for [Species Unknown](https://store.steampowered.com/app/2747330/Species_Un
 | Mod | What it does | Who installs it | Status |
 |-----|--------------|-----------------|--------|
 | [Unlimited Lobby Size](mods/unlimited-lobby-size/README.md) | Raises the four-player cap to the EOS lobby limit, with standing room in the shuttle | Host only | Awaiting first playtest |
-| [Controllable Entity](mods/controllable-entity/README.md) | One player becomes the monster (the squid first) | Everyone | Design |
+| [Controllable Entity](mods/controllable-entity/README.md) | One player becomes the monster (the squid first) | Everyone | Awaiting first playtest |
 
 ## Modding docs
 

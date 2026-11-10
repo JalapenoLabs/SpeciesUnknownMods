@@ -1,0 +1,125 @@
+-- Copyright © 2026 Jalapeno Labs
+
+-- Runs the mod's real scripts as the entity player's machine (a client), against fake game objects: input hooks,
+-- the mod's keys, host events and the HUD.
+-- Run from the repository root: lua mods/controllable-entity/tests/client_flow_test.lua
+
+package.path = "mods/controllable-entity/ControllableEntity/Scripts/?.lua;mods/controllable-entity/tests/?.lua;"
+  .. package.path
+
+local fake = require("fake_ue4ss")
+fake.install()
+fake.isHost = false
+
+local game = require("entity.game")
+
+fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
+  GetTimeSeconds = function() return fake.now end,
+})
+-- The fakes pass plain tables as input values: { X, Y } for axes, { pressed } for buttons.
+fake.objects[game.paths.inputLibrary] = fake.object("EnhancedInputLibrary", nil, {
+  Conv_InputActionValueToAxis2D = function(_, value) return value end,
+  Conv_InputActionValueToBool = function(_, value) return value.pressed end,
+})
+fake.objects[game.paths.widgetLayoutLibrary] = fake.object("WidgetLayoutLibrary", nil, {
+  GetViewportScale = function() return 2 end,
+})
+fake.objects[game.paths.hudClass] = fake.object("WBP_EntityHUD_C_Class")
+fake.object("GameStateBase")
+
+local function widgetElement(name)
+  return fake.object(name, { Slot = fake.object(name .. "Slot") })
+end
+local widget = fake.object("WBP_EntityHUD_C", {
+  UltimateBar = widgetElement("UltimateBar"),
+  UltimateText = widgetElement("UltimateText"),
+  FrenzyText = widgetElement("FrenzyText"),
+  StatusText = widgetElement("StatusText"),
+  AbilityText = widgetElement("AbilityText"),
+})
+for pingIndex = 0, 11 do
+  widget["Ping" .. pingIndex] = widgetElement("Ping" .. pingIndex)
+end
+local createdWidgets = 0
+fake.objects[game.paths.widgetLibrary] = fake.object("WidgetBlueprintLibrary", nil, {
+  Create = function()
+    createdWidgets = createdWidgets + 1
+    return widget
+  end,
+})
+
+local controller = fake.object("BP_MyPlayerController_C", { Pawn = fake.invalid() }, {
+  IsLocalController = function() return true end,
+  GetControlRotation = function() return { Pitch = 0, Yaw = 90, Roll = 0 } end,
+  ProjectWorldLocationToScreen = function(_, _, screen)
+    screen.X, screen.Y = 800, 400
+    return true
+  end,
+}, { "PlayerController" })
+local link = fake.object("BP_EntityLink_C", { Owner = controller, Meter = 0.5, Frenzy = false })
+local squid = fake.object("BP_Monster_Poulpi_C")
+
+dofile("mods/controllable-entity/ControllableEntity/Scripts/main.lua")
+
+fake.loadClass(game.paths.controllerClass, {
+  "InpActEvt_IA_Move_K2Node_EnhancedInputActionEvent_27",
+  "InpActEvt_IA_Look_K2Node_EnhancedInputActionEvent_28",
+  "InpActEvt_IA_Shoot_K2Node_EnhancedInputActionEvent_37",
+  "InpActEvt_IA_Reload_K2Node_EnhancedInputActionEvent_32",
+})
+local controllerPath = game.paths.controllerClass .. ":"
+local moveHook = fake.hooks[controllerPath .. "InpActEvt_IA_Move_K2Node_EnhancedInputActionEvent_27"]
+local shootHook = fake.hooks[controllerPath .. "InpActEvt_IA_Shoot_K2Node_EnhancedInputActionEvent_37"]
+assert(moveHook and shootHook, "the controller's move and shoot handlers are hooked")
+assert(not fake.hooks[controllerPath .. "InpActEvt_IA_Reload_K2Node_EnhancedInputActionEvent_32"],
+  "actions the squid doesn't use are left alone")
+
+-- As crew, the hooks stay out of the way
+moveHook(fake.param(controller), fake.param({ X = 0, Y = 1 }))
+assert(#fake.callsTo(squid, "AddMovementInput") == 0)
+
+-- Volunteering is a key press away, in the lobby
+fake.keybinds.F8()
+local commands = fake.callsTo(link, "EntityServerCommand")
+assert(#commands == 1 and commands[1].args[1]:ToString() == "Volunteer")
+fake.keybinds.SPACE()
+assert(#fake.callsTo(link, "EntityServerCommand") == 1, "the ultimate key does nothing as crew")
+
+-- The host makes this player the entity
+controller.Pawn = squid
+fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("BecameEntity")), fake.param(0))
+
+moveHook(fake.param(controller), fake.param({ X = 0, Y = 1 }))
+local moves = fake.callsTo(squid, "AddMovementInput")
+assert(#moves == 2, "forward and right movement")
+assert(math.abs(moves[1].args[1].Y - 1) < 1e-9 and moves[1].args[2] == 1, "forward follows the camera's yaw")
+
+shootHook(fake.param(controller), fake.param({ pressed = true }))
+shootHook(fake.param(controller), fake.param({ pressed = false }))
+commands = fake.callsTo(link, "EntityServerCommand")
+assert(#commands == 2 and commands[2].args[1]:ToString() == "Attack", "a press sends one command, a release none")
+assert(math.abs(commands[2].args[2].Y - 1) < 1e-9, "the command carries the aim")
+
+fake.keybinds.SPACE()
+commands = fake.callsTo(link, "EntityServerCommand")
+assert(commands[#commands].args[1]:ToString() == "Ultimate")
+
+-- The HUD shows the meter and a ping
+fake.customEvents.EntityClientPing(fake.param(link), fake.param({ X = 100, Y = 0, Z = 0 }), fake.param(1.0),
+  fake.param(fake.name("Gunshot")))
+fake.runLoops(33)
+assert(createdWidgets == 1, "the HUD is created once")
+local percents = fake.callsTo(widget.UltimateBar, "SetPercent")
+assert(percents[#percents].args[1] == 0.5, "the bar shows the replicated meter")
+local labels = fake.callsTo(widget.UltimateText, "SetText")
+assert(labels[#labels].args[1].text == "HEAD GRAB  50%")
+local positions = fake.callsTo(widget.Ping0.Slot, "SetPosition")
+assert(#positions == 1 and positions[1].args[1].X == 400, "markers sit at the projected spot, in widget units")
+
+fake.now = 5
+fake.runLoops(33)
+local visibilities = fake.callsTo(widget.Ping0, "SetVisibility")
+assert(visibilities[#visibilities].args[1] == 2, "a ping disappears after it fades")
+assert(createdWidgets == 1, "the HUD is reused")
+
+print("client flow test passed")

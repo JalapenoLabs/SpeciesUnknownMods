@@ -3,7 +3,9 @@
 One player becomes the mission's monster and hunts the crew. Balanced around a kill meter instead of free instant
 kills, and around sound instead of wallhacks.
 
-- **Status:** design. Nothing is built yet.
+- **Status:** first version built and tested offline, awaiting its first playtest (see [Test plan](#test-plan)).
+- **Payload:** the Lua mod [`ControllableEntity/`](ControllableEntity/) plus the pak `ControllableEntity_P`, built by
+  `scripts/package-mods.sh`.
 - **Who installs it:** every player (the mod adds networked gameplay and a HUD).
 - **Independent of** [Unlimited Lobby Size](../unlimited-lobby-size/README.md); either works without the other.
 
@@ -17,21 +19,24 @@ kills, and around sound instead of wallhacks.
 
 ### Choosing the entity
 
-- In the lobby, a player opts in to be the entity before the shuttle leaves. The choice is private: only that
-  player sees it in the UI; the host's game is told over the network.
+- In the lobby, a player presses F8 to be the entity next mission (F8 again backs out). The choice is private:
+  only that player sees it; the host is told over the network. There is one entity per mission.
 - The entity is chosen before the mission loads, so the mission spawns the squid as its specimen, with the right
   bodies and corpses loaded.
 
 ### Kill meter
 
-- Basic attacks hurt and slow, but never kill outright. A shared cooldown stops spamming.
-- The meter fills slowly over time, faster near sounds, and from landing hits. When full, the ultimate (the squid's
-  head grab) is a guaranteed kill. It still has to land: the wind-up is visible and weakness weapons can interrupt it.
+- The lash (basic attack) hurts but never kills. Every move has its own cooldown (`config.lua`).
+- The meter fills over 90 seconds, twice as fast while a noise was heard within 15 m in the last 3 seconds. When
+  full, the ultimate arms the kill for 3 seconds and leaps (or drops from a vent): the grab that follows kills and
+  empties the meter. It still has to land, and shooting the squid breaks the grab as in the base game.
+- Any other grab is broken off (see [The grab rule](#the-grab-rule)).
+- On the roadmap: filling the meter from landed lashes.
 
 ### Frenzy
 
-When the crew reaches the mission's turning point, kills stop costing meter. Each kill re-arms after a short delay
-(start at 6 to 8 seconds and tune in playtests).
+When the crew reaches the mission's turning point, kills stop costing meter: in full frenzy every grab kills, and
+each kill re-arms after 7 seconds.
 
 | Contract type | Full frenzy starts when | Partial frenzy |
 |---------------|------------------------|----------------|
@@ -39,10 +44,10 @@ When the crew reaches the mission's turning point, kills stop costing meter. Eac
 | Kill or capture | | A player gets the special weapon |
 | Self destruct | The engines are activated | |
 
-Partial frenzy is still to be defined (for example, a faster meter instead of free kills).
+Partial frenzy fills the meter 2.5 times faster but grants no free kills.
 
 How the mod detects each trigger, on the host. None of the game's functions fire exactly once (re-grabs and every
-engine state change call them again), so the mod keeps its own once-per-mission flag for each.
+engine state change call them again); frenzy only ever escalates, so repeats change nothing.
 
 | Trigger | Post-hook | Condition |
 |---------|-----------|-----------|
@@ -60,54 +65,83 @@ engine state change call them again), so the mod keeps its own once-per-mission 
 
 ### Losing
 
-If the crew kills or captures the entity, the entity player loses. No respawn.
+If the crew kills the entity, the entity player loses: no respawn, and their camera follows a crew member for the
+rest of the mission. Losing to capture is still to be confirmed (see [Open questions](#open-questions)).
 
 ### No wallhacks, only sound
 
 - The entity never sees players through walls.
-- Every noise the game's AI would hear shows through walls as a faint ping at its rough position: gunfire, doors,
-  alarms, objectives. It flashes in fast and fades within about 1.5 seconds. Louder noises get bigger, longer pings,
-  and the further away a noise is, the fuzzier its position, so distant noises give a direction, not a spot.
-- This is fair by construction: the pings come from the same hearing sense the AI monsters use (`AISense_Hearing`
-  through `AIPerception`), so the entity knows exactly what the AI would know.
+- Every noise the game's AI would hear shows through walls as a ping at its rough position: gunfire, footsteps,
+  doors, the airlock alarm, explosions. It fades over 1.5 seconds. The further away a noise is, the further its
+  ping lands from the true spot (12% of the distance, up to 6 m), so distant noises give a direction, not a spot.
+- This is fair by construction: the pings come from the same noises, under the same range rules, that the AI
+  monsters' hearing uses (see [How the game makes noise](#how-the-game-makes-noise)).
+- On the roadmap: bigger, longer pings for louder noises.
 
 ### Vents
 
-- Vent entrances near the entity are highlighted. Entering, leaving and peeking down through a grate use the
-  squid's own vent moves (`JumpToVent`, `JumpFromVent`, `LookFromVent`).
-- Inside vents, a simple overlay of the vent network keeps the entity from getting lost.
+- Interact climbs into the nearest vent entrance within 3 m, or drops out of the nearest exit within 4 m onto any
+  crew member below. Crouch peeks down through the grate. All three use the squid's own vent moves (`JumpToVent`,
+  `AttackFromVent`, `LookFromVent`).
+- On the roadmap: highlighting nearby vent entrances, and an overlay of the duct network while inside.
 
 ### Controls and HUD
 
-- The entity uses the player's own input actions, so their key bindings carry over:
+The entity uses the player's own input actions, so their key bindings carry over. The game has no jump and no free
+key the mod could reuse, so the mod's two keys are its own.
 
-  | Game action | Squid |
-  |-------------|-------|
-  | `IA_Move`, `IA_Look`, `IA_Sprint` | Move, look, run |
-  | `IA_Shoot` | Basic attack |
-  | `IA_ADS` | Leap (aim, then release) |
-  | `IA_Interact` | Enter or leave a vent |
-  | `IA_Crouch` | Peek down from a vent |
-  | `IA_FlashLight` | Second ability (to be designed) |
-  | Space (new, the game has no jump) | Ultimate |
+| Input | As the entity |
+|-------|---------------|
+| Move, Look (`IA_Move`, `IA_Look`) | Move and look |
+| Shoot (`IA_Shoot`) | Lash: a basic attack on the nearest crew member ahead, never lethal |
+| Aim (`IA_ADS`) | Leap where you look; a grab on landing is broken off unless the kill is ready |
+| Interact (`IA_Interact`) | Climb into the nearest vent, or drop out of it onto whoever is below |
+| Crouch (`IA_Crouch`) | Peek down through the grate while in a vent |
+| Space (mod key) | Ultimate: with a full meter, leap (or drop) and the grab kills |
+| F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out |
 
-- HUD in the style of Overwatch: the ultimate and its meter in the middle, abilities with cooldowns in the bottom
-  left.
+The HUD puts the kill meter bottom centre (`HEAD GRAB  73%`, then `HEAD GRAB READY [SPACE]`), abilities with their
+cooldowns bottom left, a `FRENZY` banner top centre, short messages mid-screen, and noise pings as coloured
+markers over the world: red gunshots, blue footsteps, amber alarms, doors and explosions.
+
+There's no sprint yet: the crew's sprint is bound on the crew character, not the controller, so it never reaches
+the squid. The squid moves at the game's combat speed.
+
+## Install
+
+Every player installs both halves:
+
+1. UE4SS, as for any mod ([docs/ue4ss.md](../../docs/ue4ss.md#installing-ue4ss)).
+2. The pak: `scripts/package-mods.sh --install` builds it and copies `ControllableEntity_P.{pak,utoc,ucas}` into
+   `SpeciesUnknown/Content/Paks/~mods/`. Players without the repository copy those three files there.
+3. The Lua: copy `ControllableEntity/` into `Win64/ue4ss/Mods/` (or `scripts/link-mod.sh controllable-entity`).
 
 ## Architecture
 
 One design, identical on every machine. Lua owns the gameplay; a small Blueprint pak supplies only what Lua cannot
-create: network events and widget layouts.
+create: network events and a widget layout.
 
-- **Lua (UE4SS)** does all the work: input, squid control, the kill meter and frenzy, noise pings, forcing the
-  squid, keeping the entity out of the crew, and the HUD's values.
-- **Blueprint pak** (`ControllableEntity`, loaded from `Content/Paks/LogicMods/` by UE4SS's BPModLoader):
-  - `BP_EntityLink`: a replicated actor the host spawns for the entity player, owned by their player controller.
-    It declares the network events (a server event carrying a command, an aim point and a target; an owning-client
-    event carrying a noise ping) and the replicated meter and frenzy state. The events have no logic of their own:
-    UE4SS's `RegisterCustomEvent` runs Lua when each one executes, on the machine it executes on.
-  - `WBP_EntityHUD`: the HUD layout (ultimate and meter in the middle, abilities bottom left, ping markers). Lua
-    fills in the values.
+- **Lua (UE4SS)**, in `ControllableEntity/Scripts/entity/`, one module per job:
+
+  | Module | Runs on | Does |
+  |--------|---------|------|
+  | `links.lua` | both | Spawns a `BP_EntityLink` per player (host) and routes its events to the modules below |
+  | `takeover.lua` | host | Volunteering, forcing the squid, possessing it, crew exclusion, loss |
+  | `abilities.lua` | host | Commands to squid moves, cooldowns, the grab rule, the meter's tick |
+  | `meter.lua` | host | The kill meter and frenzy rules, as plain logic (unit tested) |
+  | `frenzy.lua` | host | The three frenzy triggers |
+  | `senses.lua` | host | Noise sources to blurred pings |
+  | `control.lua` | entity player | Input to movement and commands; the mod's keys |
+  | `hud.lua` | entity player | The HUD |
+  | `game.lua`, `config.lua` | both | Game paths and helpers; every tunable |
+
+- **Blueprint pak** (`ControllableEntity_P`, in `Content/Paks/~mods/`), generated from code by the asset builder
+  in `unreal/SpeciesUnknown/Source/SpeciesUnknownModKit` (see [docs/pak-mods.md](../../docs/pak-mods.md)):
+  - `BP_EntityLink`: a replicated actor the host spawns for every player, owned by their controller and relevant to
+    them alone. Its events, `EntityServerCommand` (player to host), `EntityClientPing` and `EntityClientEvent`
+    (host to player), have no logic of their own: UE4SS's `RegisterCustomEvent` runs Lua when each one executes,
+    on the machine it executes on. Its replicated `Meter` and `Frenzy` feed the HUD.
+  - `WBP_EntityHUD`: the HUD's layout. Lua fills in every value.
 - **Runtime Blueprint only, by necessity.** Unreal projects normally put systems in C++, but a pak mod cannot ship
   C++: the game's executable does not contain our modules. Any C++ stays in editor-only tooling.
 - **Built with UE 5.7.4** (changelist 51494982, the game's exact engine build), so cooked assets match the game.
@@ -115,21 +149,44 @@ create: network events and widget layouts.
 ### Input
 
 The game binds all gameplay input on its player controller (`BP_MyPlayerController.InpActEvt_IA_*`), and each
-handler forwards to the possessed pawn's `BPI_PlayerInput_*` interface (for example `BPI_PlayerInput_Shoot`). The
-squid doesn't implement that interface, so for the entity player the handlers simply stop there. Lua post-hooks
-those handlers on the entity player's machine and sends each action to the host through `BP_EntityLink`. The
-player's own key bindings carry over with no new input assets.
+handler forwards to the possessed pawn's `BPI_PlayerInput_*` interface. The squid doesn't implement it, so while
+the player drives the squid the handlers do nothing, and Lua post-hooks on them take over:
+
+- **Move and look** apply on the player's own machine, mirroring the crew character's own handlers: movement along
+  the camera's yaw (`AddMovementInput`), look through `AddControllerYawInput` / `AddControllerPitchInput`. The
+  squid is a possessed `ACharacter`, so movement replicates like any player's.
+- **Buttons** become `EntityServerCommand` calls carrying the camera's aim.
+- **Reading the values:** `FInputActionValue` has no reflected fields, so Lua passes it straight to the engine's
+  own converters (`Conv_InputActionValueToAxis2D`, `...ToBool`). UE4SS copies a struct of the right type into a
+  call whole (`CopyCompleteValue`), which is what makes that work.
+- **Generated names:** handler names carry node numbers (`..._K2Node_EnhancedInputActionEvent_27`) that a game
+  patch can change, so the hooks find them by pattern when the controller class loads.
 
 ### Flow of one action
 
-1. The entity player presses shoot. `InpActEvt_IA_Shoot_*` runs on their machine; the Lua post-hook sees it.
-2. Lua calls `BP_EntityLink.ServerCommand("Attack", aim, target)`, a server event, so it runs on the host.
-3. On the host, `RegisterCustomEvent("ServerCommand")` runs Lua, which checks the meter and cooldowns and calls the
-   squid's own function (`BPI_BasicMonster_SetSimpleAttack`).
+1. The entity player presses Shoot. `InpActEvt_IA_Shoot_*` runs on their machine; the Lua post-hook sees it.
+2. Lua calls `BP_EntityLink.EntityServerCommand("Attack", aim, nil)`, a server event, so it runs on the host.
+3. On the host, `RegisterCustomEvent("EntityServerCommand")` runs Lua, which checks the sender is the entity and
+   the move is off cooldown, then calls the squid's own function (`BPI_BasicMonster_SetSimpleAttack`).
+4. The host answers with `EntityClientEvent("Cooldown.Attack", 1.2)`, which the HUD shows.
 
-Taking control of the monster is plain possession. Monsters are `ACharacter`s (`BP_BaseMonster` with a
-`CharacterMovementComponent`), so movement replicates without extra work once the entity player's controller
-possesses the squid and its AI controller is set aside.
+### The grab rule
+
+Every grab starts in the squid's `GrabHeadPlayer`, whether from a leap or a vent drop, and the game's decapitation
+later kills only while the squid's `IsGrabPlayer` is still set. When a grab starts and the meter says it may not
+kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack (Clients)` with
+`Poulpi_Hit_DuringGrab_Front_Montage`) a frame later. That releases the player on every machine and clears
+`IsGrabPlayer`, the same way the game breaks a grab when the crew shoots the squid.
+
+### Tests
+
+`scripts/test-mods.sh` runs, offline:
+
+- `tests/meter_test.lua`: the meter and frenzy rules.
+- `tests/host_flow_test.lua` and `tests/client_flow_test.lua`: the real scripts through a whole round, as the host
+  and as the entity player's machine, against `tests/fake_ue4ss.lua`, a stand-in for UE4SS and the game objects.
+
+They prove the wiring, call shapes and rules. Only a playtest proves the game agrees with the stand-in.
 
 ## How the squid's moves work
 
@@ -245,10 +302,36 @@ makes the next mission spawn the squid, through the game's own spawn path (`GetM
 
 ## Open questions
 
-- Partial frenzy (kill and capture contracts): what it gives instead of free kills.
-- Without meter, how the leap and vent drop stop short of the kill: end the attack before the grab, or release the
-  grab before the decapitation.
+- Partial frenzy (kill and capture contracts): it currently fills the meter faster; is that enough?
 - Whether the score screen should show the entity player as something other than a dead crew member.
 - Destruction contracts on the Polar map: no engine path was found there; `LightStatut == 2` is the fallback trigger.
+- Capture: losing on death is handled; whether a captured squid also counts as a loss is untested.
 - To confirm live with UE4SS: the AI hearing range (4000), weapon `HearingLoudness`/`HearingRange`, the special
   guns' `IsUnique` flag, and whether the host's own gunshots make noise.
+
+## Test plan
+
+The mod needs at least two players: the crew list can't be emptied (the game ends the mission), so a solo host
+can't be the entity. UE4SS writes the mod's log lines, all starting `[ControllableEntity]`, to
+`Win64/ue4ss/UE4SS.log` on each machine.
+
+1. **Loads.** Every player launches with UE4SS, the pak and the Lua installed. The log shows
+   `Loaded. F8 in the lobby volunteers to be the entity.` and, once in the lobby, `Hooked ... BP_MyPlayerController`.
+2. **Volunteering is private.** In the lobby, one player presses F8. Only they see "You'll be the entity next
+   mission". Pressing F8 again backs out; a second player pressing F8 while someone is signed up sees "Someone else
+   already claimed the entity".
+3. **The squid is forced and taken.** Start a contract. The mission's specimen is the squid, the volunteer sees
+   "You are the entity" and controls it, and the host's log shows `took control of the squid` then
+   `Kept the entity out of the crew`. The volunteer's crew body is gone.
+4. **Moving.** Walk, look, and check the crew see the squid move smoothly. Note any rubber-banding.
+5. **Lash, leap, vents.** Shoot next to a crew member: a lash with a cooldown on the HUD. Aim: a leap where you
+   look; a grab on landing breaks off with "Your hunger isn't ready". Interact by a vent: climb in; Crouch peeks;
+   Interact again drops out.
+6. **The kill.** Wait for the meter to fill (90 s, faster near noise), press Space facing a crew member: the leap's
+   grab kills. The meter empties.
+7. **Senses.** Have the crew shoot, walk and trigger doors and alarms out of sight. The entity sees fading markers
+   through walls, never the players themselves.
+8. **Frenzy.** On an extraction contract, pick up the black box: `FRENZY` appears and grabs kill without meter, each
+   re-arming after 7 s.
+9. **Launching.** The crew board the shuttle and launch without the entity; with the squid aboard, it doesn't launch.
+10. **Losing.** Kill the squid: the entity player sees "The crew got you" and watches a crew member.

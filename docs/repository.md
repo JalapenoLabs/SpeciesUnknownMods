@@ -12,6 +12,7 @@ mods/<mod-name>/          one directory per mod, kebab-case
   <PayloadName>/          exactly what gets installed into the game, PascalCase
     enabled.txt
     Scripts/main.lua
+  tests/                  offline tests (*_test.lua), run by scripts/test-mods.sh
 scripts/                  repository tooling
 ```
 
@@ -43,6 +44,7 @@ scripts/                  repository tooling
 | `scripts/kismet_pseudocode.py <asset.json>` | Prints a Blueprint's bytecode as pseudo-code |
 | `scripts/build-mod-assets.sh` | Compiles the editor-only asset builder and regenerates every mod's Blueprint assets |
 | `scripts/package-mods.sh [--install]` | Generates, cooks and packs every mod's pak into `dist/paks/` (and the game) |
+| `scripts/test-mods.sh` | Syntax-checks every mod's Lua and runs every mod's offline tests |
 
 `link-mod.sh` takes the game location from `SPECIES_UNKNOWN_DIR` when it is set, otherwise the Steam library path
 in [game-internals.md](game-internals.md#paths-on-this-machine).
