@@ -5,9 +5,14 @@
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Engine/EngineTypes.h"
+#include "Widgets/Layout/Anchors.h"
 
 // Plain descriptions of the Blueprint assets a mod needs. Each mod writes its assets as these specs in code, and
 // FBlueprintAssetBuilder turns them into real assets, so the C++ is the single source of truth for every asset.
+
+// ////////////////////// //
+//     Network actors     //
+// ////////////////////// //
 
 // Which machine a network event runs on, mirroring the Blueprint editor's "Replicates" dropdown.
 enum class EModNetworkEventTarget : uint8 {
@@ -54,3 +59,38 @@ namespace ModPinTypes {
 	SPECIESUNKNOWNMODKIT_API FEdGraphPinType Vector();
 	SPECIESUNKNOWNMODKIT_API FEdGraphPinType Object(UClass* ObjectClass);
 }
+
+// ////////////////////// //
+//        Widgets         //
+// ////////////////////// //
+
+enum class EModWidgetKind : uint8 {
+	Text,
+	ProgressBar,
+	// A plain coloured rectangle, used for markers.
+	Box,
+};
+
+// One widget on the widget's canvas. Every element becomes a variable on the generated class under its name, so Lua
+// reaches it as `hud.<Name>`.
+struct FModWidgetElement {
+	FName Name;
+	EModWidgetKind Kind = EModWidgetKind::Text;
+	// Where on screen the element is pinned (0..1 per axis), and which point of the element sits there.
+	FAnchors Anchors = FAnchors(0.5f, 0.5f);
+	FVector2D Alignment = FVector2D(0.5f, 0.5f);
+	// Offset from the anchor, in pixels.
+	FVector2D Position = FVector2D::ZeroVector;
+	// Fixed size in pixels; leave zero to size text to its content.
+	FVector2D Size = FVector2D::ZeroVector;
+	FLinearColor Color = FLinearColor::White;
+	FString Text;
+	int32 FontSize = 18;
+	bool bHidden = false;
+};
+
+// A user widget Blueprint made of a single canvas of elements. Lua owns all of its behaviour.
+struct FModWidgetSpec {
+	FString AssetPath;
+	TArray<FModWidgetElement> Elements;
+};

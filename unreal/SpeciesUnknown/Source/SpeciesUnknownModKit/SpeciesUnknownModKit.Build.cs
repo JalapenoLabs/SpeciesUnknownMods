@@ -21,6 +21,10 @@ public class SpeciesUnknownModKit : ModuleRules {
 			"EditorScriptingUtilities",
 			"Kismet",
 			"KismetCompiler",
+			"Slate",
+			"SlateCore",
+			"UMG",
+			"UMGEditor",
 			"UnrealEd",
 		});
 	}
