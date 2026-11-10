@@ -41,6 +41,8 @@ scripts/                  repository tooling
 | `scripts/render-covers.sh` | Renders every `mods/*/cover.svg` to `cover.png` |
 | `scripts/make_minimal_usmap.py <out>` | Writes the mappings file that lets kismet-analyzer parse Blueprint functions |
 | `scripts/kismet_pseudocode.py <asset.json>` | Prints a Blueprint's bytecode as pseudo-code |
+| `scripts/build-mod-assets.sh` | Compiles the editor-only asset builder and regenerates every mod's Blueprint assets |
+| `scripts/package-mods.sh [--install]` | Generates, cooks and packs every mod's pak into `dist/paks/` (and the game) |
 
 `link-mod.sh` takes the game location from `SPECIES_UNKNOWN_DIR` when it is set, otherwise the Steam library path
 in [game-internals.md](game-internals.md#paths-on-this-machine).

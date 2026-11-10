@@ -4,39 +4,52 @@ A pak mod ships cooked assets that the game mounts on top of its own. Use one wh
 can't create: new or replaced meshes, textures, sounds, widgets or Blueprint classes. For behaviour changes, prefer
 a [UE4SS Lua mod](ue4ss.md); it needs no editor and survives game patches better.
 
-No pak mod exists in this repository yet. This page records the format the game needs, so the first one starts
-from the right place.
-
 ## Format the game loads
 
-The game is UE 5.7 with IoStore (see [game-internals.md](game-internals.md)). A mod container is therefore the
-same three-file set as the game's own, with the `_P` suffix that makes it win over the base game:
+The game is UE 5.7 with IoStore (see [game-internals.md](game-internals.md)). A mod container is the same
+three-file set as the game's own, with the `_P` suffix that makes it win over the base game:
 
 ```text
 SpeciesUnknown/Content/Paks/~mods/
-  MyMod_P.pak     small pak, holds the container's metadata
-  MyMod_P.utoc    IoStore table of contents
-  MyMod_P.ucas    IoStore asset data
+  MyMod_P.pak     empty pak; the engine only finds a .utoc through a mounted .pak of the same name
+  MyMod_P.utoc    IoStore table of contents, with its own directory index
+  MyMod_P.ucas    IoStore package data
 ```
 
 - The game's containers are unencrypted and unsigned, so mod containers need no key and no signature.
-- The confirmed path is the IoStore `_P` triple. Whether a legacy `.pak` of `.uasset` files also mounts in this
-  build is untested. Convert legacy output with [retoc](https://github.com/trumank/retoc) (`retoc to-zen`), or have
-  the editor write IoStore output directly.
-- Asset paths must match the game's (`/Game/...`) to replace an asset. A new asset goes under a mod-specific path
-  such as `/Game/Mods/<ModName>/`.
+- Asset paths must match the game's (`/Game/...`) to replace an asset. A new asset goes under
+  `/Game/Mods/<ModName>/`.
 
-## Building one
+## Building
 
-1. Make an empty UE **5.7** project named `SpeciesUnknown`, so cooked paths come out as `/Game/...` under the
-   right project. The engine version must match: assets cooked by another version won't load.
-2. Recreate any game asset the mod replaces at the same path. A placeholder is fine for anything only referenced.
-3. Cook for Windows, then package the mod's directory into an IoStore container. Use chunk assignment
-   (Primary Asset Labels) so only mod assets go into the mod container.
-4. Copy the `_P` triple into `Content/Paks/~mods/`.
+Everything lives in `unreal/SpeciesUnknown/`, a UE **5.7.4** project named after the game so cooked paths come
+out as `/Game/...`. 5.7.4 is the game's exact engine build (changelist 51494982). One command does the whole build:
 
-Building needs the Unreal Editor and a shader cook, which uses a lot of CPU and GPU. Don't do it while the game
-is running.
+```bash
+scripts/package-mods.sh            # writes dist/paks/<Mod>_P.{pak,utoc,ucas}
+scripts/package-mods.sh --install  # also copies them into the game's Content/Paks/~mods/ (game must be closed)
+```
+
+What it does:
+
+1. **Generates the assets** from code (`scripts/build-mod-assets.sh`): an editor-only C++ module,
+   `Source/SpeciesUnknownModKit`, turns each mod's asset specs into Blueprints under `Content/Mods/<Mod>/`. Those
+   assets are build output and are not committed; the C++ is the source.
+2. **Cooks for Linux**, unversioned, in a headless editor. The Linux engine build can't cook for Windows, and it
+   doesn't need to: Blueprint-only content cooks the same for both desktop platforms, and IoStore containers are
+   platform-neutral. `Config/DefaultGame.ini` tells the cooker to include `/Game/Mods`, which nothing else
+   references.
+3. **Packs one container per mod** with `UnrealPak`, the packager that built the game, using the same commands UAT
+   runs for a packaged build (`-CreateGlobalContainer` with a `-Commands` file). The global container it also
+   writes is discarded; the game ships its own.
+4. **Writes an empty `.pak`** beside each container.
+
+Packages a mod ships may import only native classes that exist in the game. A container can be checked against the
+game's own script objects by converting it back with retoc next to the game's `global.utoc` (see
+[reverse-engineering.md](reverse-engineering.md)): any unresolved import fails the conversion.
+
+`retoc to-zen` cannot build these containers: release v0.1.5 doesn't read the UE 5.7 `ImportTypeHierarchies`
+summary field that 5.7.4 cooks write. Its master branch has the fix, but there's no release with it yet.
 
 ## Blueprint logic mods
 
