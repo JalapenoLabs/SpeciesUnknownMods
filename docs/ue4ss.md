@@ -43,6 +43,14 @@ The 2024 stable release, `v3.0.1`, predates UE 5.7 and will not attach to this g
 
 To launch once without UE4SS while keeping it installed, add `--disable-ue4ss` to the launch options.
 
+For development and playtests, turn on these keys in `ue4ss/UE4SS-settings.ini` (all are 0 in the standard build):
+
+| Key | Gives |
+|-----|-------|
+| `ConsoleEnabled = 1` | The console window with live mod output |
+| `GuiConsoleEnabled = 1`, `GuiConsoleVisible = 1` | The GUI: Live View and the Dumpers tab (`.usmap`, `.jmap`) |
+| `EnableHotReloadSystem = 1` | `Ctrl+R` restarts every Lua mod without restarting the game |
+
 ## Mod layout
 
 ```text
