@@ -96,15 +96,35 @@ If the crew kills or captures the entity, the entity player loses. No respawn.
 
 ## Architecture
 
-One design, identical on every machine. Two layers, split by what each tool can do:
+One design, identical on every machine. Lua owns the gameplay; a small Blueprint pak supplies only what Lua cannot
+create: network events and widget layouts.
 
-- **Blueprint logic mod** (a pak loaded by UE4SS's BPModLoader; authored in the UE 5.7 editor). Owns everything
-  that must exist on every machine or cross the network: a replicated component on each player controller, input
-  bindings to the game's input actions, server calls that turn input into squid moves on the host, the replicated
-  meter and frenzy state, the HUD widgets, and the sound pings.
-- **Lua adapter** (UE4SS). A thin layer for the game's own Blueprints, which a Blueprint mod can call but not hook:
-  keeping the entity out of the shuttle's "everyone seated" launch count, catching the frenzy triggers, and forcing
-  the mission's specimen to the squid.
+- **Lua (UE4SS)** does all the work: input, squid control, the kill meter and frenzy, noise pings, forcing the
+  squid, keeping the entity out of the crew, and the HUD's values.
+- **Blueprint pak** (`ControllableEntity`, loaded from `Content/Paks/LogicMods/` by UE4SS's BPModLoader):
+  - `BP_EntityLink`: a replicated actor the host spawns for the entity player, owned by their player controller.
+    It declares the network events (a server event carrying a command, an aim point and a target; an owning-client
+    event carrying a noise ping) and the replicated meter and frenzy state. The events have no logic of their own:
+    UE4SS's `RegisterCustomEvent` runs Lua when each one executes, on the machine it executes on.
+  - `WBP_EntityHUD`: the HUD layout (ultimate and meter in the middle, abilities bottom left, ping markers). Lua
+    fills in the values.
+- **Runtime Blueprint only, by necessity.** `docs` and the Unreal standards put C++ first, but a pak mod cannot
+  ship C++: the game's executable does not contain our modules. Anything C++ stays in editor-only tooling.
+
+### Input
+
+The game binds all gameplay input on its player controller (`BP_MyPlayerController.InpActEvt_IA_*`), and each
+handler forwards to the possessed pawn's `BPI_PlayerInput_*` interface (for example `BPI_PlayerInput_Shoot`). The
+squid doesn't implement that interface, so for the entity player the handlers simply stop there. Lua post-hooks
+those handlers on the entity player's machine and sends each action to the host through `BP_EntityLink`. The
+player's own key bindings carry over with no new input assets.
+
+### Flow of one action
+
+1. The entity player presses shoot. `InpActEvt_IA_Shoot_*` runs on their machine; the Lua post-hook sees it.
+2. Lua calls `BP_EntityLink.ServerCommand("Attack", aim, target)`, a server event, so it runs on the host.
+3. On the host, `RegisterCustomEvent("ServerCommand")` runs Lua, which checks the meter and cooldowns and calls the
+   squid's own function (`BPI_BasicMonster_SetSimpleAttack`).
 
 Taking control of the monster is plain possession. Monsters are `ACharacter`s (`BP_BaseMonster` with a
 `CharacterMovementComponent`), so movement replicates without extra work once the entity player's controller
