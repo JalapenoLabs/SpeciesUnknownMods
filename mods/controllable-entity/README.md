@@ -108,8 +108,9 @@ create: network events and widget layouts.
     UE4SS's `RegisterCustomEvent` runs Lua when each one executes, on the machine it executes on.
   - `WBP_EntityHUD`: the HUD layout (ultimate and meter in the middle, abilities bottom left, ping markers). Lua
     fills in the values.
-- **Runtime Blueprint only, by necessity.** `docs` and the Unreal standards put C++ first, but a pak mod cannot
-  ship C++: the game's executable does not contain our modules. Anything C++ stays in editor-only tooling.
+- **Runtime Blueprint only, by necessity.** Unreal projects normally put systems in C++, but a pak mod cannot ship
+  C++: the game's executable does not contain our modules. Any C++ stays in editor-only tooling.
+- **Built with UE 5.7.4** (changelist 51494982, the game's exact engine build), so cooked assets match the game.
 
 ### Input
 
