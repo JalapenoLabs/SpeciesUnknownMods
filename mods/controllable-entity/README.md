@@ -34,12 +34,17 @@ kills, and around sound instead of wallhacks.
 
 ### The start: the lair and the power
 
-- At the takeover the squid goes straight into a vent (its lair), at least 25 m from every crew member when the
-  map allows, otherwise as far from them as possible. It doesn't start where the game spawned it.
+- At the takeover the squid goes straight into the ducts: the vent nearest where the game spawned it that is at
+  least 25 m from every crew member (the farthest from them when none is). The game manager picks each mission's
+  monster spawn (`BP_GameManager.GetSpawnPoint`: the map's `MonsterSpawnPoint`, or one of its `PowerOnSpawnPoint`s
+  when the power is on at the start; the Terminator, which can't vent, has its own `NoVentSpawnPoint`s), so the
+  entity starts where the AI would.
 - Missions start with the ship's power off, and the crew is safe until they turn it on: the game's own grace
-  period. Until then the squid stays in the ducts within 12 m of its lair. Moving and looking stay free, and so do
-  the lash and peeking, but leaving the ducts (the vent drop, the leap, the ultimate) waits for the power. Straying
-  past the leash, or dropping out of the ducts, puts the squid back.
+  period. Until then the whole duct network is the squid's lair. Moving, looking, the lash, peeking, the cries and
+  climbing inside the ducts stay free, but leaving the ducts (the vent drop, the leap, the ultimate) waits for the
+  power. Leaving them another way (out of a crawl opening) puts the squid back where it last stood inside.
+- Playing alone, nobody else can turn the power on, so F8 as the entity turns it on (as the power screen does), for
+  testing what comes after the lair.
 - Once the power is on, the squid is free for good, even if the crew turns the power off again. Contracts that
   start with the power on leave it free from the start.
 - How the game represents the power and the vents:
@@ -210,11 +215,12 @@ gets a mod key of its own.
 | Objectives (`IA_ViewPseudo`, Tab, held) | Show the entity's objectives, in the crew's own overlay |
 | Flashlight (`IA_FlashLight`) | Switch between third person (the start) and first person; in first person the squid's own mesh is hidden from its player |
 | Hold Tool (`IA_HoldTool`, Space) | Climb into the nearest vent, drop out of it onto whoever is below, or climb a step up inside the ducts |
-| F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out |
+| Weapon slots 1, 2, 3 (`IA_Slot1`–`IA_Slot3`) | Cry out, for everyone near to hear: a roar, a curious call, a long call |
+| F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out. As the entity, playing alone: turn the power on |
 | F9 (mod key, host only) | Turn entity mode on or off |
 | Left Shift (mod key, held) | Sprint, on stamina |
 | `.` and `,` (mod keys) | Zoom the minimap in and out |
-| H (mod key) | Hide the peek prompt and the key hints under the minimap, or show them again |
+| H (mod key) | Hide the key hints under the minimap, or show them again |
 
 The view starts in third person, behind the squid along the player's look, passing through walls (many duct walls
 are invisible collision, which would otherwise pull the camera into the squid's head).
@@ -228,17 +234,17 @@ limit.
 
 The HUD is laid out like the crew's own, so the top of the screen holds only the minimap:
 
-- **Actions, bottom left, stacked:** the ultimate (a skull and E), venting (Space), the leap and the lash. Each shows
-  a bar on its left while it charges, in the crew HUD's flashlight-bar colour, and nothing once it's ready; the bar's
-  space stays reserved, so the stack never shifts. The ultimate's bar is the kill meter (amber), or in full frenzy the
-  re-arm between kills (red). The lash and the leap are the mouse buttons, so they show no key. A move the lair holds
+- **Actions, bottom left, stacked:** the lash (left mouse button), the leap (right), the ultimate (a skull and E)
+  and venting (Space). Each row is the key, the icon, and a bar on the right while it charges, in the crew HUD's
+  flashlight-bar colour, and nothing once it's ready; the bar's space stays reserved, so the stack never shifts. The
+  ultimate's bar is the kill meter (amber), or in full frenzy the re-arm between kills (red). A move the lair holds
   back (leaving the ducts before the power is on) dims.
+- **Keys are the game's own glyphs** (its `/Game/KeyIcons` textures, as in its "press E" prompts), each as large as
+  fits its slot without stretching: the space bar's glyph is wide, the mouse's tall.
 - **Health and stamina, under the actions:** the health bar shows the pool the squid is on. Standing, that is its
   stagger pool, in the crew HUD's green: hits drain it, and at zero the squid is knocked down. Down, it is the squid's
   real health, in red, which only the crew's fire drains while the squid is down and burning. The stamina bar shows
   only once sprinting has used some, as the crew's does.
-- **The peek prompt, lower centre:** `C Peek`, in the style of the game's own "press E" prompt, shown only while
-  peeking would work: in a vent, over a grate, with peek recharged.
 - **Bottom centre:** the `FRENZY` banner, then the host's messages. A message stays a second plus 300 ms a word, at
   least three seconds; the volunteer's status and the lair's "wait for the power" hint stay until they change.
 - **Noise pings** as coloured markers over the world: red gunshots, blue footsteps, amber alarms, doors and
@@ -255,8 +261,8 @@ The HUD is laid out like the crew's own, so the top of the screen holds only the
   crew have left, `BP_MyGameState.Respawn`), and stay alive. The entity wins exactly when the crew is all dead with no
   respawns left, which is when the game itself ends the mission. Nothing on it hints at the crew's contract, and the
   crew's name tags, which their Tab also shows, stay hidden.
-- **Key hints, under the minimap, small:** `H hints` and `F camera`. H hides them and the peek prompt, and brings them
-  back.
+- **Key hints, under the minimap, small:** `C Peek`, only while peeking would work (in a vent, over a grate, with
+  peek recharged), and `F camera`. H hides them, and brings them back.
 - The crew HUD (status bars, objectives, crosshair) is hidden while the player is the squid, and so are the wall maps
   on the bridge and in the planet's power room (`UMG_Map`, `UMG_Map_POLAR`, blank on the entity's screen only): they
   show where the mission's items are, which the entity must find out by hunting, so the crew can mislead them. The
@@ -295,7 +301,8 @@ create: network events and a widget layout.
   |--------|---------|------|
   | `links.lua` | both | Spawns a `BP_EntityLink` per player (host) and routes its events to the modules below |
   | `takeover.lua` | host | Entity mode, volunteering and the random pick, forcing the squid, possessing it, crew exclusion, loss |
-  | `lair.lua` | host | The start in a vent away from the crew, and the leash until the power is on |
+  | `lair.lua` | host | The start in the ducts near the game's spawn, the ducts as the lair until the power is on, and F8's power alone |
+  | `cries.lua` | host | The squid's cries: on the 1, 2 and 3 keys, on spotting a crew member, and on getting back up |
   | `vents.lua` | both | Finding vent shafts, the in-duct spots beside them, and the steps up inside the ducts |
   | `abilities.lua` | host | Commands to squid moves, cooldowns, the grab rule, the meter's tick |
   | `movement.lua` | both | The squid's speed, the vent bonus, and the sprint and its stamina |
@@ -369,7 +376,8 @@ kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack 
 - `tests/host_flow_test.lua` and `tests/client_flow_test.lua`: the real scripts through a whole round, as the host
   and as the entity player's machine, against `tests/fake_ue4ss.lua`, a stand-in for UE4SS and the game objects.
 - `tests/entity_mode_test.lua`: F9, forcing the squid from the lobby, and the random pick.
-- `tests/lair_test.lua`: the start in a vent, the leash and the power.
+- `tests/lair_test.lua`: the start in the ducts near the game's spawn, the ducts as the lair, the power, and F8 alone.
+- `tests/cries_test.lua`: the cries the squid makes on its own.
 - `tests/hunt_test.lua`: the vents' time limit once the crew holds the special weapon.
 - `tests/crawl_test.lua`: the squid crouching into a crawl opening only while heading in.
 - `tests/zones_test.lua`: kept off the shuttle and out of forbidden areas, the shuttle's approach, and the marked
@@ -552,18 +560,21 @@ one friend.
 5. **The view and the HUD.** The Flashlight key switches to first person and back; in first person the squid's own
    body is gone from view. The crew HUD (health, stamina, objectives, crosshair) is gone. The entity HUD has the
    actions stacked bottom left with the health bar (full, green) under them, and only the minimap at the top, with
-   a view cone that turns as you look and `H hints  F camera` under it. Sprint until the stamina bar appears under
-   the health bar; it goes once full again. H hides the hints, H again brings them back.
-6. **The lair.** With the power still off, the hint "Lurk in the vents until the crew turns the power on" stays on
-   screen. Crawl away from the start: past about 12 m the squid snaps back, and Space, Aim and E answer "The vents
-   hold you until the power is on"; Aim's and E's rows in the stack are dimmed. When the crew turns the power on, the
-   entity sees "The power is on. Hunt." and roams freely. Alone, nobody can turn it on; a contract that starts with
-   the power on shows the squid free from the start.
+   a view cone that turns as you look and `F camera` under it. The rows read top to bottom: left mouse, right mouse,
+   E, then the game's space bar glyph, each key, then its icon, then its bar on the right while it charges. Sprint
+   until the stamina bar appears under the health bar; it goes once full again. H hides the hints, H again brings
+   them back.
+6. **The lair.** You start in the ducts near where the game spawns its monster. With the power still off, the hint
+   "Lurk in the vents until the power is on" stays on screen (alone, it adds that F8 turns it on). Crawl anywhere in
+   the ducts: nothing pulls you back. Space over an opening, Aim and E answer "The vents hold you until the power is
+   on"; Aim's and E's rows in the stack are dimmed. When the power comes on (alone: press F8), the entity sees "The
+   power is on. Hunt." and roams freely. A contract that starts with the power on shows the squid free from the start.
 7. **Vents and peeking.** Once free: Space over a vent opening drops out; Space standing under a vent climbs in.
    At the foot of a step up inside the ducts (an elbow joint the crew can only drop down), Space climbs it, even
    before the power is on. In third person, looking down stops at about 50° and the screen never goes black.
-   Over a grate in a vent, a `C Peek` prompt shows; Crouch peeks through the grate, and the prompt goes while peek
-   recharges. Away from a grate there's no prompt. Shoot with nobody near: the squid swings at the air.
+   Over a grate in a vent, `C Peek` shows under the minimap; Crouch peeks through the grate, and the hint goes while
+   peek recharges. Away from a grate there's no hint. Shoot with nobody near: the squid swings at the air.
+   Press 1, 2 and 3: a roar, a curious call and a long call, each with a short cooldown.
 8. **Entity mode.** In a co-op lobby the host presses F9: only the host sees "Entity mode: OFF"; the next mission
    rolls its own monster and nobody becomes it. F9 again turns it back on. A client's F9 shows "The host turns entity
    mode on or off".
@@ -595,8 +606,10 @@ one friend.
 20. **The hunt (with a friend, kill or capture contract).** Once a friend picks up the special weapon, the entity
     sees "the vents won't hide you for long" and a vent-time bar at the top whenever it's in the vents. Stay in for
     20 s: the squid is forced out of the nearest shaft, and Space under a vent answers "The vents take you again once
-    your vent time is half back" until about a minute outside. The squid cries out every 12 s; the friend should hear
+    your vent time is half back" until about a minute outside. The squid roars every 12 s; the friend should hear
     it near the squid and, far away, its distant call. Report if a forced exit lands the squid in a wall.
+    Also with the friend: their first time in your view, the squid calls out on its own; when they knock it down and
+    it gets back up, it roars. Your 1, 2 and 3 cries reach them from where the squid is.
 21. **Voice (with a friend).** The entity's voice reaches nobody, and their radio key makes no sound. The friend holds
     the radio key and talks: the entity hears them only when close, with no radio static. A hook error in the log on
     the first radio press names the voice call that needs fixing.

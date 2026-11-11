@@ -119,15 +119,6 @@ namespace {
 		return Element;
 	}
 
-	FModWidgetElement MakeKeyCap(const TCHAR* Name, const TCHAR* KeyLabel, int32 FontSize) {
-		FModWidgetElement Key;
-		Key.Name = Name;
-		Key.Kind = EModWidgetKind::KeyCap;
-		Key.Text = KeyLabel;
-		Key.FontSize = FontSize;
-		return Key;
-	}
-
 	FModWidgetElement MakeBar(const TCHAR* Name, FVector2D Size, FLinearColor Color) {
 		FModWidgetElement Bar;
 		Bar.Name = Name;
@@ -137,13 +128,22 @@ namespace {
 		return Bar;
 	}
 
-	// One action in the stack, the way the game shows its flashlight and tool rows: a bar on the left that Lua shows
-	// while the action recharges (its space stays reserved, so the stack never shifts), the icon, and the key in a
-	// rounded white box when the action has one worth naming. Lua reaches the parts as <Prefix>Bar, <Prefix>Icon,
-	// <Prefix>Key and <Prefix>KeyText, and dims the whole <Prefix>Slot while the action can't be used. The key label is
-	// a placeholder: Lua sets it.
-	FModWidgetElement MakeActionSlot(const TCHAR* Prefix, const TCHAR* IconName, const TCHAR* KeyLabel,
-		FLinearColor BarColor) {
+	// A key glyph: an image Lua fills with the game's own glyph for the key (its /Game/KeyIcons textures, as its "press
+	// E" prompts show) and sizes to that texture, inside a fixed space so what follows lines up. It sits against the
+	// space's right side, next to what it names.
+	FModWidgetElement MakeKeyGlyph(const TCHAR* Name, FVector2D Space) {
+		FModWidgetElement Glyph;
+		Glyph.Name = Name;
+		Glyph.Kind = EModWidgetKind::Image;
+		Glyph.Size = Space;
+		Glyph.ContentAlignment = HAlign_Right;
+		return Glyph;
+	}
+
+	// One action in the stack (playtest 7): its key, its icon, and a bar on the right that Lua shows while the action
+	// recharges (its space stays reserved, so the stack never shifts). Lua reaches the parts as <Prefix>Key,
+	// <Prefix>Icon and <Prefix>Bar, and dims the whole <Prefix>Slot while the action can't be used.
+	FModWidgetElement MakeActionSlot(const TCHAR* Prefix, const TCHAR* IconName, FLinearColor BarColor) {
 		FModWidgetElement Icon;
 		Icon.Name = FName(FString(Prefix) + TEXT("Icon"));
 		Icon.Kind = EModWidgetKind::Image;
@@ -154,11 +154,25 @@ namespace {
 		Slot.Name = FName(FString(Prefix) + TEXT("Slot"));
 		Slot.Kind = EModWidgetKind::Row;
 		Slot.Gap = 10.0f;
-		Slot.Children = {MakeBar(*(FString(Prefix) + TEXT("Bar")), FVector2D(56.0, 6.0), BarColor), Icon};
-		if (KeyLabel) {
-			Slot.Children.Add(MakeKeyCap(*(FString(Prefix) + TEXT("Key")), KeyLabel, 14));
-		}
+		Slot.Children = {
+			MakeKeyGlyph(*(FString(Prefix) + TEXT("Key")), FVector2D(72.0, 32.0)),
+			Icon,
+			MakeBar(*(FString(Prefix) + TEXT("Bar")), FVector2D(56.0, 6.0), BarColor),
+		};
 		return Slot;
+	}
+
+	// One key hint under the minimap: the key's glyph and what it does, as <Name>Key and <Name>Label inside <Name>.
+	FModWidgetElement MakeKeyHint(const TCHAR* Name, const TCHAR* Label, FLinearColor Color) {
+		FModWidgetElement Hint;
+		Hint.Name = Name;
+		Hint.Kind = EModWidgetKind::Row;
+		Hint.Gap = 6.0f;
+		Hint.Children = {
+			MakeKeyGlyph(*(FString(Name) + TEXT("Key")), FVector2D(44.0, 22.0)),
+			MakeLabel(*(FString(Name) + TEXT("Label")), Label, 12, Color),
+		};
+		return Hint;
 	}
 
 	// A label inside a row, which places it
@@ -175,8 +189,8 @@ namespace {
 	// WBP_EntityHUD: the entity player's HUD, laid out like the crew's own. Bottom left: the actions stacked
 	// vertically, with the health and stamina bars below them. Top right: the minimap (the game's own widget, which Lua
 	// adds) with a view cone over it and the key hints under it. Top centre: the vent time, while the crew hunts the
-	// squid. Bottom centre: the frenzy banner and the host's messages. Lower centre: the peek prompt, like the game's
-	// "press E" prompt. Noise markers are positioned over the world by Lua each frame.
+	// squid. Bottom centre: the frenzy banner and the host's messages. Noise markers are positioned over the world by
+	// Lua each frame.
 	FModWidgetSpec MakeEntityHudSpec() {
 		const FLinearColor Ultimate(1.0f, 0.70f, 0.23f);
 		const FLinearColor Frenzy(1.0f, 0.29f, 0.24f);
@@ -201,10 +215,10 @@ namespace {
 		Actions.Position = FVector2D(56.0, -92.0);
 		Actions.Gap = 10.0f;
 		Actions.Children = {
-			MakeActionSlot(TEXT("Ultimate"), TEXT("HeadGrab"), TEXT("E"), Ultimate),
-			MakeActionSlot(TEXT("Vent"), TEXT("Vent"), TEXT("SPACE"), Cooldown),
-			MakeActionSlot(TEXT("Leap"), TEXT("Leap"), nullptr, Cooldown),
-			MakeActionSlot(TEXT("Lash"), TEXT("Lash"), nullptr, Cooldown),
+			MakeActionSlot(TEXT("Lash"), TEXT("Lash"), Cooldown),
+			MakeActionSlot(TEXT("Leap"), TEXT("Leap"), Cooldown),
+			MakeActionSlot(TEXT("Ultimate"), TEXT("HeadGrab"), Ultimate),
+			MakeActionSlot(TEXT("Vent"), TEXT("Vent"), Cooldown),
 		};
 		Spec.Elements.Add(Actions);
 
@@ -233,16 +247,17 @@ namespace {
 		ViewCone.Color = FLinearColor(1.0f, 1.0f, 1.0f, 0.4f);
 		Spec.Elements.Add(ViewCone);
 
-		// Key hints under the minimap, small: H shows or hides the hints and prompts, F switches the view
+		// Key hints under the minimap, small (playtest 7): C peeks (shown by Lua only over a grate), F switches the view.
+		// H shows or hides them
 		FModWidgetElement Hints;
 		Hints.Name = TEXT("Hints");
 		Hints.Kind = EModWidgetKind::Row;
 		Hints.Anchors = FAnchors(1.0f, 0.0f);
 		Hints.Alignment = FVector2D(1.0f, 0.0f);
-		Hints.Gap = 6.0f;
+		Hints.Gap = 14.0f;
 		Hints.Children = {
-			MakeKeyCap(TEXT("HintsKey"), TEXT("H"), 11), MakeLabel(TEXT("HintsLabel"), TEXT("hints"), 12, Hint),
-			MakeKeyCap(TEXT("ViewKey"), TEXT("F"), 11), MakeLabel(TEXT("ViewLabel"), TEXT("camera"), 12, Hint),
+			MakeKeyHint(TEXT("PeekHint"), TEXT("Peek"), Hint),
+			MakeKeyHint(TEXT("ViewHint"), TEXT("camera"), Hint),
 		};
 		Spec.Elements.Add(Hints);
 
@@ -264,19 +279,6 @@ namespace {
 		VentTime.Children = {VentTimeIcon, MakeBar(TEXT("VentTimeBar"), FVector2D(320.0, 8.0), Cooldown)};
 		Spec.Elements.Add(VentTime);
 
-		// The peek prompt, where the game shows its own "press E" prompt
-		FModWidgetElement PeekPrompt;
-		PeekPrompt.Name = TEXT("PeekPrompt");
-		PeekPrompt.Kind = EModWidgetKind::Row;
-		PeekPrompt.Anchors = FAnchors(0.5f, 0.66f);
-		PeekPrompt.Alignment = FVector2D(0.5f, 0.5f);
-		PeekPrompt.Gap = 8.0f;
-		PeekPrompt.bHidden = true;
-		PeekPrompt.Children = {
-			MakeKeyCap(TEXT("PeekKey"), TEXT("C"), 15),
-			MakeLabel(TEXT("PeekLabel"), TEXT("Peek"), 18, FLinearColor::White),
-		};
-		Spec.Elements.Add(PeekPrompt);
 
 		const FAnchors BottomCentre(0.5f, 1.0f);
 		const FVector2D SitOnEdge(0.5f, 1.0f);

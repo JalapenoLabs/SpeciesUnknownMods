@@ -53,6 +53,20 @@ local objectiveList = fake.object("UMG_ObjectiveList_C", {
   RemoveFromParent = function(self) self.inViewport = false end,
 })
 local objectiveRows = {}
+-- The game's key glyphs: the space bar is wide, the mouse tall
+local function glyph(name, width, height)
+  local texture = fake.object("Texture2D", nil, {
+    Blueprint_GetSizeX = function() return width end,
+    Blueprint_GetSizeY = function() return height end,
+  })
+  fake.objects["/Game/KeyIcons/Custom/Keyboard/" .. name .. "." .. name] = texture
+  return texture
+end
+local spaceGlyph = glyph("T_input_key_space", 192, 64)
+local mouseGlyph = glyph("T_input_mouse_leftClick", 64, 96)
+for _, name in ipairs({ "T_input_mouse_rightClick", "T_input_key_e", "T_input_key_c", "T_input_key_f" }) do
+  glyph(name, 64, 64)
+end
 fake.object("BP_MyGameState_C", { Respawn = 2 })
 
 local function lastArgument(element, method)
@@ -268,6 +282,12 @@ local capsuleSetText = fake.hooks[game.paths.capsuleScreenClass .. ":BPI_UI_SetT
 capsuleSetText(fake.param(capsuleScreen), fake.param({ text = "Aidan" }))
 assert(capsuleScreen.Pseudo.text == "?????", "a name written later is masked at once")
 assert(lastArgument(widget.Actions, "SetVisibility") == 3, "the actions show once the player is the entity")
+-- Regression (playtest 7): the key boxes spelled out SPACE where the game has its own glyph for the key. Each key
+-- shows the game's glyph, as large as fits its slot without stretching
+assert(lastArgument(widget.VentKey, "SetBrushFromTexture") == spaceGlyph, "Space shows the game's space bar glyph")
+local fitted = lastArgument(widget.VentKey, "SetDesiredSizeOverride")
+assert(fitted.X == 72 and fitted.Y == 24, "the wide glyph fills its slot's width, keeping its shape")
+assert(lastArgument(widget.LashKey, "SetBrushFromTexture") == mouseGlyph, "the lash shows the left mouse button")
 assert(lastArgument(widget.UltimateBar, "SetPercent") == 0.5, "the ultimate's bar shows the replicated meter")
 assert(lastArgument(widget.UltimateBar, "SetVisibility") == 3, "while it charges")
 
@@ -315,26 +335,25 @@ assert(lastArgument(widget.Hints.Slot, "SetPosition").Y > config.minimap.margin 
   "the hints sit under the minimap")
 assert(lastArgument(widget.Hints, "SetVisibility") == 3, "and show to begin with")
 
--- Regression (playtest 6): peek's slot sat on screen all the time. Its prompt shows only while C would work: in a
--- vent, over a grate, with peek recharged
+-- Regression (playtest 6): peek's slot sat on screen all the time. Its hint under the minimap (playtest 7) shows
+-- only while C would work: in a vent, over a grate, with peek recharged
 fake.object("BP_Vent_Up_C", nil, { K2_GetActorLocation = function() return { X = 0, Y = 400, Z = 150 } end })
-assert(lastArgument(widget.PeekPrompt, "SetVisibility") == 2, "no peek prompt outside a vent")
+assert(lastArgument(widget.PeekHint, "SetVisibility") == 2, "no peek hint outside a vent")
 squid.InVent = true
 fake.now = 1
 fake.runLoops(33)
-assert(lastArgument(widget.PeekPrompt, "SetVisibility") == 3, "the prompt shows in a vent over a grate")
+assert(lastArgument(widget.PeekHint, "SetVisibility") == 3, "the hint shows in a vent over a grate")
 fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("Cooldown.Peek")), fake.param(0))
 fake.runLoops(33)
-assert(lastArgument(widget.PeekPrompt, "SetVisibility") == 2, "and hides while peek recharges")
+assert(lastArgument(widget.PeekHint, "SetVisibility") == 2, "and hides while peek recharges")
 fake.now = 2
--- H hides the prompts and hints, and brings them back
+-- H hides the hints under the minimap, and brings them back
 fake.keybinds.H()
 fake.runLoops(33)
-assert(lastArgument(widget.PeekPrompt, "SetVisibility") == 2 and lastArgument(widget.Hints, "SetVisibility") == 2,
-  "H hides the peek prompt and the hints")
+assert(lastArgument(widget.Hints, "SetVisibility") == 2, "H hides the hints")
 fake.keybinds.H()
 fake.runLoops(33)
-assert(lastArgument(widget.PeekPrompt, "SetVisibility") == 3 and lastArgument(widget.Hints, "SetVisibility") == 3,
+assert(lastArgument(widget.Hints, "SetVisibility") == 3 and lastArgument(widget.PeekHint, "SetVisibility") == 3,
   "and H again shows them")
 fake.now = 0
 assert(lastArgument(widget.Ping0.Slot, "SetPosition").X == 400, "markers sit at the projected spot, in widget units")

@@ -156,19 +156,27 @@ function fake.entityHud()
   local function element(name)
     return fake.object(name, { Slot = fake.object(name .. "Slot") })
   end
+  -- A key glyph's image sits in a fixed space (a size box, as in the HUD's layout)
+  local function keyGlyph(name, width, height)
+    local space = fake.object("SizeBox", { WidthOverride = width, HeightOverride = height })
+    return fake.object(name, { Slot = fake.object(name .. "Slot") }, { GetParent = function() return space end })
+  end
   local widget = fake.object("WBP_EntityHUD_C")
   local parts = {
-    "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "PeekPrompt", "FrenzyText", "StatusText", "VentTime",
-    "VentTimeBar",
+    "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "PeekHint", "ViewHint", "FrenzyText", "StatusText",
+    "VentTime", "VentTimeBar",
   }
   for _, name in ipairs(parts) do
     widget[name] = element(name)
   end
-  for _, prefix in ipairs({ "Ultimate", "Vent", "Leap", "Lash" }) do
+  for _, prefix in ipairs({ "Lash", "Leap", "Ultimate", "Vent" }) do
     for _, part in ipairs({ "Slot", "Icon", "Bar" }) do
       widget[prefix .. part] = element(prefix .. part)
     end
+    widget[prefix .. "Key"] = keyGlyph(prefix .. "Key", 72, 32)
   end
+  widget.PeekHintKey = keyGlyph("PeekHintKey", 44, 22)
+  widget.ViewHintKey = keyGlyph("ViewHintKey", 44, 22)
   for pingIndex = 0, 11 do
     widget["Ping" .. pingIndex] = element("Ping" .. pingIndex)
   end

@@ -201,7 +201,7 @@ return {
     -- Minimap zoom (UE4SS key names: "." and ",").
     zoomIn = "OEM_PERIOD",
     zoomOut = "OEM_COMMA",
-    -- Shows or hides the peek prompt and the key hints under the minimap.
+    -- Shows or hides the key hints under the minimap.
     hints = "H",
   },
 }

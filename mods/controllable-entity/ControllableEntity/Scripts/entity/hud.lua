@@ -1,11 +1,12 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- The entity player's HUD (WBP_EntityHUD), on their own machine, laid out like the crew's own (playtest 6):
---   - bottom left, the actions stacked (the ultimate, venting, the leap and the lash), each with a bar on its left
---     while it recharges, and the health and stamina bars under them;
---   - top right, the minimap (minimap.lua) with a view cone over it and the key hints under it;
---   - the peek prompt where the game shows its own "press E" prompt, while peeking would work;
+-- The entity player's HUD (WBP_EntityHUD), on their own machine, laid out like the crew's own (playtests 6 and 7):
+--   - bottom left, the actions stacked (the lash, the leap, the ultimate and venting), each its key, its icon and a
+--     bar on the right while it recharges, and the health and stamina bars under them;
+--   - top right, the minimap (minimap.lua) with a view cone over it and the key hints under it: C to peek, while
+--     peeking would work, and F for the camera;
 --   - bottom centre, the frenzy banner and short messages from the host's events.
+-- Keys show as the game's own glyphs (its /Game/KeyIcons textures, as in its "press E" prompts).
 -- Noise pings are drawn over the world. While the player is the squid, the crew HUD their parked body left behind is
 -- hidden. The bars, the health and the stamina come from the player's link, which the host fills (abilities.lua).
 
@@ -24,7 +25,7 @@ local HIDDEN = 2
 local VISIBLE_NO_INPUT = 3
 -- The crew character can rebuild its HUD (on respawn, after menus), so the entity's machine checks for it this often.
 local CREW_HUD_CHECK_SECONDS = 0.5
--- Finding the grate under the squid walks every vent shaft, so the peek prompt checks for one this often.
+-- Finding the grate under the squid walks every vent shaft, so the peek hint checks for one this often.
 local PEEK_CHECK_SECONDS = 0.25
 -- The space between the minimap's bottom edge and the key hints, in HUD units.
 local HINTS_GAP = 10
@@ -62,7 +63,19 @@ local cooldownSlots = {
 }
 
 -- What only the entity sees, hidden before the takeover (a volunteer sees only their status line).
-local ENTITY_PARTS = { "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "PeekPrompt", "VentTime" }
+local ENTITY_PARTS = { "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "VentTime" }
+
+-- The game's glyph for each key slot, by the slot's name in WBP_EntityHUD: the game's default bindings for the actions
+-- the squid reuses (control.lua), so a player who rebinds them sees the defaults.
+local GLYPH_FOLDER = "/Game/KeyIcons/Custom/Keyboard/"
+local glyphBySlot = {
+  LashKey = "T_input_mouse_leftClick",
+  LeapKey = "T_input_mouse_rightClick",
+  UltimateKey = "T_input_key_e",
+  VentKey = "T_input_key_space",
+  PeekHintKey = "T_input_key_c",
+  ViewHintKey = "T_input_key_f",
+}
 
 local messageByEvent = {
   Volunteered = "You'll be the entity next mission. Only you know. F8 backs out.",
@@ -125,7 +138,7 @@ local function freshState(worldKey)
 end
 
 local state = freshState(nil)
--- Whether the peek prompt and the key hints show. H switches them, and the choice holds across maps.
+-- Whether the key hints under the minimap show. H switches them, and the choice holds across maps.
 local hintsShown = true
 
 -- A map change (into a mission, back to the lobby or the main menu) leaves nothing of the old world's HUD behind.
@@ -144,6 +157,20 @@ end
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 -- Widget
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
+
+-- Puts one of the game's key glyphs in a key slot, as large as fits the slot's space (its size box, set in the HUD's
+-- layout) without stretching: the glyphs differ in shape (a letter key is square, the space bar wide, a mouse tall).
+local function showGlyph(image, glyphName)
+  local texture = game.loadGameAsset(GLYPH_FOLDER .. glyphName .. "." .. glyphName)
+  if not texture then
+    return
+  end
+  image:SetBrushFromTexture(texture, false)
+  local space = image:GetParent()
+  local width, height = texture:Blueprint_GetSizeX(), texture:Blueprint_GetSizeY()
+  local scale = math.min(space.WidthOverride / width, space.HeightOverride / height)
+  image:SetDesiredSizeOverride({ X = width * scale, Y = height * scale })
+end
 
 -- The widget is created on first use and again after a map change, which removes it from the viewport.
 local function ensureWidget(controller)
@@ -175,6 +202,10 @@ local function ensureWidget(controller)
     X = -config.minimap.margin,
     Y = config.minimap.margin + config.minimap.size + HINTS_GAP,
   })
+
+  for slotName, glyphName in pairs(glyphBySlot) do
+    showGlyph(widget[slotName], glyphName)
+  end
 
   state.widget = widget
   return widget
@@ -231,16 +262,16 @@ local function drawVitals(widget, link)
   widget.VentTimeBar:SetPercent(link.VentTime)
 end
 
--- The peek prompt shows while C would work, the way the game shows "press E" only while there is something to use
+-- The peek hint shows while C would work, the way the game shows "press E" only while there is something to use
 -- (playtest 6): inside a vent, over a grate (the host's own rule, abilities.lua), with peek recharged.
-local function drawPeekPrompt(widget, squid, now)
+local function drawPeekHint(widget, squid, now)
   if now >= state.nextPeekCheckAt then
     state.nextPeekCheckAt = now + PEEK_CHECK_SECONDS
     state.isOverGrate = squid.InVent == true
       and vents.nearest(squid:K2_GetActorLocation(), config.vents.exitReach) ~= nil
   end
   local isRecharged = now >= (state.cooldownEndsAt.Peek or 0)
-  setShown(widget.PeekPrompt, hintsShown and state.isOverGrate and isRecharged)
+  setShown(widget.PeekHint, state.isOverGrate and isRecharged)
 end
 
 -- Where a noise's marker goes, in widget units, and whether it is on the ring. A noise in view sits where it is, seen
@@ -378,7 +409,7 @@ local function render()
   setShown(widget.Hints, hintsShown)
   drawActions(widget, link, now)
   drawVitals(widget, link)
-  drawPeekPrompt(widget, pawn, now)
+  drawPeekHint(widget, pawn, now)
   -- The cone turns with the player's look, the way the minimap's player icon turns with the squid (minimap.lua)
   widget.ViewCone:SetRenderTransformAngle(controller:GetControlRotation().Yaw + config.minimap.iconAngleOffset)
   drawPings(widget, controller, now)
@@ -460,7 +491,7 @@ local function onPing(location, _, kind)
   state.nextPingSlot = state.nextPingSlot % PING_MARKER_COUNT + 1
 end
 
--- H: hides the peek prompt and the key hints, or shows them again (playtest 6).
+-- H: hides the key hints under the minimap, or shows them again (playtests 6 and 7).
 function hud.toggleHints()
   hintsShown = not hintsShown
 end

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Engine/EngineTypes.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/Layout/Anchors.h"
 
 // Plain descriptions of the Blueprint assets a mod needs. Each mod writes its assets as these specs in code, and
@@ -94,11 +95,15 @@ struct FModWidgetElement {
 	// Fixed size in pixels; leave zero to size the element to its content. Inside a row, a fixed size holds its space
 	// even while the element is hidden, so the row never shifts.
 	FVector2D Size = FVector2D::ZeroVector;
+	// Inside a row or column, where an element with a fixed size sits in that space: filling it, or at its own size
+	// against one side (centred top to bottom), as a key glyph that Lua sizes to its texture does.
+	EHorizontalAlignment ContentAlignment = HAlign_Fill;
 	FLinearColor Color = FLinearColor::White;
 	FString Text;
 	int32 FontSize = 18;
 	bool bHidden = false;
-	// Image: the long package path of a texture built from an FModTextureSpec.
+	// Image: the long package path of a texture built from an FModTextureSpec, or empty for an image Lua fills (with
+	// one of the game's own textures) at runtime.
 	FString TexturePath;
 	// Row and Column: the elements they hold, and the space between them.
 	TArray<FModWidgetElement> Children;

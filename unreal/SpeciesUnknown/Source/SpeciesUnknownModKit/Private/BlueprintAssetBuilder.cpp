@@ -14,6 +14,7 @@
 #include "Components/ProgressBar.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
+#include "Components/SizeBoxSlot.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "EdGraphSchema_K2.h"
@@ -383,6 +384,14 @@ UWidget* FBlueprintAssetBuilder::ConstructBox(UWidgetTree* WidgetTree, const FMo
 }
 
 UWidget* FBlueprintAssetBuilder::ConstructImage(UWidgetTree* WidgetTree, const FModWidgetElement& Element) {
+	UImage* Image = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), Element.Name);
+	Image->SetColorAndOpacity(Element.Color);
+
+	// An image Lua fills with one of the game's own textures at runtime, which a mod pak can't reference
+	if (Element.TexturePath.IsEmpty()) {
+		return Image;
+	}
+
 	const FString ObjectPath = Element.TexturePath + TEXT(".") + FPackageName::GetShortName(Element.TexturePath);
 	UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *ObjectPath);
 
@@ -393,12 +402,10 @@ UWidget* FBlueprintAssetBuilder::ConstructImage(UWidgetTree* WidgetTree, const F
 		return nullptr;
 	}
 
-	UImage* Image = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), Element.Name);
 	FSlateBrush Brush;
 	Brush.SetResourceObject(Texture);
 	Brush.ImageSize = Element.Size;
 	Image->SetBrush(Brush);
-	Image->SetColorAndOpacity(Element.Color);
 	return Image;
 }
 
@@ -434,7 +441,10 @@ UWidget* FBlueprintAssetBuilder::ConstructSizedChild(UWidgetTree* WidgetTree, co
 		FName(Child.Name.ToString() + TEXT("Size")));
 	SizeBox->SetWidthOverride(Child.Size.X);
 	SizeBox->SetHeightOverride(Child.Size.Y);
-	SizeBox->SetContent(ChildWidget);
+	USizeBoxSlot* Slot = Cast<USizeBoxSlot>(SizeBox->SetContent(ChildWidget));
+	Slot->SetHorizontalAlignment(Child.ContentAlignment);
+	const bool bFills = Child.ContentAlignment == HAlign_Fill;
+	Slot->SetVerticalAlignment(bFills ? VAlign_Fill : VAlign_Center);
 	return SizeBox;
 }
 
