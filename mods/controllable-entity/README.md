@@ -137,6 +137,7 @@ key the mod could reuse, so the mod's three keys are its own.
 | F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out |
 | F9 (mod key, host only) | Turn entity mode on or off |
 | Left Shift (mod key, held) | Sprint, on stamina |
+| `.` and `,` (mod keys) | Zoom the minimap in and out |
 
 The view starts in third person, behind the squid along the player's look, passing through walls (many duct walls
 are invisible collision, which would otherwise pull the camera into the squid's head).
@@ -157,6 +158,11 @@ The HUD runs along the top of the screen, in the game's own style for key prompt
   three seconds; the volunteer's status and the lair's "wait for the power" hint stay until they change.
 - **Noise pings** as coloured markers over the world: red gunshots, blue footsteps, amber alarms, doors and
   explosions.
+- **The minimap, top right:** the game's own minimap (the screen of the crew's minimap tool, `UMG_MiniMap`), always
+  centred on the squid with north up, and the player icon turning with the squid. The widget turns its map with
+  whatever it follows, so it follows an invisible actor that rides with the squid but never turns. Its item icons
+  (the special weapons, the black box) are hidden: they stay on the map while a crew member carries them, which would
+  show the entity where that player is.
 - The crew HUD (status bars, objectives, crosshair) is hidden while the player is the squid.
 
 The keys shown are the game's default bindings; a player who rebinds an action sees the default. The icons are
@@ -199,6 +205,7 @@ create: network events and a widget layout.
   | `camera.lua` | entity player | Third and first person |
   | `vision.lua` | entity player | The entity's own light and the vent-opening markers |
   | `streaming.lua` | entity player | Shows the map sections around the squid, which the game only shows around crew |
+  | `minimap.lua` | entity player | The game's minimap in the corner, north up, centred on the squid |
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
   | `game.lua`, `config.lua` | both | Game paths and helpers; every tunable |
 
@@ -256,6 +263,7 @@ kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack 
 - `tests/lair_test.lua`: the start in a vent, the leash and the power.
 - `tests/vision_test.lua`: the entity's light and the vent markers.
 - `tests/streaming_test.lua`: showing the map sections around the squid.
+- `tests/minimap_test.lua`: the minimap, its follower, the hidden item icons and the zoom.
 - `tests/solo_flow_test.lua` and `tests/lobby_display_squid_test.lua`: playing alone, and regressions from playtests.
 
 They prove the wiring, call shapes and rules. Only a playtest proves the game agrees with the stand-in.

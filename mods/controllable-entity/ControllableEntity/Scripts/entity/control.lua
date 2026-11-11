@@ -10,6 +10,7 @@
 
 local camera = require("entity.camera")
 local config = require("entity.config")
+local minimap = require("entity.minimap")
 local movement = require("entity.movement")
 local streaming = require("entity.streaming")
 local vision = require("entity.vision")
@@ -150,6 +151,14 @@ local function registerKeys()
       links.sendCommand("ToggleEntityMode", nil, nil)
     end)
   end)
+
+  for key, direction in pairs({ [config.keys.zoomIn] = 1, [config.keys.zoomOut] = -1 }) do
+    RegisterKeyBind(Key[key], function()
+      ExecuteInGameThread(function()
+        minimap.zoom(direction)
+      end)
+    end)
+  end
 end
 
 -- Playtest diagnostics: the first time each action arrives at all, and the first time it arrives while the player
@@ -204,6 +213,15 @@ function control.register()
     if squid then
       camera.follow(controller, squid)
     end
+  end)
+  LoopInGameThreadWithDelay(33, function()
+    local controller = game.localController()
+    local squid = controller and drivenSquid(controller)
+    if squid then
+      minimap.follow(controller, squid)
+      return
+    end
+    minimap.forget()
   end)
   -- The squid this machine last drove, so the map sections it was showing can be handed back once it stops
   local lastSquid = nil

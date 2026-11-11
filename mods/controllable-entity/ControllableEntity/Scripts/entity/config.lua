@@ -86,6 +86,19 @@ return {
     markerRefreshSeconds = 0.5,
   },
 
+  minimap = {
+    -- The square's side and its distance from the screen's top-right corner, in HUD units (1080p pixels).
+    size = 300,
+    margin = 24,
+    -- The game's minimap Scale: larger zooms in. The crew's tool runs from 0.7 to 1.0.
+    startZoom = 1.0,
+    minimumZoom = 0.35,
+    maximumZoom = 3.0,
+    zoomStep = 1.25,
+    -- Degrees added to the squid's heading for the player icon, in case the map's "up" isn't the world's +X.
+    iconAngleOffset = 0,
+  },
+
   camera = {
     -- How far the third-person view sits behind the squid.
     thirdPersonDistance = 320,
@@ -125,5 +138,8 @@ return {
     -- Held to sprint; an Unreal key name (the squid reuses no game action for it: the crew's sprint is bound on the
     -- crew character, not the controller).
     sprint = "LeftShift",
+    -- Minimap zoom (UE4SS key names: "." and ",").
+    zoomIn = "OEM_PERIOD",
+    zoomOut = "OEM_COMMA",
   },
 }
