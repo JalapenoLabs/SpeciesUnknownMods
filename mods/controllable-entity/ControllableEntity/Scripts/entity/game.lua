@@ -20,6 +20,8 @@ game.paths = {
   characterClass = "/Game/Blueprints/Player/BP_ParentCharacter.BP_ParentCharacter_C",
   engineClass = "/Game/Blueprints/Engine/BP_Engine.BP_Engine_C",
   capsuleScreenClass = "/Game/Blueprints/Interact/UMG_ScreenCapsule.UMG_ScreenCapsule_C",
+  -- The squid's basic attack (BP_Monster_Poulpi.GetAttackSimpleAnim always picks it).
+  swingMontage = "/Game/Blueprints/Monsters/Poulpi/Anim/Poulpi_Attack_Small1_Montage.Poulpi_Attack_Small1_Montage",
   grabInterruptedMontage =
     "/Game/Blueprints/Monsters/Poulpi/Anim/Hit/Poulpi_Hit_DuringGrab_Front_Montage.Poulpi_Hit_DuringGrab_Front_Montage",
   inputLibrary = "/Script/EnhancedInput.Default__EnhancedInputLibrary",

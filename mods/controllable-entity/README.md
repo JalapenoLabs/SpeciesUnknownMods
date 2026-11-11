@@ -130,12 +130,12 @@ key the mod could reuse, so the mod's three keys are its own.
 | Input | As the entity |
 |-------|---------------|
 | Move, Look (`IA_Move`, `IA_Look`) | Move and look |
-| Shoot (`IA_Shoot`) | Lash: a basic attack on the nearest crew member ahead, never lethal |
+| Shoot (`IA_Shoot`) | Lash: a basic attack on the nearest crew member ahead, never lethal; with nobody in reach the squid swings at the air |
 | Aim (`IA_ADS`) | Leap where you look; a grab on landing is broken off unless the kill is ready |
-| Interact (`IA_Interact`) | Climb into the nearest vent, or drop out of it onto whoever is below |
+| Interact (`IA_Interact`, E) | Ultimate: with a full meter, leap (or drop) and the grab kills |
 | Crouch (`IA_Crouch`) | Peek down through the grate while in a vent |
-| Flashlight (`IA_FlashLight`) | Switch between third person (the start) and first person |
-| Space (mod key) | Ultimate: with a full meter, leap (or drop) and the grab kills |
+| Flashlight (`IA_FlashLight`) | Switch between third person (the start) and first person; in first person the squid's own mesh is hidden from its player |
+| Space (mod key) | Climb into the nearest vent, or drop out of it onto whoever is below |
 | F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out |
 | F9 (mod key, host only) | Turn entity mode on or off |
 | Left Shift (mod key, held) | Sprint, on stamina |

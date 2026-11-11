@@ -31,7 +31,7 @@ local IDENTITY_TRANSFORM = {
 }
 
 local isThirdPerson = true
--- The camera rig on the squid: { squidAddress, arm, view }, or nil.
+-- The camera rig on the squid: { squidAddress, squid, arm, view }, or nil.
 local rig = nil
 
 local function describe(actor)
@@ -71,8 +71,12 @@ local function buildRig(squid)
   return { squidAddress = squid:GetAddress(), arm = arm, view = view }
 end
 
-local function applyDistance()
+-- In first person the squid's own mesh hides from its player, or the view is from inside its head (playtest 6). Owner
+-- no-see hides it from the owner's view only, and possessing a pawn makes the controller its owner
+-- (APawn::PossessedBy), so everyone else still sees the squid.
+local function applyDistance(squid)
   rig.arm.TargetArmLength = isThirdPerson and config.camera.thirdPersonDistance or 0
+  squid.Mesh:SetOwnerNoSee(not isThirdPerson)
 end
 
 -- How far the camera was from the squid at the last report, so the log shows changes, not every second.
@@ -102,7 +106,8 @@ function camera.follow(controller, squid)
     if not rig then
       return
     end
-    applyDistance()
+    rig.squid = squid
+    applyDistance(squid)
   end
 
   local manager = controller.PlayerCameraManager
@@ -125,13 +130,16 @@ end
 
 function camera.toggle()
   isThirdPerson = not isThirdPerson
-  if rig then
-    applyDistance()
+  if rig and rig.squid:IsValid() then
+    applyDistance(rig.squid)
   end
 end
 
 -- After losing: the rig goes, and the game's camera follows whoever the host points it at.
 function camera.reset()
+  if rig and rig.squid:IsValid() then
+    rig.squid.Mesh:SetOwnerNoSee(false)
+  end
   if rig and rig.view:IsValid() then
     rig.view:K2_DestroyComponent(rig.view)
     rig.arm:K2_DestroyComponent(rig.arm)

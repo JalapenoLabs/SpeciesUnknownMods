@@ -115,27 +115,28 @@ end
 
 -- The handler for each game input action the entity uses, by the action's name (IA_<Name>). Buttons become a host
 -- command when pressed, except the flashlight, which the squid has no use for and which switches the view instead.
+-- Interact fires the ultimate (venting is on Space, a mod key).
 -- The rest of the game's actions (reload, weapon slots, ...) mean nothing to the squid.
 local handlerByAction = {
   Move = move,
   Look = look,
   Shoot = button("Attack"),
   ADS = button("Leap"),
-  Interact = button("Vent"),
+  Interact = button("Ultimate"),
   Crouch = button("Peek"),
   FlashLight = toggleView,
   OpenPauseMenu = openPauseMenu,
 }
 
--- The game has no jump, so the mod's own keys fill in: the ultimate, volunteering in the lobby, and entity mode (the
--- host decides whether a press counts). UE4SS key binds run outside the game thread, so each hops onto it before
+-- The game has no jump, so the mod's own keys fill in: venting on Space, volunteering in the lobby, entity mode (the
+-- host decides whether a press counts) and the minimap's zoom. UE4SS key binds run outside the game thread, so each hops onto it before
 -- touching game objects.
 local function registerKeys()
-  RegisterKeyBind(Key[config.keys.ultimate], function()
+  RegisterKeyBind(Key[config.keys.vent], function()
     ExecuteInGameThread(function()
       local controller = game.localController()
       if controller and drivenSquid(controller) then
-        links.sendCommand("Ultimate", aimOf(controller), nil)
+        links.sendCommand("Vent", aimOf(controller), nil)
       end
     end)
   end)

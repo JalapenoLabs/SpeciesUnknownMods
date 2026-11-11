@@ -63,12 +63,24 @@ end
 -- Moves
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
+-- With a crew member in reach, the AI's own attack on them. With nobody, the squid swings at the air anyway, like a
+-- sword swung at nothing (playtest 6): the AI's attack needs a target (BP_BaseMonster.SetSimpleAttack does nothing
+-- without one), so the swing's montage is played through the same multicast the attack ends in. Its damage comes
+-- from the montage's sphere check in front of the squid (BP_ParentMonster.BasicSphereAttackDamage), which runs only
+-- while the squid is attacking, so a swing at nothing hurts nobody.
 local function attack(squid, aim)
   local target, distance = crewInCone(squid, aim, config.attack.reach, config.attack.coneDegrees)
-  if not target then
+  if target then
+    squid:BPI_BasicMonster_SetSimpleAttack(target, target:K2_GetActorLocation(), distance)
+    return true
+  end
+
+  local swing = StaticFindObject(game.paths.swingMontage)
+  if not swing or not swing:IsValid() then
+    game.log("No swing montage at %s; the lash only lands on a crew member in reach", game.paths.swingMontage)
     return false, "NoTarget"
   end
-  squid:BPI_BasicMonster_SetSimpleAttack(target, target:K2_GetActorLocation(), distance)
+  squid["AttackSimpleAnim (Clients)"](squid, swing, squid.AttackSimplePlayRate, nil)
   return true
 end
 

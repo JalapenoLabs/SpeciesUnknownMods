@@ -42,7 +42,7 @@ local frenzyColor = { R = 1.0, G = 0.29, B = 0.24, A = 1 }
 local abilitySlots = {
   { prefix = "Lash", command = "Attack", key = "LMB" },
   { prefix = "Leap", command = "Leap", key = "RMB" },
-  { prefix = "Vent", command = "Vent", key = "E" },
+  { prefix = "Vent", command = "Vent", key = config.keys.vent },
   { prefix = "Peek", command = "Peek", key = "C", needsVent = true },
   { prefix = "View", key = "F" },
 }
@@ -137,7 +137,8 @@ local function ensureWidget(controller)
   for _, ability in ipairs(abilitySlots) do
     widget[ability.prefix .. "KeyText"]:SetText(FText(ability.key))
   end
-  widget.UltimateKeyText:SetText(FText(config.keys.ultimate))
+  -- The ultimate is the game's Interact action, E by default
+  widget.UltimateKeyText:SetText(FText("E"))
   state.widget = widget
   return widget
 end

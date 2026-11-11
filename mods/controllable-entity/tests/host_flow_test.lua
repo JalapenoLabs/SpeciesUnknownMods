@@ -153,6 +153,16 @@ assert(lastEvent(crewController) == "Denied.Cooldown", "attacks respect the cool
 command(hostController, "Attack")
 assert(#fake.callsTo(squid, "BPI_BasicMonster_SetSimpleAttack") == 1, "only the entity commands the squid")
 
+-- Regression (playtest 6): with nobody in reach the lash was refused; the squid swings at the air instead
+local swingMontage = fake.object("AnimMontage")
+fake.objects[game.paths.swingMontage] = swingMontage
+fake.now = 5
+command(crewController, "Attack", { X = -1, Y = 0, Z = 0 })
+local swings = fake.callsTo(squid, "AttackSimpleAnim (Clients)")
+assert(#swings == 1 and swings[1].args[1] == swingMontage and swings[1].args[3] == nil, "a lash at nobody still swings")
+assert(#fake.callsTo(squid, "BPI_BasicMonster_SetSimpleAttack") == 1, "without picking a target")
+fake.now = 0
+
 command(crewController, "Ultimate")
 assert(lastEvent(crewController) == "Denied.UltimateNotReady", "the ultimate needs a full meter")
 

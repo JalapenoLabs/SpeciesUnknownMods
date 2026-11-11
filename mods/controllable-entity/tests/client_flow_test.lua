@@ -61,7 +61,7 @@ local crewBody = fake.object("BP_Character_C")
 fake.giveView(controller, crewBody)
 local cameraManager = controller.PlayerCameraManager
 local link = fake.object("BP_EntityLink_C", { Owner = controller, Meter = 0.5, Frenzy = false })
-local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false }, {
+local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false, Mesh = fake.object("SkeletalMeshComponent") }, {
   K2_GetActorLocation = function() return { X = 0, Y = 300, Z = 0 } end,
 })
 fake.giveMovement(squid)
@@ -87,6 +87,7 @@ fake.loadClass(game.paths.controllerClass, {
   "InpActEvt_IA_Look_K2Node_EnhancedInputActionEvent_28",
   "InpActEvt_IA_Shoot_K2Node_EnhancedInputActionEvent_37",
   "InpActEvt_IA_FlashLight_K2Node_EnhancedInputActionEvent_44",
+  "InpActEvt_IA_Interact_K2Node_EnhancedInputActionEvent_30",
   "InpActEvt_IA_OpenPauseMenu_K2Node_EnhancedInputActionEvent_10",
   "InpActEvt_IA_Reload_K2Node_EnhancedInputActionEvent_32",
 })
@@ -107,7 +108,7 @@ fake.keybinds.F8()
 local commands = fake.callsTo(link, "EntityServerCommand")
 assert(#commands == 1 and commands[1].args[1]:ToString() == "Volunteer")
 fake.keybinds.SPACE()
-assert(#fake.callsTo(link, "EntityServerCommand") == 1, "the ultimate key does nothing as crew")
+assert(#fake.callsTo(link, "EntityServerCommand") == 1, "the vent key does nothing as crew")
 flashlightHook(fake.param(controller), fake.param({ pressed = true }))
 assert(#squidComponents == 0, "the flashlight is the crew's own as crew")
 
@@ -145,10 +146,13 @@ assert(#fake.callsTo(controller, "OpenPauseMenu") == 1, "when the game could pau
 
 flashlightHook(fake.param(controller), fake.param({ pressed = true }))
 assert(arm.TargetArmLength == 0, "the flashlight switches to first person")
+-- Regression (playtest 6): in first person the view was from inside the squid's own head
+assert(lastArgument(squid.Mesh, "SetOwnerNoSee") == true, "first person hides the squid from its own player")
 flashlightHook(fake.param(controller), fake.param({ pressed = false }))
 assert(arm.TargetArmLength == 0, "releasing the key changes nothing")
 flashlightHook(fake.param(controller), fake.param({ pressed = true }))
 assert(arm.TargetArmLength == config.camera.thirdPersonDistance, "and back to third person")
+assert(lastArgument(squid.Mesh, "SetOwnerNoSee") == false, "with the squid visible again")
 
 moveHook(fake.param(controller), fake.param({ X = 0, Y = 1 }))
 local moves = fake.callsTo(squid, "AddMovementInput")
@@ -163,9 +167,14 @@ assert(#commands == commandsBeforeShooting + 1 and commands[#commands].args[1]:T
   "a press sends one command, a release none")
 assert(math.abs(commands[#commands].args[2].Y - 1) < 1e-9, "the command carries the aim")
 
+-- Space vents and Interact (E) fires the ultimate (playtest 6)
 fake.keybinds.SPACE()
 commands = fake.callsTo(link, "EntityServerCommand")
-assert(commands[#commands].args[1]:ToString() == "Ultimate")
+assert(commands[#commands].args[1]:ToString() == "Vent", "Space vents")
+fake.hooks[controllerPath .. "InpActEvt_IA_Interact_K2Node_EnhancedInputActionEvent_30"](fake.param(controller),
+  fake.param({ pressed = true }))
+commands = fake.callsTo(link, "EntityServerCommand")
+assert(commands[#commands].args[1]:ToString() == "Ultimate", "Interact fires the ultimate")
 
 -- If the game's own code moves the camera elsewhere, it goes back to the squid within a second, keeping its rig
 local shuttleCamera = fake.object("CameraActor")
@@ -200,12 +209,13 @@ assert(capsuleScreen.Pseudo.text == "?????", "a capsule's occupant is a mystery 
 assert(lastArgument(capsuleScreen.TextBlock_Pseudo, "SetText").text == "?????", "on its screen too")
 fake.loadClass(game.paths.capsuleScreenClass)
 capsuleScreen.Pseudo = { text = "Aidan" }
-fake.hooks[game.paths.capsuleScreenClass .. ":BPI_UI_SetText"](fake.param(capsuleScreen), fake.param({ text = "Aidan" }))
+local capsuleSetText = fake.hooks[game.paths.capsuleScreenClass .. ":BPI_UI_SetText"]
+capsuleSetText(fake.param(capsuleScreen), fake.param({ text = "Aidan" }))
 assert(capsuleScreen.Pseudo.text == "?????", "a name written later is masked at once")
 assert(lastArgument(widget.UltimateBar, "SetPercent") == 0.5, "the bar shows the replicated meter")
 assert(lastArgument(widget.UltimateText, "SetText").text == "HEAD GRAB  50%")
 assert(lastArgument(widget.LashKeyText, "SetText").text == "LMB", "each ability shows its key")
-assert(lastArgument(widget.UltimateKeyText, "SetText").text == config.keys.ultimate)
+assert(lastArgument(widget.UltimateKeyText, "SetText").text == "E")
 assert(lastArgument(widget.Abilities, "SetVisibility") == 3, "the abilities show once the player is the entity")
 
 -- A cooldown fills its bar; a ready ability hides it
