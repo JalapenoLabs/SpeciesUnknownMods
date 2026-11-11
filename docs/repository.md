@@ -9,6 +9,7 @@ mods/<mod-name>/          one directory per mod, kebab-case
   README.md               what it does, install, how it works, test plan
   cover.svg               cover art source
   cover.png               1920x1080 render of cover.svg, used on mod pages
+  art/icons/*.svg         HUD icon sources, for mods with a pak (see Icons below)
   <PayloadName>/          exactly what gets installed into the game, PascalCase
     enabled.txt
     Scripts/main.lua
@@ -34,6 +35,13 @@ scripts/                  repository tooling
 - Render with `scripts/render-covers.sh`, which rebuilds every `mods/*/cover.png` from its SVG. Commit both files.
 - Use only fonts that are installed locally (the existing covers use Nimbus Sans Narrow Bold), so the render matches.
 
+## Icons
+
+- Hand-written SVG on a 128x128 view box: a white glyph with a faint dark outline, so it reads over bright and dark
+  scenes alike. Cut details (eyes, slats) out of the shape rather than painting them dark.
+- Only the SVGs are committed. `scripts/build-mod-assets.sh` renders them to 128-pixel PNGs under
+  `unreal/SpeciesUnknown/Saved/ModArt/<mod-name>/` and the asset builder imports those as UI textures.
+
 ## Scripts
 
 | Script | What it does |
@@ -42,7 +50,7 @@ scripts/                  repository tooling
 | `scripts/render-covers.sh` | Renders every `mods/*/cover.svg` to `cover.png` |
 | `scripts/make_minimal_usmap.py <out>` | Writes the mappings file that lets kismet-analyzer parse Blueprint functions |
 | `scripts/kismet_pseudocode.py <asset.json>` | Prints a Blueprint's bytecode as pseudo-code |
-| `scripts/build-mod-assets.sh` | Compiles the editor-only asset builder and regenerates every mod's Blueprint assets |
+| `scripts/build-mod-assets.sh` | Renders the HUD icons, compiles the editor-only asset builder and regenerates every mod's assets |
 | `scripts/package-mods.sh [--install]` | Generates, cooks and packs every mod's pak into `dist/paks/` (and the game) |
 | `scripts/test-mods.sh` | Syntax-checks every mod's Lua and runs every mod's offline tests |
 

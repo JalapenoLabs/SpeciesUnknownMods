@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Leap: an arc from the ground to a landing point, with the arrow at its end. -->
+  <g stroke="#000" stroke-opacity="0.4" stroke-width="16" stroke-linecap="round" fill="none">
+    <path d="M18 104 Q52 12 100 70"/>
+    <path d="M14 116 H114"/>
+  </g>
+  <g stroke="#fff" stroke-width="10" stroke-linecap="round" fill="none">
+    <path d="M18 104 Q52 12 100 70"/>
+    <path d="M14 116 H114"/>
+  </g>
+  <path fill="#fff" stroke="#000" stroke-opacity="0.4" stroke-width="3" paint-order="stroke"
+    d="M112 86 L86 74 L106 54 Z"/>
+</svg>

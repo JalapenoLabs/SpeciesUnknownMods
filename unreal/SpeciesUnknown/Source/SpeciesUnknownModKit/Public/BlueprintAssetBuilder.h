@@ -7,14 +7,18 @@
 
 class UBlueprint;
 class UBlueprintGeneratedClass;
+class UTexture2D;
+class UWidget;
+class UWidgetTree;
 
-// Turns asset specs into saved Blueprint assets. Every build replaces the asset from scratch, so an asset never
-// keeps anything its spec doesn't describe.
+// Turns asset specs into saved assets. Every build replaces the asset from scratch, so an asset never keeps anything
+// its spec doesn't describe.
 class SPECIESUNKNOWNMODKIT_API FBlueprintAssetBuilder {
 public:
-	// Each returns the saved Blueprint, or nullptr after logging why the build failed.
+	// Each returns the saved asset, or nullptr after logging why the build failed.
 	static UBlueprint* BuildNetworkActor(const FModNetworkActorSpec& Spec);
 	static UBlueprint* BuildWidget(const FModWidgetSpec& Spec);
+	static UTexture2D* BuildTexture(const FModTextureSpec& Spec);
 
 private:
 	// ////////////////////// //
@@ -39,8 +43,18 @@ private:
 	//      Widget parts      //
 	// ////////////////////// //
 
-	static void AddWidgetElement(class UWidgetBlueprint* WidgetBlueprint, class UCanvasPanel* Canvas,
+	// Places a top-level element on the canvas; returns false after logging when it can't be built
+	static bool AddWidgetElement(class UWidgetBlueprint* WidgetBlueprint, class UCanvasPanel* Canvas,
 		const FModWidgetElement& Element);
+	// Builds an element and, for rows, everything inside it; nullptr after logging when something is missing
+	static UWidget* ConstructElement(UWidgetTree* WidgetTree, const FModWidgetElement& Element);
+
+	static UWidget* ConstructText(UWidgetTree* WidgetTree, const FModWidgetElement& Element);
+	static UWidget* ConstructProgressBar(UWidgetTree* WidgetTree, const FModWidgetElement& Element);
+	static UWidget* ConstructBox(UWidgetTree* WidgetTree, const FModWidgetElement& Element);
+	static UWidget* ConstructImage(UWidgetTree* WidgetTree, const FModWidgetElement& Element);
+	static UWidget* ConstructKeyCap(UWidgetTree* WidgetTree, const FModWidgetElement& Element);
+	static UWidget* ConstructRow(UWidgetTree* WidgetTree, const FModWidgetElement& Element);
 
 	// ////////////////////// //
 	//     Class defaults     //

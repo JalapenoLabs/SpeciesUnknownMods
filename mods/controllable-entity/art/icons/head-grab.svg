@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Head grab, the ultimate: a skull. Eyes, nose and the gaps between teeth are cut out of the shape. -->
+  <path fill="#fff" fill-rule="evenodd" stroke="#000" stroke-opacity="0.4" stroke-width="3" paint-order="stroke"
+    d="M64 12 C34 12 16 34 16 60 C16 76 24 88 36 92 V108 a6 6 0 0 0 6 6 H86 a6 6 0 0 0 6 -6 V92
+       C104 88 112 76 112 60 C112 34 94 12 64 12 Z
+       M32 62 a14 14 0 1 0 28 0 a14 14 0 1 0 -28 0 Z
+       M68 62 a14 14 0 1 0 28 0 a14 14 0 1 0 -28 0 Z
+       M64 78 L56 92 H72 Z
+       M51 100 h6 v14 h-6 Z
+       M71 100 h6 v14 h-6 Z"/>
+</svg>

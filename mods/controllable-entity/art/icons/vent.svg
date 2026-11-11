@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Vent: a duct grate. -->
+  <g stroke="#000" stroke-opacity="0.4" stroke-width="15" stroke-linecap="round" fill="none">
+    <rect x="16" y="28" width="96" height="72" rx="12"/>
+    <path d="M36 50 H92 M36 64 H92 M36 78 H92"/>
+  </g>
+  <g stroke="#fff" stroke-width="9" stroke-linecap="round" fill="none">
+    <rect x="16" y="28" width="96" height="72" rx="12"/>
+    <path d="M36 50 H92 M36 64 H92 M36 78 H92"/>
+  </g>
+</svg>

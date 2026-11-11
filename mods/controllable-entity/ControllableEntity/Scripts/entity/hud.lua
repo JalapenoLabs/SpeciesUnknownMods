@@ -1,8 +1,9 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- The entity player's HUD (WBP_EntityHUD), on their own machine: the kill meter and frenzy from their link's
--- replicated state, ability cooldowns and short status messages from the host's events, and noise pings drawn over
--- the world. While the player is the squid, the crew HUD their parked body left behind is hidden.
+-- The entity player's HUD (WBP_EntityHUD), on their own machine, along the top of the screen: the abilities top left
+-- in the game's own style (icon, key, and a bar while recharging), the kill meter top centre from their link's
+-- replicated state, short messages from the host's events below it, and noise pings drawn over the world. While the
+-- player is the squid, the crew HUD their parked body left behind is hidden.
 
 local config = require("entity.config")
 local game = require("entity.game")
@@ -28,12 +29,20 @@ local pingColorByKind = {
   Alarm = { R = 1.0, G = 0.70, B = 0.23 },
 }
 
-local abilityLines = {
-  { command = "Attack", label = "Shoot        Lash" },
-  { command = "Leap", label = "Aim          Leap" },
-  { command = "Vent", label = "Interact     Vent" },
-  { command = "Peek", label = "Crouch       Peek" },
-  { label = "Flashlight   View" },
+-- An ability that can't be used right now (peeking outside a vent, leaving the lair before the power is on) dims.
+local UNUSABLE_OPACITY = 0.35
+local ultimateColor = { R = 1.0, G = 0.70, B = 0.23, A = 1 }
+local frenzyColor = { R = 1.0, G = 0.29, B = 0.24, A = 1 }
+
+-- The ability slots along the top left, by their prefix in WBP_EntityHUD: the host command whose cooldown the bar
+-- shows, and the key shown in the box. The keys are the game's default bindings for the input actions the squid
+-- reuses (control.lua), so a player who rebinds them sees the defaults.
+local abilitySlots = {
+  { prefix = "Lash", command = "Attack", key = "LMB" },
+  { prefix = "Leap", command = "Leap", key = "RMB" },
+  { prefix = "Vent", command = "Vent", key = "E" },
+  { prefix = "Peek", command = "Peek", key = "C", needsVent = true },
+  { prefix = "View", key = "F" },
 }
 
 local messageByEvent = {
@@ -73,6 +82,8 @@ local function freshState(worldKey)
     -- A line that stays under the messages until the host's next event replaces it: the volunteer's status, or the
     -- lair's hint while the power is off.
     persistentStatus = nil,
+    -- Whether the lair holds the squid in the ducts (until the power is on).
+    isLeashed = false,
     nextCrewHudCheckAt = 0,
     cooldownEndsAt = {},
     pings = {},
@@ -111,47 +122,64 @@ local function ensureWidget(controller)
     return nil
   end
 
-  state.widget = StaticFindObject(game.paths.widgetLibrary):Create(controller, widgetClass, controller)
-  state.widget:AddToViewport(50)
-  return state.widget
+  local widget = StaticFindObject(game.paths.widgetLibrary):Create(controller, widgetClass, controller)
+  widget:AddToViewport(50)
+  for _, ability in ipairs(abilitySlots) do
+    widget[ability.prefix .. "KeyText"]:SetText(FText(ability.key))
+  end
+  widget.UltimateKeyText:SetText(FText(config.keys.ultimate))
+  state.widget = widget
+  return widget
 end
 
 local function setText(textBlock, text)
   textBlock:SetText(FText(text))
 end
 
+local function setShown(element, shown)
+  element:SetVisibility(shown and VISIBLE_NO_INPUT or HIDDEN)
+end
+
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 -- Drawing
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
-local function drawMeter(widget, link)
+-- The ultimate: the kill meter outside full frenzy, the re-arm progress inside it.
+local function drawUltimate(widget, link)
   local readiness = link.Meter
   local inFrenzy = link.Frenzy
+  local ready = readiness >= 1
+
   widget.UltimateBar:SetPercent(readiness)
+  widget.UltimateBar:SetFillColorAndOpacity(inFrenzy and frenzyColor or ultimateColor)
   setText(widget.FrenzyText, inFrenzy and "FRENZY" or "")
 
-  local ready = readiness >= 1
   local label
   if inFrenzy then
     label = ready and "FRENZY KILL READY" or "FRENZY  re-arming"
   else
-    label = ready and ("HEAD GRAB READY  [" .. config.keys.ultimate .. "]")
-      or string.format("HEAD GRAB  %d%%", math.floor(readiness * 100))
+    label = ready and "HEAD GRAB READY" or string.format("HEAD GRAB  %d%%", math.floor(readiness * 100))
   end
   setText(widget.UltimateText, label)
+
+  local held = state.isLeashed and config.lair.heldMoves.Ultimate
+  widget.UltimateSlot:SetRenderOpacity((ready and not held) and 1 or UNUSABLE_OPACITY)
 end
 
-local function drawAbilities(widget, now)
-  local lines = {}
-  for _, ability in ipairs(abilityLines) do
+-- Each ability's bar shows the cooldown draining, and hides (keeping its space) once the ability is ready.
+local function drawAbilities(widget, now, inVent)
+  for _, ability in ipairs(abilitySlots) do
     local remaining = ability.command and (state.cooldownEndsAt[ability.command] or 0) - now or 0
+    local bar = widget[ability.prefix .. "Bar"]
+    setShown(bar, remaining > 0)
     if remaining > 0 then
-      table.insert(lines, string.format("%s  %.1fs", ability.label, remaining))
-    else
-      table.insert(lines, ability.label)
+      bar:SetPercent(remaining / config.cooldowns[ability.command])
     end
+
+    local held = state.isLeashed and config.lair.heldMoves[ability.command]
+    local usable = not held and (inVent or not ability.needsVent)
+    widget[ability.prefix .. "Slot"]:SetRenderOpacity(usable and 1 or UNUSABLE_OPACITY)
   end
-  setText(widget.AbilityText, table.concat(lines, "\n"))
 end
 
 -- Each ping fades over pingSeconds. Markers are positioned in widget units: screen pixels over the DPI scale.
@@ -219,17 +247,19 @@ local function render()
 
   setText(widget.StatusText, hasMessage and state.message or state.persistentStatus or "")
 
+  -- Before the takeover (a volunteer, or a message), only the status line shows
   local link = state.isEntity and links.own() or nil
+  setShown(widget.Abilities, link ~= nil)
+  setShown(widget.UltimateSlot, link ~= nil)
   if not link then
     setText(widget.UltimateText, "")
     setText(widget.FrenzyText, "")
-    setText(widget.AbilityText, "")
-    widget.UltimateBar:SetPercent(0)
     return
   end
 
-  drawMeter(widget, link)
-  drawAbilities(widget, now)
+  local pawn = controller.Pawn
+  drawUltimate(widget, link)
+  drawAbilities(widget, now, pawn:IsValid() and pawn.InVent == true)
   drawPings(widget, controller, now)
 end
 
@@ -267,10 +297,17 @@ local stateChangeByEvent = {
     state.isEntity = true
     state.persistentStatus = nil
   end,
-  Leashed = function() state.persistentStatus = messageByEvent.Leashed end,
-  PowerRestored = function() state.persistentStatus = nil end,
+  Leashed = function()
+    state.isLeashed = true
+    state.persistentStatus = messageByEvent.Leashed
+  end,
+  PowerRestored = function()
+    state.isLeashed = false
+    state.persistentStatus = nil
+  end,
   Lost = function()
     state.isEntity = false
+    state.isLeashed = false
     state.persistentStatus = nil
     state.pings = {}
   end,

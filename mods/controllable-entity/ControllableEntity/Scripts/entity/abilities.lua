@@ -139,13 +139,6 @@ local moveByCommand = {
   Ultimate = ultimate,
 }
 
--- The moves that would leave the ducts, which wait while the lair holds the squid (until the power is on).
-local leavesTheVents = {
-  Leap = true,
-  Vent = true,
-  Ultimate = true,
-}
-
 -- Runs a command from the entity player: checks it came from the entity and is off cooldown, then moves the squid.
 local function runCommand(command)
   return function(_, controller, aim)
@@ -155,7 +148,7 @@ local function runCommand(command)
       return
     end
 
-    if leavesTheVents[command] and lair.isLeashed(entity.squid) then
+    if config.lair.heldMoves[command] and lair.isLeashed(entity.squid) then
       links.sendEvent(controller, "Denied.PowerOff")
       return
     end

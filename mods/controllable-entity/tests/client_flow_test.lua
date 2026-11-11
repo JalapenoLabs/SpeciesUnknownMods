@@ -33,14 +33,23 @@ local function widgetElement(name)
   return fake.object(name, { Slot = fake.object(name .. "Slot") })
 end
 local widget = fake.object("WBP_EntityHUD_C", {
-  UltimateBar = widgetElement("UltimateBar"),
+  Abilities = widgetElement("Abilities"),
   UltimateText = widgetElement("UltimateText"),
   FrenzyText = widgetElement("FrenzyText"),
   StatusText = widgetElement("StatusText"),
-  AbilityText = widgetElement("AbilityText"),
 })
+for _, prefix in ipairs({ "Lash", "Leap", "Vent", "Peek", "View", "Ultimate" }) do
+  for _, part in ipairs({ "Slot", "Icon", "Key", "KeyText", "Bar" }) do
+    widget[prefix .. part] = widgetElement(prefix .. part)
+  end
+end
 for pingIndex = 0, 11 do
   widget["Ping" .. pingIndex] = widgetElement("Ping" .. pingIndex)
+end
+
+local function lastArgument(element, method)
+  local calls = fake.callsTo(element, method)
+  return calls[#calls] and calls[#calls].args[1]
 end
 local createdWidgets = 0
 fake.objects[game.paths.widgetLibrary] = fake.object("WidgetBlueprintLibrary", nil, {
@@ -63,7 +72,7 @@ local controller = fake.object("BP_MyPlayerController_C", {
   end,
 }, { "PlayerController" })
 local link = fake.object("BP_EntityLink_C", { Owner = controller, Meter = 0.5, Frenzy = false })
-local squid = fake.object("BP_Monster_Poulpi_C")
+local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false })
 -- The crew HUD the player's crew body created before the takeover
 local crewHud = fake.object("UI_HUD_Display_C", nil, { GetVisibility = function() return 4 end })
 
@@ -143,12 +152,25 @@ fake.runLoops(33)
 assert(createdWidgets == createdForMessage, "the HUD is created once")
 local crewHudVisibility = fake.callsTo(crewHud, "SetVisibility")
 assert(#crewHudVisibility == 1 and crewHudVisibility[1].args[1] == 1, "the crew HUD is collapsed")
-local percents = fake.callsTo(widget.UltimateBar, "SetPercent")
-assert(percents[#percents].args[1] == 0.5, "the bar shows the replicated meter")
-local labels = fake.callsTo(widget.UltimateText, "SetText")
-assert(labels[#labels].args[1].text == "HEAD GRAB  50%")
-local positions = fake.callsTo(widget.Ping0.Slot, "SetPosition")
-assert(#positions == 1 and positions[1].args[1].X == 400, "markers sit at the projected spot, in widget units")
+assert(lastArgument(widget.UltimateBar, "SetPercent") == 0.5, "the bar shows the replicated meter")
+assert(lastArgument(widget.UltimateText, "SetText").text == "HEAD GRAB  50%")
+assert(lastArgument(widget.LashKeyText, "SetText").text == "LMB", "each ability shows its key")
+assert(lastArgument(widget.UltimateKeyText, "SetText").text == config.keys.ultimate)
+assert(lastArgument(widget.Abilities, "SetVisibility") == 3, "the abilities show once the player is the entity")
+
+-- A cooldown fills its bar; a ready ability hides it
+assert(lastArgument(widget.LashBar, "SetVisibility") == 2, "a ready ability shows no bar")
+fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("Cooldown.Attack")), fake.param(0))
+fake.runLoops(33)
+assert(lastArgument(widget.LashBar, "SetVisibility") == 3, "a recharging ability shows its bar")
+assert(lastArgument(widget.LashBar, "SetPercent") == 1, "the bar starts full and drains")
+
+-- Peeking needs a vent, so outside one its slot dims; inside, it lights up
+assert(lastArgument(widget.PeekSlot, "SetRenderOpacity") < 1, "peek is dimmed outside a vent")
+squid.InVent = true
+fake.runLoops(33)
+assert(lastArgument(widget.PeekSlot, "SetRenderOpacity") == 1, "and usable inside one")
+assert(lastArgument(widget.Ping0.Slot, "SetPosition").X == 400, "markers sit at the projected spot, in widget units")
 
 fake.now = 5
 fake.runLoops(33)
@@ -156,12 +178,15 @@ local visibilities = fake.callsTo(widget.Ping0, "SetVisibility")
 assert(visibilities[#visibilities].args[1] == 2, "a ping disappears after it fades")
 assert(createdWidgets == createdForMessage, "the HUD is reused")
 
--- Until the power is on, the lair's hint stays on screen after its message fades
+-- Until the power is on, the lair's hint stays on screen after its message fades, and the moves that would leave the
+-- ducts dim
 fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("Leashed")), fake.param(0))
 fake.now = 60
 fake.runLoops(33)
 statusTexts = fake.callsTo(widget.StatusText, "SetText")
 assert(statusTexts[#statusTexts].args[1].text:find("power"), "the lair hint stays")
+assert(lastArgument(widget.VentSlot, "SetRenderOpacity") < 1, "leaving the vents is dimmed while the lair holds")
+assert(lastArgument(widget.LashSlot, "SetRenderOpacity") == 1, "the lash stays usable")
 fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("PowerRestored")), fake.param(0))
 fake.now = 120
 fake.runLoops(33)

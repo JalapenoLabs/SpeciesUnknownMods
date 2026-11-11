@@ -5,15 +5,22 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "EdGraphSchema_K2.h"
 #include "EditorAssetLibrary.h"
 #include "Engine/Blueprint.h"
+#include "Engine/Texture2D.h"
 #include "GameFramework/Actor.h"
+#include "ImageCore.h"
+#include "ImageUtils.h"
 #include "K2Node_CustomEvent.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -24,6 +31,39 @@
 
 // Vertical spacing between generated event nodes, so the graph stays readable when opened in the editor.
 static constexpr int32 EventNodeSpacing = 200;
+
+// Key caps copy the game's own key prompts: dark bold text in a white box with rounded corners.
+static constexpr float KeyCapCornerRadius = 5.0f;
+static const FMargin KeyCapPadding(8.0f, 2.0f);
+static const FLinearColor KeyCapTextColor(0.04f, 0.04f, 0.05f);
+// Progress bars sit on a dark track, so they read over the game's bright and dark scenes alike.
+static const FLinearColor ProgressTrackColor(0.0f, 0.0f, 0.0f, 0.45f);
+
+namespace {
+	// A solid brush with rounded corners, drawn by Slate itself (no texture needed).
+	FSlateBrush MakeRoundedBrush(const FLinearColor& Color, float CornerRadius) {
+		FSlateBrush Brush;
+		Brush.DrawAs = ESlateBrushDrawType::RoundedBox;
+		Brush.TintColor = FSlateColor(Color);
+		Brush.OutlineSettings = FSlateBrushOutlineSettings(FVector4(CornerRadius, CornerRadius, CornerRadius,
+			CornerRadius), FSlateColor(Color), 0.0f);
+		Brush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+		return Brush;
+	}
+
+	// A text style shared by every text element: a size, a typeface ("Regular", "Bold") and a soft shadow that keeps
+	// it readable over any scene.
+	void StyleText(UTextBlock* TextBlock, int32 FontSize, FName Typeface, bool bShadow) {
+		FSlateFontInfo Font = TextBlock->GetFont();
+		Font.Size = FontSize;
+		Font.TypefaceFontName = Typeface;
+		TextBlock->SetFont(Font);
+		if (bShadow) {
+			TextBlock->SetShadowOffset(FVector2D(1.0, 1.0));
+			TextBlock->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.75f));
+		}
+	}
+}
 
 // ////////////////////// //
 //       Pin types        //
@@ -245,7 +285,10 @@ UBlueprint* FBlueprintAssetBuilder::BuildWidget(const FModWidgetSpec& Spec) {
 	WidgetBlueprint->WidgetTree->RootWidget = Canvas;
 
 	for (const FModWidgetElement& Element : Spec.Elements) {
-		AddWidgetElement(WidgetBlueprint, Canvas, Element);
+		// An element that can't be built (a missing texture) would ship a HUD with a hole in it
+		if (!AddWidgetElement(WidgetBlueprint, Canvas, Element)) {
+			return nullptr;
+		}
 	}
 
 	if (!Compile(Blueprint) || !SaveBlueprint(Blueprint)) {
@@ -256,44 +299,13 @@ UBlueprint* FBlueprintAssetBuilder::BuildWidget(const FModWidgetSpec& Spec) {
 	return Blueprint;
 }
 
-void FBlueprintAssetBuilder::AddWidgetElement(UWidgetBlueprint* WidgetBlueprint, UCanvasPanel* Canvas,
+bool FBlueprintAssetBuilder::AddWidgetElement(UWidgetBlueprint* WidgetBlueprint, UCanvasPanel* Canvas,
 	const FModWidgetElement& Element) {
-	using FWidgetConstructor = TFunction<UWidget*(UWidgetTree*, const FModWidgetElement&)>;
+	UWidget* Widget = ConstructElement(WidgetBlueprint->WidgetTree, Element);
 
-	// One constructor per element kind; each sets only what its widget type supports
-	static const TMap<EModWidgetKind, FWidgetConstructor> ConstructorByKind = {
-		{EModWidgetKind::Text, [](UWidgetTree* WidgetTree, const FModWidgetElement& Spec) -> UWidget* {
-			UTextBlock* TextBlock = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Spec.Name);
-			TextBlock->SetText(FText::FromString(Spec.Text));
-			TextBlock->SetColorAndOpacity(FSlateColor(Spec.Color));
-			FSlateFontInfo Font = TextBlock->GetFont();
-			Font.Size = Spec.FontSize;
-			TextBlock->SetFont(Font);
-			// A soft shadow keeps text readable over the game's bright and dark scenes alike
-			TextBlock->SetShadowOffset(FVector2D(1.0, 1.0));
-			TextBlock->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.75f));
-			return TextBlock;
-		}},
-		{EModWidgetKind::ProgressBar, [](UWidgetTree* WidgetTree, const FModWidgetElement& Spec) -> UWidget* {
-			UProgressBar* ProgressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(),
-				Spec.Name);
-			ProgressBar->SetPercent(0.0f);
-			ProgressBar->SetFillColorAndOpacity(Spec.Color);
-			return ProgressBar;
-		}},
-		{EModWidgetKind::Box, [](UWidgetTree* WidgetTree, const FModWidgetElement& Spec) -> UWidget* {
-			UImage* Box = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), Spec.Name);
-			Box->SetColorAndOpacity(Spec.Color);
-			return Box;
-		}},
-	};
-
-	UWidget* Widget = ConstructorByKind[Element.Kind](WidgetBlueprint->WidgetTree, Element);
-
-	// Becoming a variable is what makes the element reachable from Lua by name
-	Widget->bIsVariable = true;
-	if (Element.bHidden) {
-		Widget->SetVisibility(ESlateVisibility::Hidden);
+	// ConstructElement already logged what was missing
+	if (!Widget) {
+		return false;
 	}
 
 	UCanvasPanelSlot* Slot = Canvas->AddChildToCanvas(Widget);
@@ -305,4 +317,180 @@ void FBlueprintAssetBuilder::AddWidgetElement(UWidgetBlueprint* WidgetBlueprint,
 	if (!bSizeToContent) {
 		Slot->SetSize(Element.Size);
 	}
+	return true;
+}
+
+UWidget* FBlueprintAssetBuilder::ConstructElement(UWidgetTree* WidgetTree, const FModWidgetElement& Element) {
+	using FElementConstructor = UWidget* (*)(UWidgetTree*, const FModWidgetElement&);
+
+	// One constructor per element kind; each sets only what its widget type supports
+	static const TMap<EModWidgetKind, FElementConstructor> ConstructorByKind = {
+		{EModWidgetKind::Text, &FBlueprintAssetBuilder::ConstructText},
+		{EModWidgetKind::ProgressBar, &FBlueprintAssetBuilder::ConstructProgressBar},
+		{EModWidgetKind::Box, &FBlueprintAssetBuilder::ConstructBox},
+		{EModWidgetKind::Image, &FBlueprintAssetBuilder::ConstructImage},
+		{EModWidgetKind::KeyCap, &FBlueprintAssetBuilder::ConstructKeyCap},
+		{EModWidgetKind::Row, &FBlueprintAssetBuilder::ConstructRow},
+	};
+
+	UWidget* Widget = ConstructorByKind[Element.Kind](WidgetTree, Element);
+
+	// The constructor logged what was missing
+	if (!Widget) {
+		return nullptr;
+	}
+
+	// Becoming a variable is what makes the element reachable from Lua by name
+	Widget->bIsVariable = true;
+	if (Element.bHidden) {
+		Widget->SetVisibility(ESlateVisibility::Hidden);
+	}
+	return Widget;
+}
+
+UWidget* FBlueprintAssetBuilder::ConstructText(UWidgetTree* WidgetTree, const FModWidgetElement& Element) {
+	UTextBlock* TextBlock = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), Element.Name);
+	TextBlock->SetText(FText::FromString(Element.Text));
+	TextBlock->SetColorAndOpacity(FSlateColor(Element.Color));
+	TextBlock->SetJustification(ETextJustify::Center);
+	StyleText(TextBlock, Element.FontSize, TEXT("Regular"), true);
+	return TextBlock;
+}
+
+UWidget* FBlueprintAssetBuilder::ConstructProgressBar(UWidgetTree* WidgetTree, const FModWidgetElement& Element) {
+	UProgressBar* ProgressBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), Element.Name);
+
+	// Fully rounded ends, like the game's own bars
+	const float CornerRadius = static_cast<float>(Element.Size.Y) / 2.0f;
+	FProgressBarStyle Style = ProgressBar->GetWidgetStyle();
+	Style.SetBackgroundImage(MakeRoundedBrush(ProgressTrackColor, CornerRadius));
+	Style.SetFillImage(MakeRoundedBrush(FLinearColor::White, CornerRadius));
+	ProgressBar->SetWidgetStyle(Style);
+
+	ProgressBar->SetPercent(0.0f);
+	ProgressBar->SetFillColorAndOpacity(Element.Color);
+	return ProgressBar;
+}
+
+UWidget* FBlueprintAssetBuilder::ConstructBox(UWidgetTree* WidgetTree, const FModWidgetElement& Element) {
+	UImage* Box = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), Element.Name);
+	Box->SetColorAndOpacity(Element.Color);
+	return Box;
+}
+
+UWidget* FBlueprintAssetBuilder::ConstructImage(UWidgetTree* WidgetTree, const FModWidgetElement& Element) {
+	const FString ObjectPath = Element.TexturePath + TEXT(".") + FPackageName::GetShortName(Element.TexturePath);
+	UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *ObjectPath);
+
+	// Textures build before the widgets that use them; a missing one means its build failed or wasn't listed
+	if (!Texture) {
+		UE_LOG(LogSpeciesUnknownModKit, Error, TEXT("%s needs the texture %s, which isn't built"),
+			*Element.Name.ToString(), *Element.TexturePath);
+		return nullptr;
+	}
+
+	UImage* Image = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), Element.Name);
+	FSlateBrush Brush;
+	Brush.SetResourceObject(Texture);
+	Brush.ImageSize = Element.Size;
+	Image->SetBrush(Brush);
+	Image->SetColorAndOpacity(Element.Color);
+	return Image;
+}
+
+UWidget* FBlueprintAssetBuilder::ConstructKeyCap(UWidgetTree* WidgetTree, const FModWidgetElement& Element) {
+	UBorder* KeyCap = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), Element.Name);
+	KeyCap->SetBrush(MakeRoundedBrush(FLinearColor::White, KeyCapCornerRadius));
+	KeyCap->SetPadding(KeyCapPadding);
+	KeyCap->SetHorizontalAlignment(HAlign_Center);
+	KeyCap->SetVerticalAlignment(VAlign_Center);
+
+	const FName LabelName(Element.Name.ToString() + TEXT("Text"));
+	UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), LabelName);
+	Label->SetText(FText::FromString(Element.Text));
+	Label->SetColorAndOpacity(FSlateColor(KeyCapTextColor));
+	Label->SetJustification(ETextJustify::Center);
+	StyleText(Label, Element.FontSize, TEXT("Bold"), false);
+	// Lua sets the label from the player's keys, so it must be reachable by name too
+	Label->bIsVariable = true;
+	KeyCap->SetContent(Label);
+	return KeyCap;
+}
+
+UWidget* FBlueprintAssetBuilder::ConstructRow(UWidgetTree* WidgetTree, const FModWidgetElement& Element) {
+	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), Element.Name);
+
+	for (int32 ChildIndex = 0; ChildIndex < Element.Children.Num(); ++ChildIndex) {
+		const FModWidgetElement& Child = Element.Children[ChildIndex];
+		UWidget* ChildWidget = ConstructElement(WidgetTree, Child);
+
+		// ConstructElement logged what was missing; a row with a hole in it isn't worth shipping
+		if (!ChildWidget) {
+			return nullptr;
+		}
+
+		// A fixed size holds the child's space even while Lua hides it, so the rest of the row never shifts
+		UWidget* PlacedWidget = ChildWidget;
+		if (!Child.Size.IsZero()) {
+			USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(),
+				FName(Child.Name.ToString() + TEXT("Size")));
+			SizeBox->SetWidthOverride(Child.Size.X);
+			SizeBox->SetHeightOverride(Child.Size.Y);
+			SizeBox->SetContent(ChildWidget);
+			PlacedWidget = SizeBox;
+		}
+
+		UHorizontalBoxSlot* Slot = Row->AddChildToHorizontalBox(PlacedWidget);
+		Slot->SetVerticalAlignment(VAlign_Center);
+		const float LeadingGap = ChildIndex == 0 ? 0.0f : Element.Gap;
+		Slot->SetPadding(FMargin(LeadingGap, 0.0f, 0.0f, 0.0f));
+	}
+	return Row;
+}
+
+// ////////////////////// //
+//        Textures        //
+// ////////////////////// //
+
+UTexture2D* FBlueprintAssetBuilder::BuildTexture(const FModTextureSpec& Spec) {
+	// The PNGs are rendered by scripts/build-mod-assets.sh before the editor starts; without one there's nothing to
+	// build from
+	FImage SourceImage;
+	if (!FImageUtils::LoadImage(*Spec.SourceFile, SourceImage)) {
+		UE_LOG(LogSpeciesUnknownModKit, Error, TEXT("Could not read a PNG at %s for %s; run scripts/build-mod-assets.sh"),
+			*Spec.SourceFile, *Spec.AssetPath);
+		return nullptr;
+	}
+
+	// The texture is filled from the PNG's pixels directly rather than through the editor's importer, which in UE 5.7
+	// (Interchange) reports its results through Slate and crashes a headless editor. A previous build's texture is
+	// reused, so the widgets that point at it stay linked; everything about it is set again below
+	const FString ShortName = FPackageName::GetShortName(Spec.AssetPath);
+	UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *(Spec.AssetPath + TEXT(".") + ShortName), nullptr,
+		LOAD_NoWarn | LOAD_Quiet);
+	if (!Texture) {
+		UPackage* Package = CreatePackage(*Spec.AssetPath);
+		Texture = NewObject<UTexture2D>(Package, FName(ShortName), RF_Public | RF_Standalone);
+		FAssetRegistryModule::AssetCreated(Texture);
+	}
+
+	Texture->PreEditChange(nullptr);
+	Texture->Source.Init(SourceImage);
+	// HUD icons are drawn at one fixed size: no mips, no streaming, and uncompressed so their edges stay crisp
+	Texture->CompressionSettings = TC_EditorIcon;
+	Texture->LODGroup = TEXTUREGROUP_UI;
+	Texture->MipGenSettings = TMGS_NoMipmaps;
+	Texture->NeverStream = true;
+	Texture->SRGB = true;
+	Texture->PostEditChange();
+	Texture->MarkPackageDirty();
+
+	if (!UEditorAssetLibrary::SaveLoadedAsset(Texture, false)) {
+		UE_LOG(LogSpeciesUnknownModKit, Error, TEXT("Could not save %s"), *Spec.AssetPath);
+		return nullptr;
+	}
+
+	UE_LOG(LogSpeciesUnknownModKit, Display, TEXT("Built %s from %s (%dx%d)"), *Spec.AssetPath, *Spec.SourceFile,
+		SourceImage.SizeX, SourceImage.SizeY);
+	return Texture;
 }

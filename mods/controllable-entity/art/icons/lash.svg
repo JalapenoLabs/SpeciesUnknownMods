@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Lash: a tentacle curling to strike. Suckers are cut out of the shape. -->
+  <path fill="#fff" fill-rule="evenodd" stroke="#000" stroke-opacity="0.4" stroke-width="3" paint-order="stroke"
+    d="M18 112 C18 74 46 60 70 60 C90 60 102 46 98 26 C97 19 105 16 108 23 C118 52 98 80 70 80 C52 80 40 92 40 112 Z
+       M30 98 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0 Z
+       M48 76 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0 Z
+       M70 70 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0 Z
+       M90 56 a4 4 0 1 0 8 0 a4 4 0 1 0 -8 0 Z"/>
+</svg>

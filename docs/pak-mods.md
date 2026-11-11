@@ -33,12 +33,13 @@ scripts/package-mods.sh --install  # also copies them into the game's Content/Pa
 What it does:
 
 1. **Generates the assets** from code (`scripts/build-mod-assets.sh`): an editor-only C++ module,
-   `Source/SpeciesUnknownModKit`, turns each mod's asset specs into Blueprints under `Content/Mods/<Mod>/`. Those
-   assets are build output and are not committed; the C++ is the source.
+   `Source/SpeciesUnknownModKit`, turns each mod's asset specs into assets under `Content/Mods/<Mod>/`: network
+   actors, widgets (text, bars, images, key caps and rows of them) and UI textures imported from the mod's rendered
+   icons. Those assets are build output and are not committed; the C++ and the SVGs are the source.
 2. **Cooks for Linux**, unversioned, in a headless editor. The Linux engine build can't cook for Windows, and it
-   doesn't need to: Blueprint-only content cooks the same for both desktop platforms, and IoStore containers are
-   platform-neutral. `Config/DefaultGame.ini` tells the cooker to include `/Game/Mods`, which nothing else
-   references.
+   doesn't need to: Blueprints and uncompressed UI textures (`TC_EditorIcon`, no mips) cook the same for both
+   desktop platforms, and IoStore containers are platform-neutral. Compressed textures would need checking first.
+   `Config/DefaultGame.ini` tells the cooker to include `/Game/Mods`, which nothing else references.
 3. **Packs one container per mod** with `UnrealPak`, the packager that built the game, using the same commands UAT
    runs for a packaged build (`-CreateGlobalContainer` with a `-Commands` file). The global container it also
    writes is discarded; the game ships its own.

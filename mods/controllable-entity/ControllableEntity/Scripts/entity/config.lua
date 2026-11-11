@@ -56,6 +56,8 @@ return {
     leashRadius = 1200,
     -- The shortest gap between two "the vents hold you" messages while the player pushes against the leash.
     warningInterval = 3,
+    -- The moves that would leave the ducts, which wait until the power is on.
+    heldMoves = { Leap = true, Vent = true, Ultimate = true },
   },
 
   camera = {

@@ -126,11 +126,22 @@ key the mod could reuse, so the mod's three keys are its own.
 The view starts in third person: the engine's own free camera behind the squid, which pulls in when a wall is in
 the way. First person is the squid's eye view.
 
-The HUD puts the kill meter bottom centre (`HEAD GRAB  73%`, then `HEAD GRAB READY [SPACE]`), abilities with their
-cooldowns bottom left, a `FRENZY` banner top centre, short messages mid-screen, and noise pings as coloured
-markers over the world: red gunshots, blue footsteps, amber alarms, doors and explosions. A message stays a second
-plus 300 ms a word, at least three seconds; the volunteer's status and the lair's "wait for the power" hint stay
-until they change. The crew HUD (status bars, objectives, crosshair) is hidden while the player is the squid.
+The HUD runs along the top of the screen, in the game's own style for key prompts:
+
+- **Abilities, top left:** lash, leap, vent, peek and view, each an icon with its key in a rounded white box. While
+  an ability recharges, a bar to the right of its key drains; the bar's space stays reserved, so the row never
+  shifts. An ability that can't be used right now dims: peeking outside a vent, and the moves that leave the ducts
+  while the lair holds the squid.
+- **The ultimate, top centre:** a skull, the Space key and the kill meter's bar, with `HEAD GRAB  73%` (then
+  `HEAD GRAB READY`) below it. In full frenzy the bar turns red and shows the re-arm instead.
+- **Below it:** the `FRENZY` banner, then the host's messages. A message stays a second plus 300 ms a word, at least
+  three seconds; the volunteer's status and the lair's "wait for the power" hint stay until they change.
+- **Noise pings** as coloured markers over the world: red gunshots, blue footsteps, amber alarms, doors and
+  explosions.
+- The crew HUD (status bars, objectives, crosshair) is hidden while the player is the squid.
+
+The keys shown are the game's default bindings; a player who rebinds an action sees the default. The icons are
+SVGs in [`art/icons/`](art/icons/).
 
 There's no sprint yet: the crew's sprint is bound on the crew character, not the controller, so it never reaches
 the squid. The squid moves at the game's combat speed.
@@ -172,7 +183,7 @@ create: network events and a widget layout.
     them alone. Its events, `EntityServerCommand` (player to host), `EntityClientPing` and `EntityClientEvent`
     (host to player), have no logic of their own: UE4SS's `RegisterCustomEvent` runs Lua when each one executes,
     on the machine it executes on. Its replicated `Meter` and `Frenzy` feed the HUD.
-  - `WBP_EntityHUD`: the HUD's layout. Lua fills in every value.
+  - `WBP_EntityHUD`: the HUD's layout, and its six icons as UI textures. Lua fills in every value, keys included.
 - **Runtime Blueprint only, by necessity.** Unreal projects normally put systems in C++, but a pak mod cannot ship
   C++: the game's executable does not contain our modules. Any C++ stays in editor-only tooling.
 - **Built with UE 5.7.4** (changelist 51494982, the game's exact engine build), so cooked assets match the game.

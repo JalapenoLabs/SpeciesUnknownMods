@@ -19,6 +19,7 @@ public class SpeciesUnknownModKit : ModuleRules {
 			"AssetTools",
 			"BlueprintGraph",
 			"EditorScriptingUtilities",
+			"ImageCore",
 			"Kismet",
 			"KismetCompiler",
 			"Slate",
