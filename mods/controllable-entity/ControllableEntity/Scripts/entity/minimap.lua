@@ -90,9 +90,7 @@ local function build(controller, squid)
 
   local widget = StaticFindObject(game.paths.widgetLibrary):Create(controller, widgetClass, controller)
   widget:AddToViewport(45)
-  widget:SetAnchorsInViewport({ Minimum = { X = 1, Y = 0 }, Maximum = { X = 1, Y = 0 } })
   widget:SetAlignmentInViewport({ X = 1, Y = 0 })
-  widget:SetPositionInViewport({ X = -config.minimap.margin, Y = config.minimap.margin }, false)
   widget:SetDesiredSizeInViewport({ X = DESIGN_SIZE, Y = DESIGN_SIZE })
   widget["Screen Width"] = DESIGN_SIZE
   widget:SetClipping(CLIP_TO_BOUNDS)
@@ -108,7 +106,21 @@ local function build(controller, squid)
     squidAddress = squid:GetAddress(),
     widget = widget,
     follower = follower,
+    placedForWidth = nil,
   }
+end
+
+-- Pins the minimap's top-right corner near the screen's. Setting a viewport widget's position or size resets its
+-- anchors to the top-left corner (UGameViewportSubsystem::SetWidgetSlotPosition), so the corner is placed from the
+-- viewport's width, in HUD units, and placed again whenever the window changes size.
+local function placeInCorner(controller)
+  local layoutLibrary = StaticFindObject(game.paths.widgetLayoutLibrary)
+  local width = layoutLibrary:GetViewportSize(controller).X / layoutLibrary:GetViewportScale(controller)
+  if built.placedForWidth == width then
+    return
+  end
+  built.placedForWidth = width
+  built.widget:SetPositionInViewport({ X = width - config.minimap.margin, Y = config.minimap.margin }, false)
 end
 
 function minimap.forget()
@@ -137,6 +149,7 @@ function minimap.follow(controller, squid)
     end
   end
 
+  placeInCorner(controller)
   local widget = built.widget
   widget.Scale = zoom
   widget.CanvasPanel_DynamicIcone:SetVisibility(COLLAPSED)

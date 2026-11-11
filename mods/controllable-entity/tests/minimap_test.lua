@@ -21,6 +21,10 @@ fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
 fake.objects["/Script/Engine.StaticMeshActor"] = fake.object("StaticMeshActorClass")
 local widgetClass = fake.object("UMG_MiniMap_C_Class")
 fake.objects["/Game/Blueprints/Inventory/Map/UMG_MiniMap.UMG_MiniMap_C"] = widgetClass
+fake.objects[game.paths.widgetLayoutLibrary] = fake.object("WidgetLayoutLibrary", nil, {
+  GetViewportScale = function() return 2 end,
+  GetViewportSize = function() return { X = 3840, Y = 2160 } end,
+})
 fake.installModPak(game.modClasses)
 fake.object("GameStateBase")
 
@@ -79,6 +83,12 @@ assert(lastArgument(minimapWidget, "SetDesiredSizeInViewport")[1].X == 1024, "at
 assert(lastArgument(minimapWidget, "SetClipping")[1] == 1, "clipped to its square")
 assert(math.abs(lastArgument(minimapWidget, "SetRenderScale")[1].X - config.minimap.size / 1024) < 1e-9,
   "scaled down to the corner")
+-- Regression (playtest 6): setting a viewport widget's position resets its anchors to the top-left corner, so the
+-- minimap anchored top right with a negative offset landed off screen. Its top-right corner is placed from the width
+local placed = lastArgument(minimapWidget, "SetPositionInViewport")[1]
+assert(placed.X == 3840 / 2 - config.minimap.margin and placed.Y == config.minimap.margin,
+  "the minimap's top-right corner sits near the screen's, in HUD units")
+assert(lastArgument(minimapWidget, "SetAlignmentInViewport")[1].X == 1, "measured from its right edge")
 assert(minimapWidget.ParentActor == follower, "centred on the follower, not the squid")
 assert(lastArgument(follower, "K2_AttachToActor")[1] == squid, "which rides with the squid")
 local absolute = lastArgument(follower.StaticMeshComponent, "SetAbsolute")
