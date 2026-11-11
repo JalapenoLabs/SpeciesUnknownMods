@@ -108,8 +108,9 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
   member below. Crouch peeks down through the grate. All three use the squid's own vent moves (`JumpToVent`,
   `AttackFromVent`, `LookFromVent`).
 - **Seeing in the vents:** the ducts are unlit, and much of the network is invisible collision rather than modelled
-  walls. So the entity carries a soft light, and glowing light-blue discs mark the vent openings within 35 m: over
-  the holes in the duct floor while inside, on the floor under each vent while in a room. Only the entity player's
+  walls. So the entity carries a soft light while in the vents (rooms have their own), and glowing light-blue discs
+  mark the vent openings within 35 m: over the holes in the duct floor while inside, on the floor under each vent
+  while in a room. Only the entity player's
   machine creates them, so nobody else sees either. They use the engine's own cylinder and the game's own unlit
   material (the in-game map's), because a mod can't ship new material shaders for the game's renderer.
 - **Map sections:** the game shows each part of the ship only while the local player stands in its streaming
