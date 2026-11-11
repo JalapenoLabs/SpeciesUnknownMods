@@ -110,6 +110,10 @@ function fake.giveView(controller, cameraManager)
   })
   controller.viewTarget = fake.invalid()
   controller.GetViewTarget = function(self) return self.viewTarget end
+  -- The engine's setter for the camera style; the property itself can't be written from Lua (playtest 4)
+  controller.ClientSetCameraMode = function(self, style)
+    self.PlayerCameraManager.CameraStyle = style
+  end
   controller.SetViewTargetWithBlend = function(self, target, ...)
     table.insert(fake.calls, { object = self, method = "SetViewTargetWithBlend", args = { target, ... } })
     self.viewTarget = target
