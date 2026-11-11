@@ -84,6 +84,20 @@ engine state change call them again); frenzy only ever escalates, so repeats cha
 - When both engines go critical, `BPI_GameState_LaunchEmergency` arms the self destruct and sets
   `LightStatut = 2`. `OnRep_LightStatut` with `LightStatut == 2` is a map-independent fallback trigger.
 
+### The hunt: the vents stop hiding the squid
+
+The AI never hides in the vents for good, but a player could. So in kill and capture contracts, once a crew member
+holds the special weapon (the same trigger as partial frenzy), the vents are only a short refuge:
+
+- The squid has 20 seconds in the vents at a time. The time drains while it's inside them and refills a second for
+  every six outside. The entity sees it at the top centre of the screen, only while it isn't full.
+- When the time runs out, the squid is forced out through the nearest shaft: straight down when one is in reach,
+  otherwise taken beside the nearest one on its floor first. The vents then stay shut to it until half the time is
+  back ("The vents won't take you yet").
+- The lair lets the squid go when the hunt starts, even with the power still off.
+- On the roadmap: moving a squid still in the vents 10 seconds after being forced out to the power room, and making
+  the squid loud while it is hunted, so the crew can follow it.
+
 ### Losing
 
 If the crew kills the entity, the entity player loses: no respawn, and their camera follows a crew member for the
@@ -228,6 +242,7 @@ create: network events and a widget layout.
   | `movement.lua` | both | The squid's speed, the vent bonus, and the sprint and its stamina |
   | `meter.lua` | host | The kill meter and frenzy rules, as plain logic (unit tested) |
   | `frenzy.lua` | host | The three frenzy triggers |
+  | `hunt.lua` | host | The vents' time limit once the crew holds the special weapon |
   | `senses.lua` | host | Noise sources to blurred pings |
   | `control.lua` | entity player | Input to movement and commands; the mod's keys |
   | `camera.lua` | entity player | Third and first person |
@@ -291,6 +306,7 @@ kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack 
   and as the entity player's machine, against `tests/fake_ue4ss.lua`, a stand-in for UE4SS and the game objects.
 - `tests/entity_mode_test.lua`: F9, forcing the squid from the lobby, and the random pick.
 - `tests/lair_test.lua`: the start in a vent, the leash and the power.
+- `tests/hunt_test.lua`: the vents' time limit once the crew holds the special weapon.
 - `tests/vision_test.lua`: the entity's light and the vent markers.
 - `tests/areas_test.lua`: the map sections and the minimap's deck around the squid.
 - `tests/minimap_test.lua`: the minimap, its follower, the hidden item icons and the zoom.
