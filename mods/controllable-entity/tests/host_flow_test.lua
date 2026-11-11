@@ -114,6 +114,7 @@ local squid = fake.object("BP_Monster_Poulpi_C", {
   K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
   BPI_Monster_GetSpeedByType = function(_, speedType, out) out.Speed = 400 + speedType end,
 })
+fake.object("BP_GameManager_C", { Monster = squid })
 local crewBody = fake.object("BP_Character_C", { CharacterMovement = fake.object("CharacterMovementComponent") }, {
   K2_GetActorLocation = function() return { X = 200, Y = 0, Z = 0 } end,
 })

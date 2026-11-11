@@ -15,6 +15,8 @@ How Species Unknown connects players, and how to decide whether a mod can be hos
 - **Topology:** listen server (inferred: the game ships no dedicated server). The host's game is the server;
   everyone else is a client. The host creates the session (an EOS lobby), and clients find and join it.
 - **Stock cap:** four players (host plus three).
+- **Modded play is solo or private only:** with UE4SS installed, the game disables public sessions itself (see
+  [game-internals.md](game-internals.md)).
 
 ## Limits outside the game
 

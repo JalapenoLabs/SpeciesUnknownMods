@@ -144,17 +144,29 @@ end
 -- Taking control
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
+-- The lobby's game mode (BP_LobbyGameMode) is a subclass of the mission's (BP_PlayableGameMode), so "a playable game
+-- mode exists" is true in the lobby too; the lobby has to be ruled out by name.
 local function isMission()
+  local lobbyGameMode = FindFirstOf("BP_LobbyGameMode_C")
+  if lobbyGameMode and lobbyGameMode:IsValid() then
+    return false
+  end
   local gameMode = FindFirstOf("BP_PlayableGameMode_C")
   return gameMode ~= nil and gameMode:IsValid()
 end
 
-local function liveSquid()
-  local squid = FindFirstOf(game.classNames.squid)
-  if not squid or not squid:IsValid() then
+-- The mission's specimen, when it is the squid: the monster BP_GameManager spawned (its Monster property). Other
+-- squids exist too, like the specimen on display in the lobby, and must never be taken over.
+local function missionSquid()
+  local gameManager = FindFirstOf(game.classNames.gameManager)
+  if not gameManager or not gameManager:IsValid() then
     return nil
   end
-  return squid
+  local monster = gameManager.Monster
+  if not monster:IsValid() or monster:GetClass():GetFName():ToString() ~= game.classNames.squid then
+    return nil
+  end
+  return monster
 end
 
 -- The entity player's crew body can't simply be destroyed: BP_MyGameState sends everyone back to the lobby when
@@ -260,7 +272,7 @@ function takeover.reconcile()
   end
 
   local controller = controllerForKey(volunteerKey)
-  local squid = liveSquid()
+  local squid = missionSquid()
   -- Both arrive during the first seconds of a mission; the next pass tries again
   if not controller or not squid then
     return

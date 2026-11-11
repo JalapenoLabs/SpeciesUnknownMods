@@ -17,7 +17,11 @@ installed build of 2026-11-06 (Steam app `2747330`). Re-check after a game updat
   `OnlineSubsystemRedpointEOS`), OnlineSubsystemBlueprints, OnlineSubsystemSteam, VaRest, StateTree, Sentry crash
   reporting, MetaHuman SDK runtime.
 - **No mod loader or mod SDK ships with the game.** Mods load through stock UE pak loading and the community
-  UE4SS loader. The executable references EOS Anti-Cheat functions (part of the Redpoint plugin), but no anti-cheat
+  UE4SS loader.
+- **The game detects UE4SS.** The title screen's play page (`WBP_TitleScreen_PlayPage`) calls `IsUsingUE4SS()`. When
+  it's true, the page shows the `ST_MainMenu.MODWrningMsg` banner ("Installed mods detected. Mods are not supported
+  yet, please only play with mods in solo or private sessions...") and disables the Public button; Solo and Private
+  stay available. This repository's mods respect that: play them solo or in private sessions. The executable references EOS Anti-Cheat functions (part of the Redpoint plugin), but no anti-cheat
   binaries are installed, so nothing blocks DLL injection or extra paks.
 
 ## Content containers
@@ -44,7 +48,7 @@ All in `SpeciesUnknown/Content/Paks/`:
 |-------|------|
 | `/Game/Blueprints/Core/BP_MyGameInstance` | Game instance; persists across travel |
 | `/Game/Blueprints/Core/BP_MainMenuGameMode` | Main menu |
-| `/Game/Blueprints/Core/BP_LobbyGameMode` | The ship hub players gather in before a contract |
+| `/Game/Blueprints/Core/BP_LobbyGameMode` | The ship hub players gather in before a contract; a subclass of `BP_PlayableGameMode`, so "a playable game mode exists" is true in the lobby too |
 | `/Game/Blueprints/Core/BP_PlayableGameMode` | Missions |
 | `/Game/Blueprints/Core/BP_FirstPersonGameMode` | Base first-person mode |
 | `/Game/Blueprints/Lobby/BP_Lobby_FunctionLibrairy` | Lobby helper functions (the misspelling is the game's) |

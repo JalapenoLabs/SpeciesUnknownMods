@@ -33,6 +33,7 @@ game.classNames = {
   link = "BP_EntityLink_C",
   gameInstance = "BP_MyGameInstance_C",
   gameState = "BP_MyGameState_C",
+  gameManager = "BP_GameManager_C",
   -- The game's vent entrances; the Polar map uses a subclass.
   vents = { "BP_Vent_Up_C", "BP_Vent_Up_POLAR_C" },
 }
