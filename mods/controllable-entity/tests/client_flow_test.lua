@@ -23,6 +23,9 @@ fake.objects[game.paths.inputLibrary] = fake.object("EnhancedInputLibrary", nil,
   Conv_InputActionValueToAxis2D = function(_, value) return value end,
   Conv_InputActionValueToBool = function(_, value) return value.pressed end,
 })
+-- The engine's component classes the camera rig is built from
+fake.objects["/Script/Engine.SpringArmComponent"] = fake.object("SpringArmComponentClass")
+fake.objects["/Script/Engine.CameraComponent"] = fake.object("CameraComponentClass")
 fake.objects[game.paths.widgetLayoutLibrary] = fake.object("WidgetLayoutLibrary", nil, {
   GetViewportScale = function() return 2 end,
 })
@@ -177,6 +180,15 @@ controller:SetViewTargetWithBlend(shuttleCamera, 0, 0, 0, false)
 fake.runLoops(1000)
 assert(controller:GetViewTarget() == squid, "the view is put back on the squid")
 assert(#squidComponents == 2, "the squid's camera is built once")
+
+-- Regression (playtest 4): after a hot reload the mod forgot its rig and built a second one, which the engine never
+-- viewed through, so the view toggle moved the wrong arm. A rig the squid already has is reused
+package.loaded["entity.camera"] = nil
+local reloadedCamera = require("entity.camera")
+reloadedCamera.follow(controller, squid)
+assert(#squidComponents == 2, "a reloaded mod reuses the squid's camera")
+reloadedCamera.toggle()
+assert(arm.TargetArmLength == 0, "and the view toggle moves the arm the player sees through")
 
 -- The HUD shows the meter and a ping
 fake.customEvents.EntityClientPing(fake.param(link), fake.param({ X = 100, Y = 0, Z = 0 }), fake.param(1.0),

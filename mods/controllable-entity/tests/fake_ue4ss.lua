@@ -129,10 +129,15 @@ end
 -- the components are added to.
 function fake.acceptComponents(actor)
   local components = {}
-  actor.AddComponentByClass = function()
+  local byClass = {}
+  actor.AddComponentByClass = function(_, class)
     local component = fake.object("Component")
     table.insert(components, component)
+    byClass[class] = byClass[class] or component
     return component
+  end
+  actor.GetComponentByClass = function(_, class)
+    return byClass[class] or fake.invalid()
   end
   return components
 end

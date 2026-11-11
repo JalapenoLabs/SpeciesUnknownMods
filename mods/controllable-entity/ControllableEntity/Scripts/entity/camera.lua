@@ -41,10 +41,21 @@ local function describe(actor)
   return actor:GetClass():GetFName():ToString()
 end
 
--- Adds the spring arm and camera to the squid; nil after logging when the engine won't make them.
+-- Gives the squid its spring arm and camera; nil after logging when the engine won't make them. A rig the squid
+-- already has is reused: the engine views through a pawn's first camera, so a second rig (after a hot reload of the
+-- mod, in playtest 4) would be one the player never sees, and the view toggle would move the wrong one.
 local function buildRig(squid)
-  local arm = squid:AddComponentByClass(StaticFindObject(SPRING_ARM_CLASS), false, IDENTITY_TRANSFORM, false)
-  local view = squid:AddComponentByClass(StaticFindObject(CAMERA_CLASS), true, IDENTITY_TRANSFORM, false)
+  local armClass = StaticFindObject(SPRING_ARM_CLASS)
+  local cameraClass = StaticFindObject(CAMERA_CLASS)
+  local existingArm = squid:GetComponentByClass(armClass)
+  local existingView = squid:GetComponentByClass(cameraClass)
+  if existingArm and existingArm:IsValid() and existingView and existingView:IsValid() then
+    game.log("The squid already has a camera; using it")
+    return { squidAddress = squid:GetAddress(), arm = existingArm, view = existingView }
+  end
+
+  local arm = squid:AddComponentByClass(armClass, false, IDENTITY_TRANSFORM, false)
+  local view = squid:AddComponentByClass(cameraClass, true, IDENTITY_TRANSFORM, false)
   if not arm or not arm:IsValid() or not view or not view:IsValid() then
     game.log("Could not give the squid a camera; the view stays as it is")
     return nil
