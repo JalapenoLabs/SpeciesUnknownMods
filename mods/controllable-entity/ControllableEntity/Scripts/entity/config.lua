@@ -29,6 +29,16 @@ return {
     Peek = 0.5,
   },
 
+  movement = {
+    -- The squid moves this much faster in the vents than the game's own crouched speed.
+    ventSpeedMultiplier = 1.3,
+    -- A full sprint lasts this long, and an empty stamina refills in this long while not sprinting.
+    sprintSeconds = 6,
+    staminaRefillSeconds = 10,
+    -- Out of breath, the squid sprints again once the stamina is back to this fraction.
+    staminaToSprintAgain = 0.3,
+  },
+
   attack = {
     -- A basic attack picks the crew member closest to the aim within this reach and cone.
     reach = 350,
@@ -112,5 +122,8 @@ return {
     volunteer = "F8",
     -- Host only: turns entity mode on or off for the session.
     entityMode = "F9",
+    -- Held to sprint; an Unreal key name (the squid reuses no game action for it: the crew's sprint is bound on the
+    -- crew character, not the controller).
+    sprint = "LeftShift",
   },
 }

@@ -14,6 +14,7 @@ local game = require("entity.game")
 local hud = require("entity.hud")
 local lair = require("entity.lair")
 local links = require("entity.links")
+local movement = require("entity.movement")
 local senses = require("entity.senses")
 local takeover = require("entity.takeover")
 
@@ -21,12 +22,14 @@ links.registerEvents()
 takeover.register()
 abilities.register()
 frenzy.register(abilities, takeover)
+movement.register(takeover.isEntityController)
 senses.register(abilities, takeover)
 control.register()
 hud.register()
 game.hookLoadedClasses()
 
--- Host loops: links and the takeover reconcile once a second; the meter and the lair's leash run five times a second.
+-- Host loops: links and the takeover reconcile once a second; the meter, the lair's leash and the squid's speed run five
+-- times a second.
 LoopInGameThreadWithDelay(1000, function()
   if not game.isHost() then
     return
@@ -36,9 +39,14 @@ LoopInGameThreadWithDelay(1000, function()
 end)
 
 LoopInGameThreadWithDelay(200, function()
-  if game.isHost() then
-    abilities.tick()
-    lair.tick()
+  if not game.isHost() then
+    return
+  end
+  abilities.tick()
+  lair.tick()
+  local entity = takeover.activeEntity()
+  if entity then
+    movement.tickHost(entity, game.timeSeconds(entity.squid))
   end
 end)
 

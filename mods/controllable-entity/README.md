@@ -136,6 +136,7 @@ key the mod could reuse, so the mod's three keys are its own.
 | Space (mod key) | Ultimate: with a full meter, leap (or drop) and the grab kills |
 | F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out |
 | F9 (mod key, host only) | Turn entity mode on or off |
+| Left Shift (mod key, held) | Sprint, on stamina |
 
 The view starts in third person, behind the squid along the player's look, passing through walls (many duct walls
 are invisible collision, which would otherwise pull the camera into the squid's head).
@@ -161,8 +162,11 @@ The HUD runs along the top of the screen, in the game's own style for key prompt
 The keys shown are the game's default bindings; a player who rebinds an action sees the default. The icons are
 SVGs in [`art/icons/`](art/icons/).
 
-There's no sprint yet: the crew's sprint is bound on the crew character, not the controller, so it never reaches
-the squid. The squid moves at the game's combat speed.
+The squid moves at the game's combat speed, 30% faster in the vents than the game's own crouched speed. Holding
+Left Shift sprints at the squid's top speed (the game's own, as when the AI monster gets angry) for up to 6 seconds;
+the stamina refills over 10 seconds, and an out-of-breath squid ("You're out of breath.") sprints again once it is
+back to 30%. The crew's sprint is bound on the crew character, not the controller, so the mod watches Shift itself.
+The host owns the stamina; both machines apply the same speed (see `movement.lua`).
 
 ## Install
 
@@ -187,6 +191,7 @@ create: network events and a widget layout.
   | `lair.lua` | host | The start in a vent away from the crew, and the leash until the power is on |
   | `vents.lua` | host | Finding vent shafts and the in-duct spots beside them |
   | `abilities.lua` | host | Commands to squid moves, cooldowns, the grab rule, the meter's tick |
+  | `movement.lua` | both | The squid's speed, the vent bonus, and the sprint and its stamina |
   | `meter.lua` | host | The kill meter and frenzy rules, as plain logic (unit tested) |
   | `frenzy.lua` | host | The three frenzy triggers |
   | `senses.lua` | host | Noise sources to blurred pings |

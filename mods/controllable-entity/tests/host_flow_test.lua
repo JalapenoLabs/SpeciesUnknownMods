@@ -115,6 +115,7 @@ local squid = fake.object("BP_Monster_Poulpi_C", {
   K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
   BPI_Monster_GetSpeedByType = function(_, speedType, out) out.Speed = 400 + speedType end,
 })
+fake.giveMovement(squid)
 fake.object("BP_GameManager_C", { Monster = squid })
 local crewBody = fake.object("BP_Character_C", { CharacterMovement = fake.object("CharacterMovementComponent") }, {
   K2_GetActorLocation = function() return { X = 200, Y = 0, Z = 0 } end,
@@ -133,7 +134,10 @@ assert(crewController.Pawn == squid, "the volunteer drives the squid")
 assert(aiController.destroyed, "the squid's AI is removed")
 assert(entityBody.destroyed, "with other crew aboard, the entity player's crew body is removed")
 local speedCalls = fake.callsTo(squid, "BPI_Monster_SetSpeed")
-assert(#speedCalls == 1 and speedCalls[1].args[1] == 401, "combat speed comes from the out parameter")
+assert(speedCalls[1].args[1] == 401, "combat speed comes from the out parameter")
+local config = require("entity.config")
+assert(math.abs(squid.CharacterMovement.MaxWalkSpeedCrouched - 401 / 2 * config.movement.ventSpeedMultiplier) < 1e-6,
+  "the squid is faster in the vents than the game's crouched speed")
 assert(lastEvent(crewController) == "BecameEntity")
 
 fake.runLoops()
@@ -188,5 +192,24 @@ assert(#pings == 1 and pings[1].args[3]:ToString() == "Gunshot", "the shot is he
 -- The meter state reaches the entity's link
 fake.runLoops(200)
 assert(linkOf(crewController).Frenzy == true, "frenzy replicates through the link")
+
+-- Sprinting: top speed while Shift is held, until the stamina runs out
+fake.now = 100
+fake.runLoops(200)
+command(crewController, "SprintStart")
+command(hostController, "SprintStart")
+fake.now = 101
+fake.runLoops(200)
+assert(squid.CharacterMovement.MaxWalkSpeed == 404, "the entity sprints at the squid's top speed")
+fake.now = 101 + config.movement.sprintSeconds
+fake.runLoops(200)
+assert(lastEvent(crewController) == "Sprint.Tired", "a full sprint runs out of breath")
+assert(squid.CharacterMovement.MaxWalkSpeed == 401, "and the squid slows to combat speed")
+fake.now = fake.now + config.movement.staminaRefillSeconds
+fake.runLoops(200)
+assert(lastEvent(crewController) == "Sprint.Rested", "catching its breath while Shift is still held")
+fake.now = fake.now + 0.2
+fake.runLoops(200)
+assert(squid.CharacterMovement.MaxWalkSpeed == 404, "then it sprints again")
 
 print("host flow test passed")

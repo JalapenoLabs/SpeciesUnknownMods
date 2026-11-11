@@ -10,6 +10,7 @@
 
 local camera = require("entity.camera")
 local config = require("entity.config")
+local movement = require("entity.movement")
 local streaming = require("entity.streaming")
 local vision = require("entity.vision")
 local game = require("entity.game")
@@ -224,6 +225,7 @@ function control.register()
     local squid = controller and drivenSquid(controller)
     if squid then
       vision.follow(controller, squid)
+      movement.followPlayer(controller, squid)
       return
     end
     vision.forget()

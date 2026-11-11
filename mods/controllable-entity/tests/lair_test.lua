@@ -106,6 +106,7 @@ local squid = fake.object("BP_Monster_Poulpi_C", {
     return true
   end,
 })
+fake.giveMovement(squid)
 -- The squid spawns later, as when a crew member leaves the shuttle on Hawking
 local gameManager = fake.object("BP_GameManager_C", { Monster = fake.invalid() })
 

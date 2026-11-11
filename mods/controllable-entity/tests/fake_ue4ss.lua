@@ -125,6 +125,18 @@ function fake.giveView(controller, crewBody)
   end
 end
 
+-- Gives a fake squid the parts its speed lives in, as the game's: GetSpeedByType answers 400 plus the speed type through
+-- its out parameter, and SetSpeed sets the walk speed and half of it crouched (calls are recorded).
+function fake.giveMovement(squid)
+  squid.CharacterMovement = fake.object("CharacterMovementComponent", { MaxWalkSpeed = 0, MaxWalkSpeedCrouched = 0 })
+  squid.BPI_Monster_GetSpeedByType = function(_, speedType, out) out.Speed = 400 + speedType end
+  squid.BPI_Monster_SetSpeed = function(self, speed)
+    table.insert(fake.calls, { object = self, method = "BPI_Monster_SetSpeed", args = { speed } })
+    self.CharacterMovement.MaxWalkSpeed = speed
+    self.CharacterMovement.MaxWalkSpeedCrouched = speed / 2
+  end
+end
+
 -- Lets a fake actor take runtime components (AActor.AddComponentByClass), as the camera rig needs. Returns the list
 -- the components are added to.
 function fake.acceptComponents(actor)

@@ -54,6 +54,7 @@ local squid = fake.object("BP_Monster_Poulpi_C", { Controller = fake.invalid() }
   BPI_Monster_GetSpeedByType = function(_, _, out) out.Speed = 400 end,
   K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
 })
+fake.giveMovement(squid)
 fake.object("BP_GameManager_C", { Monster = squid })
 local movement = fake.object("CharacterMovementComponent")
 local hostBody = fake.object("BP_Character_C", { CharacterMovement = movement })

@@ -9,6 +9,7 @@
 local game = require("entity.game")
 local lair = require("entity.lair")
 local links = require("entity.links")
+local movement = require("entity.movement")
 
 local takeover = {}
 
@@ -317,11 +318,9 @@ local function takeControl(controller, squid, worldKey)
     parkedBody = crewBody
   end
 
-  -- Combat speed (MonsterSpeed_DataTable type 1) suits a player better than the AI's patrol walk. The speed comes
-  -- back through an out parameter, which UE4SS fills into a table
-  local speed = {}
-  squid:BPI_Monster_GetSpeedByType(1, speed)
-  squid:BPI_Monster_SetSpeed(speed.Speed)
+  -- Combat speed suits a player better than the AI's patrol walk (movement.lua keeps it up to date from here on)
+  movement.resetHost()
+  movement.apply(squid, false)
 
   -- The AI's stuck check (BP_BaseMonster."Check If Stuck", every second) respawns a monster that hasn't moved for 20
   -- seconds, through BP_GameManager.InitMonster, which destroys it. A player lying in wait stands still for longer
@@ -360,6 +359,7 @@ local function adoptAfterReload(squid, worldKey)
     worldKey = worldKey,
   }
   squid.ShouldCheckIfStuck = false
+  movement.resetHost()
   game.log("%s is driving the squid; taken back as the entity after a reload", volunteerKey)
   return true
 end
