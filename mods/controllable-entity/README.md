@@ -275,10 +275,18 @@ that list empties the game travels everyone back to the lobby. Alone in a missio
 
 ## How the mission's monster is chosen
 
-`BP_GameManager` (placed in each mission map, runs on the host) decides the specimen when the mission starts:
+`BP_GameManager` (placed in each mission map, runs on the host) picks the specimen, then something else decides when
+it appears:
 
-1. If `BP_MyGameInstance.spawnForceSessionMonster` is set (not 0 or 1), it spawns that monster.
-2. Otherwise it picks one at random (`Get Random`).
+1. **The pick**, 1.5 seconds after the game manager begins play: `BP_MyGameInstance.spawnForceSessionMonster` when
+   set (not 0 or 1), otherwise `Get Random`. That roll is filtered by difficulty (the easiest one allows only Mike,
+   the Ghost and, in co-op, the Eye), by the contract's weapon categories (no first category: no Zombie Master or
+   Terminator), and drops the last monster finished; it is weighted by how often the host has met each monster. Until
+   then `MonsterToSpawn` holds the placed game manager's default (3, Mike), which is what a construction hook sees.
+2. **The spawn:** 2 seconds after begin play, but only if the level's game manager has `AutoSpawnMonster` on.
+   Hawking has it off: its level script spawns the monster the first time a crew member walks into `TriggerVolume_6`
+   on the way out of the shuttle (`InitMonster(true, ...)`, which calls `SpawnMonster` when no monster exists yet).
+   A respawn after a capture goes through `InitMonster` too, from `BP_MyGameState`.
 
 The game instance survives map travel, so setting `spawnForceSessionMonster` on the host while still in the lobby
 makes the next mission spawn the squid, through the game's own spawn path (`GetMonsterSoftClass` ->
@@ -328,7 +336,9 @@ the mission), and the squid can't sit. Leave through the pause menu. Steps 6 to 
    already claimed the entity".
 3. **The squid is forced and taken.** Start a contract. The mission's specimen is the squid, the volunteer sees
    "You are the entity" and controls it, and the host's log shows `took control of the squid` then
-   `Kept the entity out of the crew`. The volunteer's crew body is gone.
+   `Kept the entity out of the crew`. The volunteer's crew body is gone. On Hawking the squid only spawns once a
+   crew member steps out of the shuttle (see [How the mission's monster is chosen](#how-the-missions-monster-is-chosen)),
+   so until then the volunteer plays as crew; alone, walk out yourself.
 4. **Moving.** Walk, look, and check the crew see the squid move smoothly. Note any rubber-banding.
 5. **Lash, leap, vents.** Shoot next to a crew member: a lash with a cooldown on the HUD. Aim: a leap where you
    look; a grab on landing breaks off with "Your hunger isn't ready". Interact by a vent: climb in; Crouch peeks;
