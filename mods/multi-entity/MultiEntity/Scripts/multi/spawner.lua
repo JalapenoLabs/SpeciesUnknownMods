@@ -32,13 +32,12 @@ local function isAlive(actor)
   return actor and actor:IsValid() and not actor.IsDead
 end
 
--- Every monster in the map but the game manager's own: the extras, alive or dead, since a dead one still arrived.
-local function extrasInWorld(manager)
-  local tracked = manager.Monster
-  local trackedAddress = tracked and tracked:IsValid() and tracked:GetAddress() or nil
+-- The extra entities in the map, alive or dead, since a dead one still arrived: the monsters carrying the mod's tag.
+local function extrasInWorld()
+  local extraTag = FName(game.extraEntityTag)
   local extras = {}
   for _, monster in ipairs(FindAllOf(game.classNames.monster) or {}) do
-    if monster:IsValid() and monster:GetAddress() ~= trackedAddress then
+    if monster:IsValid() and monster:ActorHasTag(extraTag) then
       table.insert(extras, monster)
     end
   end
@@ -57,7 +56,7 @@ local function currentMission(manager, gameState, now)
   mission = { managerAddress = managerAddress, poweredAt = nil, monsterSeenAt = nil, spawned = 0 }
   if isAlive(manager.Monster) then
     mission.monsterSeenAt = now
-    mission.spawned = #extrasInWorld(manager)
+    mission.spawned = #extrasInWorld()
     if isPowerOn(gameState) then
       mission.poweredAt = now
     end
@@ -114,12 +113,21 @@ local function spawnExtra(manager)
     game.log("Spawning an extra entity failed")
     return
   end
+  -- Tagged before it begins play, so it counts as an extra whatever happens next (a TArray grows on a write one past
+  -- its end)
+  extra.Tags[#extra.Tags + 1] = FName(game.extraEntityTag)
   statics:FinishSpawningActor(extra, transform, game.spawnScale.MultiplyWithRoot)
 
+  -- The mission's monster goes back even if the setup fails, or the game would track the extra for the rest of it
   local missionMonster = manager.Monster
   manager.Monster = extra
-  manager:SetUpBaseMonsterState()
+  local setUp, problem = pcall(function()
+    manager:SetUpBaseMonsterState()
+  end)
   manager.Monster = missionMonster
+  if not setUp then
+    game.log("Setting up an extra entity failed: %s", tostring(problem))
+  end
 
   -- The setup copies the manager's respawn data, a stuck monster's state when there was one; an extra starts fresh
   extra["Respawn Data"][game.respawnFlagField] = false
@@ -189,7 +197,7 @@ function spawner.tick()
     secondsSincePower = now - math.max(current.poweredAt, current.monsterSeenAt)
   end
 
-  local extras = extrasInWorld(manager)
+  local extras = extrasInWorld()
   current.spawned = math.max(current.spawned, #extras)
   local due = rules.extrasDue(count, secondsSincePower)
   while current.spawned < due do
@@ -198,7 +206,7 @@ function spawner.tick()
     spawnExtra(manager)
   end
 
-  keepPace(manager, extrasInWorld(manager))
+  keepPace(manager, extrasInWorld())
 end
 
 -- BP_MyGameState.OnRep_LightStatut runs on the host too: ChangeLightStatut calls it after every change. The first

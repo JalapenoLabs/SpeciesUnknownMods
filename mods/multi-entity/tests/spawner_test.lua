@@ -54,6 +54,7 @@ local function mission(options)
       return fake.object("Monster", {
         class = class,
         IsDead = false,
+        Tags = {},
         ShouldCheckIfStuck = true,
         GameTimeProgression = 0,
         ["Respawn Data"] = { [game.respawnFlagField] = true },
@@ -66,8 +67,9 @@ end
 
 local function monsterOfClass(className)
   local class = fake.object("Class", nil, { GetFName = function() return fake.name(className) end })
-  return fake.object(className, { class = class, IsDead = false }, { GetClass = function() return class end },
-    monsterNames)
+  return fake.object(className, { class = class, IsDead = false, Tags = {} }, {
+    GetClass = function() return class end,
+  }, monsterNames)
 end
 
 local function loadMod()
@@ -92,10 +94,10 @@ local function powerOn(gameState, seconds, status)
   fake.runHook(game.paths.gameState .. ":OnRep_LightStatut", fake.param(gameState))
 end
 
-local function extras(manager)
+local function extras()
   local found = {}
   for _, monster in ipairs(FindAllOf(game.classNames.monster) or {}) do
-    if monster ~= manager.Monster then
+    if monster:ActorHasTag(FName(game.extraEntityTag)) then
       table.insert(found, monster)
     end
   end
@@ -136,7 +138,7 @@ tests["an extra gets the game's setup and leaves the mission's monster tracked"]
   powerOn(gameState, 0)
   tickAt(150)
 
-  local extra = extras(manager)[1]
+  local extra = extras()[1]
   assert(extra, "an extra arrived")
   assert(manager.setUpFor[1] == extra, "SetUpBaseMonsterState ran for the extra")
   assert(manager.Monster == missionMonster, "the manager tracks the mission's monster again")
@@ -150,6 +152,30 @@ tests["an extra gets the game's setup and leaves the mission's monster tracked"]
   tickAt(151)
   assert(extra.GameTimeProgression == 0.5)
   assert(#fake.callsTo(extra, "OnRep_GameTimeProgression") >= 1)
+end
+
+tests["only the mod's tagged monsters count as extras"] = function()
+  loadMod()
+  local gameState, manager, spawnedClasses = mission({ extraEntities = 1 })
+  manager.Monster = monsterOfClass("BP_Monster_Poulpi_C")
+  -- Another monster of the base class the game placed itself, untagged
+  monsterOfClass("BP_Monster_Poulpi_C")
+  powerOn(gameState, 0)
+  tickAt(150)
+  assert(#spawnedClasses == 1, "a monster the mod didn't spawn isn't an arrived extra")
+  assert(extras()[1].class == manager.Monster.class)
+end
+
+tests["the mission's monster goes back to the manager even when the setup fails"] = function()
+  loadMod()
+  local gameState, manager = mission({ extraEntities = 1 })
+  local missionMonster = monsterOfClass("BP_Monster_Poulpi_C")
+  manager.Monster = missionMonster
+  manager.SetUpBaseMonsterState = function() error("setup broke") end
+  powerOn(gameState, 0)
+  tickAt(150)
+  assert(manager.Monster == missionMonster)
+  assert(extras()[1].ShouldCheckIfStuck == false, "the extra still skips the stuck check")
 end
 
 tests["with power at start, the clock waits for the mission's monster"] = function()

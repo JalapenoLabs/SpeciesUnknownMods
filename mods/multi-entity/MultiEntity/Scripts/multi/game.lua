@@ -42,6 +42,10 @@ game.monsterClassPaths = {
   [7] = "/Game/Blueprints/Monsters/BP_BigRobot.BP_BigRobot_C",
 }
 
+-- The actor tag the mod gives each extra entity it spawns (AActor.Tags), so the extras are told apart from every
+-- other monster in the map, through a hot reload of the mod too. Tags don't replicate; only the host reads it.
+game.extraEntityTag = "MultiEntityExtra"
+
 -- BP_BaseMonster's "Respawn Data" (RespawnMonsterStruct): when its Respawn flag is set, the monster's begin play
 -- restores a stuck predecessor's state half a second after it spawns.
 game.respawnFlagField = "Respawn_14_0B4F186440AE4A32147201A4B7EEEE8E"

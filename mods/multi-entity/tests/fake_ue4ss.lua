@@ -47,6 +47,15 @@ function fake.object(className, fields, methods, alsoKnownAs)
     GetClass = function() return classInfo end,
     GetFName = function() return fake.name(className) end,
     HasAuthority = function() return fake.isHost end,
+    -- AActor.ActorHasTag, over the object's Tags
+    ActorHasTag = function(_, tag)
+      for _, ownTag in ipairs(rawget(object, "Tags") or {}) do
+        if ownTag:ToString() == tag:ToString() then
+          return true
+        end
+      end
+      return false
+    end,
   }
 
   setmetatable(object, {
