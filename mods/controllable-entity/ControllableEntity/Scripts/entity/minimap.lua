@@ -142,7 +142,8 @@ function minimap.follow(controller, monster)
   widget.CanvasPanel_DynamicIcone:SetVisibility(COLLAPSED)
   -- The icon turns with the squid. The map draws world +Y up and +X to the left (MapUtils.WorldToWidgetLocation
   -- negates both), so a heading of yaw points the icon yaw - 90 degrees clockwise from up
-  widget.UMG_Icone_player_C_0:SetRenderTransformAngle(monster:K2_GetActorRotation().Yaw + config.minimap.iconAngleOffset)
+  local heading = monster:K2_GetActorRotation().Yaw
+  widget.UMG_Icone_player_C_0:SetRenderTransformAngle(heading + config.minimap.iconAngleOffset)
 end
 
 -- One step in (+1) or out (-1).
