@@ -91,8 +91,7 @@ return {
     size = 300,
     margin = 24,
     -- The game's minimap Scale: larger zooms in. At 1 the whole ship fits the square; the crew's tool, on a 1024-pixel
-    -- screen, runs from 0.7 to 1.0.
-    startZoom = 3.0,
+    -- screen, runs from 0.7 to 1.0. The minimap always starts fully zoomed out.
     minimumZoom = 1.0,
     maximumZoom = 8.0,
     zoomStep = 1.25,

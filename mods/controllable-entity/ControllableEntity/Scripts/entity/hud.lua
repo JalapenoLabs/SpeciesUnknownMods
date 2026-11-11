@@ -256,6 +256,12 @@ local function render()
   end
 
   syncWorld(controller)
+  -- Only the entity drives the squid, so driving it is proof enough: the host's BecameEntity may never arrive in this
+  -- run of the mod (a hot reload on either machine forgets it, playtest 6)
+  local pawn = controller.Pawn
+  if not state.isEntity and pawn:IsValid() and pawn:GetClass():GetFName():ToString() == game.classNames.squid then
+    state.isEntity = true
+  end
   local now = game.timeSeconds(controller)
   if state.isEntity then
     hideCrewHud(now)

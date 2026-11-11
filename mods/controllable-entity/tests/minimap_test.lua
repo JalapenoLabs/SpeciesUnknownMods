@@ -45,6 +45,9 @@ local minimapWidget = fake.object("UMG_MiniMap_C", {
 local createdWith = nil
 fake.objects[game.paths.widgetLibrary] = fake.object("WidgetBlueprintLibrary", nil, {
   Create = function(_, _, class)
+    if class ~= widgetClass then
+      return fake.entityHud()
+    end
     createdWith = class
     return minimapWidget
   end,
@@ -103,6 +106,8 @@ squid.yaw = 120
 fake.runLoops(33)
 assert(lastArgument(minimapWidget.UMG_Icone_player_C_0, "SetRenderTransformAngle")[1] == 120 - 90,
   "the icon shows which way the squid faces (the map draws +Y up)")
+
+assert(minimapWidget.Scale == config.minimap.minimumZoom, "the minimap starts fully zoomed out")
 
 -- "." zooms in and "," out, within the limits
 local startZoom = minimapWidget.Scale

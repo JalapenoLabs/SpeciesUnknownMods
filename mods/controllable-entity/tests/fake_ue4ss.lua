@@ -137,6 +137,28 @@ function fake.giveMovement(squid)
   end
 end
 
+-- A fake WBP_EntityHUD with every element the HUD module reaches by name; each element has a fake canvas Slot.
+function fake.entityHud()
+  local function element(name)
+    return fake.object(name, { Slot = fake.object(name .. "Slot") })
+  end
+  local widget = fake.object("WBP_EntityHUD_C", {
+    Abilities = element("Abilities"),
+    UltimateText = element("UltimateText"),
+    FrenzyText = element("FrenzyText"),
+    StatusText = element("StatusText"),
+  })
+  for _, prefix in ipairs({ "Lash", "Leap", "Vent", "Peek", "View", "Ultimate" }) do
+    for _, part in ipairs({ "Slot", "Icon", "Key", "KeyText", "Bar" }) do
+      widget[prefix .. part] = element(prefix .. part)
+    end
+  end
+  for pingIndex = 0, 11 do
+    widget["Ping" .. pingIndex] = element("Ping" .. pingIndex)
+  end
+  return widget
+end
+
 -- Lets a fake actor take runtime components (AActor.AddComponentByClass), as the camera rig needs. Returns the list
 -- the components are added to.
 function fake.acceptComponents(actor)
@@ -218,6 +240,14 @@ end
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
 function fake.install()
+  -- UMG's libraries, for any test whose player ends up with a HUD; a test that checks the HUD installs its own
+  fake.objects["/Script/UMG.Default__WidgetBlueprintLibrary"] = fake.object("WidgetBlueprintLibrary", nil, {
+    Create = function() return fake.entityHud() end,
+  })
+  fake.objects["/Script/UMG.Default__WidgetLayoutLibrary"] = fake.object("WidgetLayoutLibrary", nil, {
+    GetViewportScale = function() return 1 end,
+    GetViewportSize = function() return { X = 1920, Y = 1080 } end,
+  })
   _G.FName = function(text) return fake.name(text) end
   _G.FText = function(text) return { text = text } end
   _G.Key = setmetatable({}, { __index = function(_, key) return key end })

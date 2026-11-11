@@ -34,23 +34,7 @@ fake.installModPak(game.modClasses)
 fake.object("GameStateBase")
 fake.world = fake.object("World")
 
-local function widgetElement(name)
-  return fake.object(name, { Slot = fake.object(name .. "Slot") })
-end
-local widget = fake.object("WBP_EntityHUD_C", {
-  Abilities = widgetElement("Abilities"),
-  UltimateText = widgetElement("UltimateText"),
-  FrenzyText = widgetElement("FrenzyText"),
-  StatusText = widgetElement("StatusText"),
-})
-for _, prefix in ipairs({ "Lash", "Leap", "Vent", "Peek", "View", "Ultimate" }) do
-  for _, part in ipairs({ "Slot", "Icon", "Key", "KeyText", "Bar" }) do
-    widget[prefix .. part] = widgetElement(prefix .. part)
-  end
-end
-for pingIndex = 0, 11 do
-  widget["Ping" .. pingIndex] = widgetElement("Ping" .. pingIndex)
-end
+local widget = fake.entityHud()
 
 local function lastArgument(element, method)
   local calls = fake.callsTo(element, method)
@@ -263,5 +247,20 @@ fake.runLoops(33)
 assert(#fake.callsTo(widget, "RemoveFromParent") == removalsBeforeTravel + 1, "the old world's HUD is removed")
 fake.runLoops(33)
 assert(createdWidgets == createdForMessage, "no HUD is rebuilt in a world where the host hasn't named this player")
+
+-- Regression (playtest 6): after a hot reload the HUD never learned the player was the entity again, so it stayed
+-- hidden. Driving the squid is proof enough on the player's own machine
+for name in pairs(package.loaded) do
+  if name:match("^entity%.") then
+    package.loaded[name] = nil
+  end
+end
+fake.loops, fake.customEvents, fake.hooks = {}, {}, {}
+dofile("mods/controllable-entity/ControllableEntity/Scripts/main.lua")
+controller.Pawn = squid
+local createdBeforeReload = createdWidgets
+fake.runLoops(33)
+assert(createdWidgets == createdBeforeReload + 1, "the reloaded HUD comes back while the player drives the squid")
+assert(lastArgument(widget.Abilities, "SetVisibility") == 3, "with the abilities showing")
 
 print("client flow test passed")

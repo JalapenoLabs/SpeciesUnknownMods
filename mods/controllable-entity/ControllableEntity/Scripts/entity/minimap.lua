@@ -32,8 +32,8 @@ local DESIGN_SIZE = 1024
 
 -- What this machine has built: { worldKey, squidAddress, widget, follower }, or nil.
 local built = nil
--- The zoom survives between missions: the widget's Scale, which the crew's tool sets from 0.7 to 1.0 by upgrade.
-local zoom = nil
+-- The widget's Scale, which "." and "," change; every new minimap starts fully zoomed out.
+local zoom = config.minimap.minimumZoom
 
 local function loadWidgetClass()
   local class = StaticFindObject(WIDGET_CLASS)
@@ -99,7 +99,7 @@ local function build(controller, squid)
   widget:SetRenderScale({ X = shrink, Y = shrink })
   widget.ParentActor = follower
 
-  zoom = zoom or config.minimap.startZoom
+  zoom = config.minimap.minimumZoom
   game.log("The minimap is up")
   return {
     worldKey = controller:GetWorld():GetAddress(),
@@ -160,8 +160,7 @@ end
 
 -- One step in (+1) or out (-1).
 function minimap.zoom(direction)
-  local current = zoom or config.minimap.startZoom
-  local stepped = current * config.minimap.zoomStep ^ direction
+  local stepped = zoom * config.minimap.zoomStep ^ direction
   zoom = math.max(config.minimap.minimumZoom, math.min(config.minimap.maximumZoom, stepped))
 end
 
