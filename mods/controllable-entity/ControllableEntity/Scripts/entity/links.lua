@@ -35,25 +35,10 @@ end
 -- Host
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
-local function loadLinkClass()
-  local linkClass = StaticFindObject(game.paths.linkClass)
-  if linkClass and linkClass:IsValid() then
-    return linkClass
-  end
-
-  LoadAsset(game.paths.link)
-  linkClass = StaticFindObject(game.paths.linkClass)
-  if not linkClass or not linkClass:IsValid() then
-    game.log("Could not load %s; is ControllableEntity_P.pak in Content/Paks/~mods?", game.paths.link)
-    return nil
-  end
-  return linkClass
-end
-
 -- Spawns a link for every player controller that has none. Called every second on the host: players join, leave
 -- and travel at any time, and a reconcile pass catches every case without hooking the game's travel code.
 function links.reconcile()
-  local linkClass = loadLinkClass()
+  local linkClass = game.loadModClass(game.modClasses.link)
   if not linkClass then
     return
   end

@@ -20,7 +20,7 @@ local game = require("entity.game")
 fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
 })
-fake.objects[game.paths.linkClass] = fake.object("BP_EntityLink_C_Class")
+fake.installModPak(game.modClasses)
 fake.objects[game.paths.grabInterruptedMontage] = fake.object("AnimMontage")
 
 local gameInstance = fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })

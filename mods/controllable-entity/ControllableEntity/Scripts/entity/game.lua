@@ -5,11 +5,14 @@
 
 local game = {}
 
+-- The mod's own classes, from ControllableEntity_P.pak: { package, class }.
+game.modClasses = {
+  link = { package = "/Game/Mods/ControllableEntity/BP_EntityLink", class = "BP_EntityLink_C" },
+  hud = { package = "/Game/Mods/ControllableEntity/WBP_EntityHUD", class = "WBP_EntityHUD_C" },
+}
+
 game.paths = {
-  link = "/Game/Mods/ControllableEntity/BP_EntityLink",
-  linkClass = "/Game/Mods/ControllableEntity/BP_EntityLink.BP_EntityLink_C",
-  hud = "/Game/Mods/ControllableEntity/WBP_EntityHUD",
-  hudClass = "/Game/Mods/ControllableEntity/WBP_EntityHUD.WBP_EntityHUD_C",
+  assetRegistryHelpers = "/Script/AssetRegistry.Default__AssetRegistryHelpers",
   squidClass = "/Game/Blueprints/Monsters/BP_Monster_Poulpi.BP_Monster_Poulpi_C",
   controllerClass = "/Game/Blueprints/Player/BP_MyPlayerController.BP_MyPlayerController_C",
   gameStateClass = "/Game/Blueprints/Core/BP_MyGameState.BP_MyGameState_C",
@@ -47,6 +50,33 @@ game.contractTypes = {
 
 function game.log(message, ...)
   print(string.format("[ControllableEntity] " .. message .. "\n", ...))
+end
+
+-- Mod classes that failed to load, so a missing pak is reported once instead of on every retry.
+local reportedMissingClasses = {}
+
+-- Loads one of the mod's own classes (game.modClasses), or returns nil after reporting why. UE4SS's LoadAsset can't
+-- do this: it only loads assets listed in the game's asset registry, and a mod pak's assets never are. Asset data
+-- built by hand loads by path instead, which is how UE4SS's own BPModLoader loads mods from paks.
+function game.loadModClass(modClass)
+  local classPath = modClass.package .. "." .. modClass.class
+  local class = StaticFindObject(classPath)
+  if class and class:IsValid() then
+    return class
+  end
+
+  local assetRegistryHelpers = StaticFindObject(game.paths.assetRegistryHelpers)
+  class = assetRegistryHelpers:GetAsset({ PackageName = FName(modClass.package), AssetName = FName(modClass.class) })
+  if class and class:IsValid() then
+    game.log("Loaded %s", classPath)
+    return class
+  end
+
+  if not reportedMissingClasses[classPath] then
+    reportedMissingClasses[classPath] = true
+    game.log("Could not load %s; is ControllableEntity_P.pak in Content/Paks/~mods?", classPath)
+  end
+  return nil
 end
 
 -- UEHelpers.GetPlayerController returns the first player controller, which on a listen server can be a remote

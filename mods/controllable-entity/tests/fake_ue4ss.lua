@@ -100,6 +100,23 @@ function fake.array(elements)
   })
 end
 
+-- Makes the mod's pak classes loadable the way the game would: through AssetRegistryHelpers.GetAsset, by package
+-- and class name. Returns each class object by its mod class key.
+function fake.installModPak(modClasses)
+  local classes = {}
+  local classByPackage = {}
+  for key, modClass in pairs(modClasses) do
+    classes[key] = fake.object(modClass.class .. "_Class")
+    classByPackage[modClass.package .. "." .. modClass.class] = classes[key]
+  end
+  fake.objects["/Script/AssetRegistry.Default__AssetRegistryHelpers"] = fake.object("AssetRegistryHelpers", nil, {
+    GetAsset = function(_, assetData)
+      return classByPackage[assetData.PackageName:ToString() .. "." .. assetData.AssetName:ToString()] or fake.invalid()
+    end,
+  })
+  return classes
+end
+
 -- Calls recorded on `object` for `method`, in order.
 function fake.callsTo(object, method)
   local matching = {}

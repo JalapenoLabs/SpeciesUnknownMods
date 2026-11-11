@@ -65,10 +65,8 @@ local function ensureWidget(controller)
     return state.widget
   end
 
-  LoadAsset(game.paths.hud)
-  local widgetClass = StaticFindObject(game.paths.hudClass)
-  if not widgetClass or not widgetClass:IsValid() then
-    game.log("Could not load %s; is ControllableEntity_P.pak in Content/Paks/~mods?", game.paths.hud)
+  local widgetClass = game.loadModClass(game.modClasses.hud)
+  if not widgetClass then
     return nil
   end
 

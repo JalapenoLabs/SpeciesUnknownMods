@@ -24,7 +24,7 @@ fake.objects[game.paths.inputLibrary] = fake.object("EnhancedInputLibrary", nil,
 fake.objects[game.paths.widgetLayoutLibrary] = fake.object("WidgetLayoutLibrary", nil, {
   GetViewportScale = function() return 2 end,
 })
-fake.objects[game.paths.hudClass] = fake.object("WBP_EntityHUD_C_Class")
+fake.installModPak(game.modClasses)
 fake.object("GameStateBase")
 
 local function widgetElement(name)
