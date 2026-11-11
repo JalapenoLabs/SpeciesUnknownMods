@@ -61,6 +61,10 @@ return {
     -- far above or below the foot it may be. A step rises 250 units, so a squid at its top is never at its foot.
     climbReach = 250,
     climbVerticalReach = 150,
+    -- How close to a floor-level crawl opening's trigger the squid crouches into it, and how fast it must be heading
+    -- in (units a second along the opening): the squid is about 176 tall and an opening about 141.
+    crawlReach = 120,
+    crawlEntrySpeed = 50,
   },
 
   -- Once a crew member holds the weapon that can kill the specimen (kill and capture contracts), the vents stop being

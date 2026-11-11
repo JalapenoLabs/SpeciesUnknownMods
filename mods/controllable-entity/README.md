@@ -171,6 +171,10 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
   climbs it instead when the step is nearer than an opening. Crouch peeks down through the grate. All four use the
   squid's own vent moves (`JumpToVent`, `AttackFromVent`, `ClimbVent250`, `LookFromVent`). Climbing stays inside the
   ducts, so the lair allows it before the power is on.
+- **Crawl openings:** the floor-level openings the crew crouch through into the ducts (six on Hawking, two in crew
+  quarters and four in the lab) take the squid too: as it moves into one, the host puts it in its crouched vent
+  state, and coming back out the game's own trigger stands it up. Only the squid crawls; an entity that doesn't use
+  the vents wouldn't.
 - **Seeing in the vents:** the ducts are unlit, and much of the network is invisible collision rather than modelled
   walls. So the entity carries a soft light (full in the ducts, faint in the rooms, which the game keeps dark on
   purpose), and glowing light-blue discs
@@ -297,6 +301,7 @@ create: network events and a widget layout.
   | `meter.lua` | host | The kill meter and frenzy rules, as plain logic (unit tested) |
   | `frenzy.lua` | host | The three frenzy triggers |
   | `hunt.lua` | host | The vents' time limit once the crew holds the special weapon |
+  | `crawl.lua` | host | Crouching the squid into the floor-level crawl openings |
   | `zones.lua` | both | The shuttle, its approach and the forbidden areas: where the entity may not go |
   | `capture.lua` | host | In capture contracts, the entity killed off the shuttle counts as captured |
   | `senses.lua` | host | Noise sources to blurred pings |
@@ -365,6 +370,7 @@ kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack 
 - `tests/entity_mode_test.lua`: F9, forcing the squid from the lobby, and the random pick.
 - `tests/lair_test.lua`: the start in a vent, the leash and the power.
 - `tests/hunt_test.lua`: the vents' time limit once the crew holds the special weapon.
+- `tests/crawl_test.lua`: the squid crouching into a crawl opening only while heading in.
 - `tests/zones_test.lua`: kept off the shuttle and out of forbidden areas, the shuttle's approach, and the marked
   boxes.
 - `tests/capture_test.lua`: the entity killed off or aboard the shuttle in capture contracts.
@@ -516,8 +522,6 @@ makes the next mission spawn the squid, through the game's own spawn path (`GetM
   the shuttle in capture contracts; hiding the contract type from a player who knows in advance they're the entity;
   keeping the entity off the crew's radio while still hearing nearby voices; and, for the ghost later, haunting one
   player all game.
-- The floor-level openings the crew crawl through don't fit the standing squid (only a shaft puts it in its crouched
-  vent state); how it gets in is undecided.
 
 ## Test plan
 

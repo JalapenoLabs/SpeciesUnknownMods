@@ -47,7 +47,8 @@ local held = freshHold(nil)
 -- Boxes
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
--- A box zone is { centre, extent, yaw }: its half extents along its own axes, turned by yaw degrees about Z.
+-- A box zone is { centre, extent, yaw }: its half extents along its own axes, turned by yaw degrees about Z. An
+-- actor's bounding box (its colliding parts), as a zone square to the world.
 local function boundsBox(actor)
   local origin, extent = {}, {}
   actor:GetActorBounds(true, origin, extent, false)
@@ -57,7 +58,8 @@ local function boundsBox(actor)
   return { centre = origin, extent = extent, yaw = 0 }
 end
 
-local function componentBox(component)
+-- A box component's own box, as a zone.
+function zones.componentBox(component)
   local centre = component:K2_GetComponentLocation()
   local extent = component:GetScaledBoxExtent()
   return {
@@ -88,7 +90,7 @@ function zones.shuttleBox()
   if shuttle.UseExteriorTrigger and shuttle.ExtTriggerBase:IsValid() then
     return boundsBox(shuttle.ExtTriggerBase)
   end
-  return componentBox(shuttle.TriggerBoxOverlap)
+  return zones.componentBox(shuttle.TriggerBoxOverlap)
 end
 
 -- Whether a location is near the shuttle: in its approach, where the entity can't sprint, use its ultimate, or kill.
@@ -103,7 +105,7 @@ end
 function zones.forbiddenBoxes()
   local boxes = {}
   for _, trigger in ipairs(FindAllOf(TRIGGER_BOX_CLASS_NAME) or {}) do
-    local area = trigger:IsValid() and trigger.CollisionComp.AreaClass
+    local area = trigger:IsValid() and trigger.CollisionComponent.AreaClass
     local isForbidden = area and area:IsValid() and area:GetFName():ToString() == FORBIDDEN_AREA_CLASS_NAME
     local box = isForbidden and boundsBox(trigger)
     if box then
@@ -112,7 +114,7 @@ function zones.forbiddenBoxes()
   end
   for _, block in ipairs(FindAllOf(DYNAMIC_FORBIDDEN_CLASS_NAME) or {}) do
     if block:IsValid() then
-      table.insert(boxes, componentBox(block.BoxBlockPawn))
+      table.insert(boxes, zones.componentBox(block.BoxBlockPawn))
     end
   end
   return boxes

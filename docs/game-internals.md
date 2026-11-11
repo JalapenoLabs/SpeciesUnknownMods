@@ -75,7 +75,12 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
   step's foot, 75 units to the link's left (or its top, 75 to the right and 250 up) and plays its `Vent250_Up` (or
   `_Down`) montage, whose root motion does the climb. The duct pieces themselves (`Vent_1m`, `Vent_Door`,
   `Vent_Hole_LowPart`, ...) are plain static meshes, and nothing but a shaft's box puts a monster in its vent state,
-  so the AI never uses the floor-level openings the crew crawl through.
+  except at the floor-level openings the crew crawl through: each has a `BP_Trigger_Crouch` (`VentEnter`, its forward
+  into the duct; six on Hawking, two in crew quarters and four in the lab). On the host only, it crouches a monster
+  heading in, but only one its AI drives (`BPI_Crouch_SetCrouch(true, VentEnter)`), and stands any monster up as it
+  leaves toward the room (`SetCrouch(false)`, then `SetInVent(false)`). A shaft's box, by contrast, sets the vent
+  state on every machine as a monster leaves it: true out of the top, false out of the bottom. The ducts' navigation
+  is marked by `NavArea_Vent` modifier volumes, which miss parts of the lab's crawl network.
 - **The camera ignores the view target.** The player camera manager (`Character_CameraBP`) overrides
   `BlueprintUpdateCamera`: while its cached crew body (`Player`) is valid, the camera sits at that body's `Camera`
   component, whatever `SetViewTarget` says. Its own `BPI_CameraPlayer_ResetPlayer(pawn)` sets the view target and

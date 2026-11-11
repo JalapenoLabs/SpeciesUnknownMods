@@ -8,6 +8,7 @@
 
 local abilities = require("entity.abilities")
 local capture = require("entity.capture")
+local crawl = require("entity.crawl")
 local config = require("entity.config")
 local control = require("entity.control")
 local frenzy = require("entity.frenzy")
@@ -56,6 +57,7 @@ LoopInGameThreadWithDelay(200, function()
     movement.tickHost(entity, now)
     hunt.tick(entity, now)
     zones.tickHost(entity, now)
+    crawl.tickHost(entity)
   end
   abilities.tick()
   lair.tick()

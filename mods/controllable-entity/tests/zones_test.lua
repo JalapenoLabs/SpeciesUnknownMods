@@ -108,7 +108,7 @@ assert(#events == warned and squid.location.X == -6000, "put back again, with on
 -- The entity's markings: the forbidden trigger boxes this machine has loaded, not the game's other trigger boxes
 local function triggerBox(areaName, centre)
   return fake.object("TriggerBox", {
-    CollisionComp = fake.object("BoxComponent", { AreaClass = fake.object(areaName) }),
+    CollisionComponent = fake.object("BoxComponent", { AreaClass = fake.object(areaName) }),
   }, {
     GetActorBounds = function(_, _, origin, extent)
       origin.X, origin.Y, origin.Z = centre.X, centre.Y, centre.Z
@@ -118,7 +118,7 @@ local function triggerBox(areaName, centre)
 end
 for _, area in ipairs({ "NavArea_Forbidden_C", "NavArea_Default" }) do
   local trigger = triggerBox(area, location(-8450, -3550, -150))
-  trigger.CollisionComp.AreaClass.GetFName = function() return fake.name(area) end
+  trigger.CollisionComponent.AreaClass.GetFName = function() return fake.name(area) end
 end
 local marked = zones.forbiddenBoxes()
 assert(#marked == 1 and marked[1].centre.X == -8450, "only the forbidden trigger box is marked")
