@@ -8,6 +8,10 @@
 -- When it runs out, the squid is forced out through the nearest opening, and the vents stay shut to it until the
 -- budget has refilled partway. A squid still in the vents a while after being forced out (in a spot the drop can't
 -- reach) is moved out to the power room.
+--
+-- The hunted squid is also loud: every so often it cries out, so the crew can follow it. The AI's cries come from its
+-- behaviour tree, which a player's squid doesn't run, so the host plays them: the squid's own voice, replicated to
+-- every machine and heard near it, and its far call, which only listeners well away from it hear.
 
 local config = require("entity.config")
 local game = require("entity.game")
@@ -17,8 +21,17 @@ local vents = require("entity.vents")
 
 local hunt = {}
 
--- The hunt in the current mission: { worldKey, ventSecondsLeft, isShut, forcedOutAt, lastTickAt }; nil until a crew
--- member holds the special weapon.
+local POWER_SCREEN_CLASS_NAME = "BP_Screen_RestorePower_C"
+local NAVIGATION = "/Script/NavigationSystem.Default__NavigationSystemV1"
+-- How far in front of the power screen the squid is put, and how far around that spot the navigation may look for
+-- floor.
+local POWER_SCREEN_STANDOFF = 150
+local FLOOR_SEARCH_EXTENT = { X = 300, Y = 300, Z = 1500 }
+-- BPI_Monster_PlayVoiceType's chase cry (EMonsterVoiceType: 0 Search, 1 Sound, 2 See, 3 Chase, ...).
+local CHASE_VOICE = 3
+
+-- The hunt in the current mission: { worldKey, ventSecondsLeft, isShut, forcedOutAt, lastTickAt, nextCryAt }; nil
+-- until a crew member holds the special weapon.
 local current = nil
 
 -- The squid's way out when its vent time is up: down the shaft within reach, or, deeper in the ducts, to a spot
@@ -50,6 +63,42 @@ local function forceOut(entity, now)
     spot.Y, spot.Z)
 end
 
+-- The last resort for a squid the drop couldn't get out of the vents: the floor in front of the screen that restores
+-- the power (BP_Screen_RestorePower, one per map), as the navigation finds it.
+local function moveToPowerRoom(entity)
+  local squid = entity.squid
+  current.forcedOutAt = nil
+  local screen = FindFirstOf(POWER_SCREEN_CLASS_NAME)
+  if not screen or not screen:IsValid() then
+    game.log("No power screen on this map; the squid stays where it is")
+    return
+  end
+  local front = screen:GetActorForwardVector()
+  local base = screen:K2_GetActorLocation()
+  local spot = {
+    X = base.X + front.X * POWER_SCREEN_STANDOFF,
+    Y = base.Y + front.Y * POWER_SCREEN_STANDOFF,
+    Z = base.Z,
+  }
+  local floor = {}
+  local navigation = StaticFindObject(NAVIGATION)
+  if navigation:K2_ProjectPointToNavigation(squid, spot, floor, nil, nil, FLOOR_SEARCH_EXTENT) and floor.Z then
+    spot = { X = floor.X, Y = floor.Y, Z = floor.Z + squid.CapsuleComponent:GetScaledCapsuleHalfHeight() }
+  else
+    game.log("No floor found in front of the power screen; the squid is placed beside the screen instead")
+  end
+  squid:BPI_Monster_SetInVent(false)
+  squid:K2_TeleportTo(spot, squid:K2_GetActorRotation())
+  game.log("The squid was still in the vents after being forced out: moved to the power room (%.0f, %.0f, %.0f)",
+    spot.X, spot.Y, spot.Z)
+end
+
+-- The hunted squid's cry: its own voice near it, and its far call for everyone well away from it.
+local function cry(squid)
+  squid:BPI_Monster_PlayVoiceType(CHASE_VOICE, false, 1.0, true, true)
+  squid["PlayVoiceFar(Multi)"](squid)
+end
+
 -- Starts the hunt in the current world. The game runs the grab again on every re-grab; the hunt starts once.
 local function begin()
   local worldKey = game.currentWorldKey()
@@ -62,6 +111,7 @@ local function begin()
     isShut = false,
     forcedOutAt = nil,
     lastTickAt = nil,
+    nextCryAt = 0,
   }
   -- The lair can't hold a squid the vents won't keep
   lair.release()
@@ -111,11 +161,20 @@ function hunt.tick(entity, now)
     game.log("The squid's vent time has refilled enough: the vents take it again")
   end
 
+  if now >= current.nextCryAt then
+    current.nextCryAt = now + config.hunt.crySeconds
+    cry(squid)
+  end
+
   if not isInVent then
     return
   end
   if current.ventSecondsLeft <= 0 and not current.isShut then
     forceOut(entity, now)
+    return
+  end
+  if current.forcedOutAt and now - current.forcedOutAt >= config.hunt.stuckSeconds then
+    moveToPowerRoom(entity)
   end
 end
 

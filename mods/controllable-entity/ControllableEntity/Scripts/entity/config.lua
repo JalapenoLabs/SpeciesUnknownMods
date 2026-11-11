@@ -74,6 +74,8 @@ return {
     reopenFraction = 0.5,
     -- A squid still in the vents this long after being forced out is moved to the power room.
     stuckSeconds = 10,
+    -- The hunted squid cries out this often, so the crew can follow it.
+    crySeconds = 12,
   },
 
   lair = {

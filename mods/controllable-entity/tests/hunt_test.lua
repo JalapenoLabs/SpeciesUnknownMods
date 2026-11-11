@@ -105,6 +105,19 @@ local squid = fake.object("BP_Monster_Poulpi_C", {
   end,
 })
 fake.giveSquidState(squid)
+squid.CapsuleComponent = fake.object("CapsuleComponent", nil, { GetScaledCapsuleHalfHeight = function() return 60 end })
+
+-- The screen that restores the power, facing -X, and the navigation that finds the floor in front of it
+fake.object("BP_Screen_RestorePower_C", nil, {
+  K2_GetActorLocation = function() return location(7704, 0, 1200) end,
+  GetActorForwardVector = function() return location(-1, 0, 0) end,
+})
+fake.objects["/Script/NavigationSystem.Default__NavigationSystemV1"] = fake.object("NavigationSystemV1", nil, {
+  K2_ProjectPointToNavigation = function(_, _, point, projected)
+    projected.X, projected.Y, projected.Z = point.X, point.Y, 1100
+    return true
+  end,
+})
 -- The squid spawns once the volunteer is signed up, as when a crew member leaves the shuttle on Hawking
 local gameManager = fake.object("BP_GameManager_C", { Monster = fake.invalid() })
 local weapon = fake.object("BP_LaserGun_C", { IsObjectiveWeapon = true, IsGrabbed = true })
@@ -176,5 +189,19 @@ assert(lastEvent() == "VentsReopened", "the vents open again once half the time 
 command("Vent")
 local climbs = fake.callsTo(squid, "BPI_Monster_JumpToVent")
 assert(#climbs == 1 and climbs[1].args[1] == nearVent, "and the squid can climb in")
+
+-- The hunted squid is loud: every 12 seconds it cries out, near it and far from it, so the crew can follow it
+local cries = fake.callsTo(squid, "BPI_Monster_PlayVoiceType")
+assert(#cries >= 6 and #cries <= 8 and cries[1].args[1] == 3 and cries[1].args[5] == true,
+  "the squid's chase cry plays on every machine, every 12 seconds of the hunt")
+assert(#fake.callsTo(squid, "PlayVoiceFar(Multi)") == #cries, "with its far call for the crew well away")
+
+-- Should the forced drop not get the squid out (a spot it can't reach), it's moved to the power room 10 seconds later
+squid.InVent = true
+squid.location = location(6050, 0, 400)
+runSeconds(141.2, 162)
+assert(lastEvent() == "ForcedOut")
+assert(not squid.InVent and squid.location.X == 7704 - 150 and squid.location.Z == 1100 + 60,
+  "the stuck squid stands on the floor in front of the power screen")
 
 print("hunt test passed")
