@@ -98,6 +98,12 @@ return {
     -- One footstep ping per walker per this many seconds; footsteps arrive every step.
     footstepInterval = 0.7,
     pingSeconds = 1.5,
+    -- Marker size by kind of noise, as a multiple of the 14-pixel marker: gunshots stand out.
+    pingScaleByKind = { Gunshot = 2.2, Footstep = 1.0, Alarm = 1.6 },
+    -- Noises behind the camera or off the screen sit on a ring around the centre, this fraction of the way to the
+    -- nearest screen edge, drawn this much bigger.
+    ringRadiusFraction = 0.35,
+    ringScale = 1.3,
   },
 
   keys = {

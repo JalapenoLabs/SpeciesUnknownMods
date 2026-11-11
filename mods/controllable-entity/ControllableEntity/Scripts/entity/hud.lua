@@ -181,21 +181,41 @@ local function drawAbilities(widget, now, inVent)
   end
 end
 
--- Each ping fades over pingSeconds. Markers are positioned in widget units: screen pixels over the DPI scale.
+-- Where a noise's marker goes, in widget units, and whether it is on the ring. A noise in view sits where it is, seen
+-- through walls; one behind the camera or off the screen sits on a ring around the centre, in its direction, like a
+-- hit indicator (straight ahead is up, behind is down).
+local function pingPosition(controller, ping, viewportSize, viewportScale)
+  local screen = {}
+  local projected = controller:ProjectWorldLocationToScreen(ping.location, screen, false)
+  if projected and screen.X >= 0 and screen.X <= viewportSize.X and screen.Y >= 0 and screen.Y <= viewportSize.Y then
+    return { X = screen.X / viewportScale, Y = screen.Y / viewportScale }, false
+  end
+
+  local origin = controller.Pawn:K2_GetActorLocation()
+  local bearing = math.atan(ping.location.Y - origin.Y, ping.location.X - origin.X)
+  local angle = bearing - math.rad(controller:GetControlRotation().Yaw)
+  local centreX, centreY = viewportSize.X / 2 / viewportScale, viewportSize.Y / 2 / viewportScale
+  local radius = math.min(centreX, centreY) * config.senses.ringRadiusFraction
+  return { X = centreX + math.sin(angle) * radius, Y = centreY - math.cos(angle) * radius }, true
+end
+
+-- Each ping fades over pingSeconds; louder kinds draw bigger, and ring markers bigger still so they catch the eye.
 local function drawPings(widget, controller, now)
-  local viewportScale = StaticFindObject(game.paths.widgetLayoutLibrary):GetViewportScale(controller)
+  local layoutLibrary = StaticFindObject(game.paths.widgetLayoutLibrary)
+  local viewportScale = layoutLibrary:GetViewportScale(controller)
+  local viewportSize = layoutLibrary:GetViewportSize(controller)
 
   for slot = 1, PING_MARKER_COUNT do
     local marker = widget["Ping" .. (slot - 1)]
     local ping = state.pings[slot]
     local age = ping and now - ping.bornAt or math.huge
-    local screen = {}
-    local onScreen = age < config.senses.pingSeconds
-      and controller:ProjectWorldLocationToScreen(ping.location, screen, false)
 
-    if onScreen then
+    if age < config.senses.pingSeconds then
+      local position, onRing = pingPosition(controller, ping, viewportSize, viewportScale)
       local color = pingColorByKind[ping.kind] or pingColorByKind.Alarm
-      marker.Slot:SetPosition({ X = screen.X / viewportScale, Y = screen.Y / viewportScale })
+      local scale = (config.senses.pingScaleByKind[ping.kind] or 1) * (onRing and config.senses.ringScale or 1)
+      marker.Slot:SetPosition(position)
+      marker:SetRenderScale({ X = scale, Y = scale })
       marker:SetColorAndOpacity({ R = color.R, G = color.G, B = color.B, A = 1 - age / config.senses.pingSeconds })
       marker:SetVisibility(VISIBLE_NO_INPUT)
     else

@@ -28,6 +28,7 @@ fake.objects["/Script/Engine.SpringArmComponent"] = fake.object("SpringArmCompon
 fake.objects["/Script/Engine.CameraComponent"] = fake.object("CameraComponentClass")
 fake.objects[game.paths.widgetLayoutLibrary] = fake.object("WidgetLayoutLibrary", nil, {
   GetViewportScale = function() return 2 end,
+  GetViewportSize = function() return { X = 1920, Y = 1080 } end,
 })
 fake.installModPak(game.modClasses)
 fake.object("GameStateBase")
@@ -218,6 +219,18 @@ squid.InVent = true
 fake.runLoops(33)
 assert(lastArgument(widget.PeekSlot, "SetRenderOpacity") == 1, "and usable inside one")
 assert(lastArgument(widget.Ping0.Slot, "SetPosition").X == 400, "markers sit at the projected spot, in widget units")
+assert(lastArgument(widget.Ping0, "SetRenderScale").X > 1, "gunshots draw bigger than the plain marker")
+
+-- A noise behind the camera sits on the ring around the centre, below it (straight ahead is up). The camera looks
+-- along +Y (yaw 90), and this noise is at -Y from the squid
+local projectsToScreen = controller.ProjectWorldLocationToScreen
+controller.ProjectWorldLocationToScreen = function() return false end
+fake.customEvents.EntityClientPing(fake.param(link), fake.param({ X = 0, Y = -2000, Z = 0 }), fake.param(1.0),
+  fake.param(fake.name("Footstep")))
+fake.runLoops(33)
+local ringPosition = lastArgument(widget.Ping1.Slot, "SetPosition")
+assert(math.abs(ringPosition.X - 480) < 1e-6 and ringPosition.Y > 270, "a noise behind is on the ring, below centre")
+controller.ProjectWorldLocationToScreen = projectsToScreen
 
 fake.now = 5
 fake.runLoops(33)

@@ -97,7 +97,10 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
   ping lands from the true spot (12% of the distance, up to 6 m), so distant noises give a direction, not a spot.
 - This is fair by construction: the pings come from the same noises, under the same range rules, that the AI
   monsters' hearing uses (see [How the game makes noise](#how-the-game-makes-noise)).
-- On the roadmap: bigger, longer pings for louder noises.
+- Louder kinds draw bigger (gunshots more than twice the size of a footstep). A noise behind the camera or off the
+  screen sits on a ring around the screen's centre instead, in its direction, like a hit indicator: straight ahead is
+  the top of the ring, behind is the bottom.
+- On the roadmap: longer pings for louder noises.
 
 ### Vents
 
