@@ -168,12 +168,31 @@ fake.runLoops(200)
 fake.runFrames()
 assert(squid.InVent and squid.location.X == insideLeash.X, "out of the ducts, the squid goes back in")
 
--- The moves that leave the ducts wait for the power
+-- The moves that leave the ducts wait for the power: dropping out of the vent the squid is over, the leap and the
+-- ultimate
 fake.now = 10
+squid.location = location(farSpot.X, farSpot.Y, farSpot.Z)
 for _, move in ipairs({ "Vent", "Leap", "Ultimate" }) do
   command(move)
   assert(lastEvent() == "Denied.PowerOff", move .. " waits for the power")
 end
+
+-- Regression (playtest 6): the player couldn't climb the steps inside the ducts that the AI climbs. At the foot of
+-- one, venting climbs it with the squid's own climb, and climbing stays in the ducts, so the lair allows it. The
+-- step's foot is 75 units to its navigation link's left
+local step = fake.object("Nav_Link_VentPoint_Up250_C", nil, {
+  K2_GetActorLocation = function() return location(farSpot.X, farSpot.Y + 75, farSpot.Z - 30) end,
+  GetActorRightVector = function() return location(0, 1, 0) end,
+})
+command("Vent")
+local climbs = fake.callsTo(squid, "BPI_Monster_ClimbVent250")
+assert(#climbs == 1 and climbs[1].args[1] == step and climbs[1].args[2] == false,
+  "the squid climbs up the step nearer than the vent opening")
+assert(lastEvent() == "Cooldown.Vent", "even while the lair holds it")
+squid.location = location(farSpot.X, farSpot.Y, farSpot.Z + 280)
+fake.now = 20
+command("Vent")
+assert(#fake.callsTo(squid, "BPI_Monster_ClimbVent250") == 1, "at the top of the step, there's nothing to climb")
 
 -- The crew turns the power on: the squid is free, for good
 gameState.LightStatut = game.lightStatus.On

@@ -105,8 +105,10 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
 ### Vents
 
 - Space climbs into the vent shaft within 4 m across the floor, or drops out of the one within 4 m onto any crew
-  member below. Crouch peeks down through the grate. All three use the squid's own vent moves (`JumpToVent`,
-  `AttackFromVent`, `LookFromVent`).
+  member below. Inside the ducts, at the foot of a step up (where a duct rises 2.5 m, like an elbow joint), Space
+  climbs it instead when the step is nearer than an opening. Crouch peeks down through the grate. All four use the
+  squid's own vent moves (`JumpToVent`, `AttackFromVent`, `ClimbVent250`, `LookFromVent`). Climbing stays inside the
+  ducts, so the lair allows it before the power is on.
 - **Seeing in the vents:** the ducts are unlit, and much of the network is invisible collision rather than modelled
   walls. So the entity carries a soft light (full in the ducts, faint in the rooms, which the game keeps dark on
   purpose), and glowing light-blue discs
@@ -139,7 +141,7 @@ gets a mod key of its own.
 | Interact (`IA_Interact`, E) | Ultimate: with a full meter, leap (or drop) and the grab kills |
 | Crouch (`IA_Crouch`) | Peek down through the grate while in a vent |
 | Flashlight (`IA_FlashLight`) | Switch between third person (the start) and first person; in first person the squid's own mesh is hidden from its player |
-| Hold Tool (`IA_HoldTool`, Space) | Climb into the nearest vent, or drop out of it onto whoever is below |
+| Hold Tool (`IA_HoldTool`, Space) | Climb into the nearest vent, drop out of it onto whoever is below, or climb a step up inside the ducts |
 | F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out |
 | F9 (mod key, host only) | Turn entity mode on or off |
 | Left Shift (mod key, held) | Sprint, on stamina |
@@ -151,7 +153,10 @@ are invisible collision, which would otherwise pull the camera into the squid's 
 First person is the squid's eye view. The game's own camera stays in its cached crew body's head, and the entity's
 body is parked, not destroyed (see [docs/game-internals.md](../../docs/game-internals.md#gameplay-state-worth-knowing)),
 so on the entity's machine the mod hands the game's camera the squid through its own `BPI_CameraPlayer_ResetPlayer`,
-and gives the squid a spring arm with a camera on it. Third person is the arm at 3.2 m, first person at zero.
+and gives the squid a spring arm with a camera on it. Third person is the arm at 3.2 m, first person at zero. In
+third person the player can look at most 50° down: the arm swings the camera up as they look down, and nearly
+straight down took it through the ship's outer hull, blacking out the screen. First person keeps the game's own
+limit.
 
 The HUD is laid out like the crew's own, so the top of the screen holds only the minimap:
 
@@ -460,10 +465,12 @@ one friend.
    the health bar; it goes once full again. H hides the hints, H again brings them back.
 6. **The lair.** With the power still off, the hint "Lurk in the vents until the crew turns the power on" stays on
    screen. Crawl away from the start: past about 12 m the squid snaps back, and Space, Aim and E answer "The vents
-   hold you until the power is on"; their rows in the stack are dimmed. When the crew turns the power on, the
+   hold you until the power is on"; Aim's and E's rows in the stack are dimmed. When the crew turns the power on, the
    entity sees "The power is on. Hunt." and roams freely. Alone, nobody can turn it on; a contract that starts with
    the power on shows the squid free from the start.
 7. **Vents and peeking.** Once free: Space over a vent opening drops out; Space standing under a vent climbs in.
+   At the foot of a step up inside the ducts (an elbow joint the crew can only drop down), Space climbs it, even
+   before the power is on. In third person, looking down stops at about 50° and the screen never goes black.
    Over a grate in a vent, a `C Peek` prompt shows; Crouch peeks through the grate, and the prompt goes while peek
    recharges. Away from a grate there's no prompt. Shoot with nobody near: the squid swings at the air.
 8. **Entity mode.** In a co-op lobby the host presses F9: only the host sees "Entity mode: OFF"; the next mission

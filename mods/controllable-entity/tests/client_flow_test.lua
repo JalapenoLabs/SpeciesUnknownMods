@@ -138,6 +138,8 @@ assert(not cameraManager.Player:IsValid(), "and no longer the crew body")
 local arm = squidComponents[1]
 assert(#squidComponents == 2 and arm.bUsePawnControlRotation, "the squid gets a camera on an arm that follows the look")
 assert(arm.TargetArmLength == config.camera.thirdPersonDistance, "the entity starts in third person")
+-- Regression (playtest 6): looking almost straight down in third person swung the camera up through the ship's hull
+assert(cameraManager.ViewPitchMin == config.camera.thirdPersonLowestPitch, "third person stops short of straight down")
 -- Regression (playtest 3): Escape did nothing as the squid, because the crew body had turned pausing off
 local pauseHook = fake.hooks[controllerPath .. "InpActEvt_IA_OpenPauseMenu_K2Node_EnhancedInputActionEvent_10"]
 controller.canPause = false
@@ -153,11 +155,13 @@ flashlightHook(fake.param(controller), fake.param({ pressed = true }))
 assert(arm.TargetArmLength == 0, "the flashlight switches to first person")
 -- Regression (playtest 6): in first person the view was from inside the squid's own head
 assert(lastArgument(squid.Mesh, "SetOwnerNoSee") == true, "first person hides the squid from its own player")
+assert(cameraManager.ViewPitchMin == -89.9, "and keeps the game's own look limit")
 flashlightHook(fake.param(controller), fake.param({ pressed = false }))
 assert(arm.TargetArmLength == 0, "releasing the key changes nothing")
 flashlightHook(fake.param(controller), fake.param({ pressed = true }))
 assert(arm.TargetArmLength == config.camera.thirdPersonDistance, "and back to third person")
 assert(lastArgument(squid.Mesh, "SetOwnerNoSee") == false, "with the squid visible again")
+assert(cameraManager.ViewPitchMin == config.camera.thirdPersonLowestPitch, "and the third-person look limit")
 
 moveHook(fake.param(controller), fake.param({ X = 0, Y = 1 }))
 local moves = fake.callsTo(squid, "AddMovementInput")
@@ -307,7 +311,9 @@ fake.now = 60
 fake.runLoops(33)
 statusTexts = fake.callsTo(widget.StatusText, "SetText")
 assert(statusTexts[#statusTexts].args[1].text:find("power"), "the lair hint stays")
-assert(lastArgument(widget.VentSlot, "SetRenderOpacity") < 1, "leaving the vents is dimmed while the lair holds")
+assert(lastArgument(widget.LeapSlot, "SetRenderOpacity") < 1, "the leap is dimmed while the lair holds")
+assert(lastArgument(widget.UltimateSlot, "SetRenderOpacity") < 1, "and so is the ultimate")
+assert(lastArgument(widget.VentSlot, "SetRenderOpacity") == 1, "venting stays usable: the steps inside the ducts")
 assert(lastArgument(widget.LashSlot, "SetRenderOpacity") == 1, "the lash stays usable")
 fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("PowerRestored")), fake.param(0))
 fake.now = 120

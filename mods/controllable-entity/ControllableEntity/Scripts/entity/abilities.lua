@@ -100,23 +100,38 @@ local function leap(squid, aim)
   return true
 end
 
-local function vent(squid, aim)
-  if squid.InVent then
-    local exit = vents.nearest(squid:K2_GetActorLocation(), config.vents.exitReach)
-    if not exit then
-      return false, "NoVentExit"
+-- In a room, venting climbs into the shaft above. In the ducts it takes whichever is nearer: the shaft opening below,
+-- dropping out onto whoever is under it, or the foot of a step up, climbing it with the AI's own climb (playtest 6:
+-- the player had no way up the elbow joints the AI climbs). Dropping out leaves the ducts, so it waits for the power
+-- while the lair holds the squid; climbing stays inside them, so it doesn't.
+local function vent(squid)
+  local location = squid:K2_GetActorLocation()
+  if not squid.InVent then
+    local entrance = vents.nearest(location, config.vents.enterReach)
+    if not entrance then
+      return false, "NoVentEntrance"
     end
-    isPeeking = false
-    local target = crewInCone(squid, { X = 0, Y = 0, Z = -1 }, config.vents.exitReach, 120)
-    squid:BPI_Monster_AttackFromVent(exit, target)
+    squid:BPI_Monster_JumpToVent(entrance, true)
     return true
   end
 
-  local entrance = vents.nearest(squid:K2_GetActorLocation(), config.vents.enterReach)
-  if not entrance then
-    return false, "NoVentEntrance"
+  local exit, exitDistance = vents.nearest(location, config.vents.exitReach)
+  local climb, climbDistance = vents.nearestClimb(location)
+  if climb and (not exit or climbDistance < exitDistance) then
+    isPeeking = false
+    -- FromUp false: the climb up, from the step's foot
+    squid:BPI_Monster_ClimbVent250(climb, false)
+    return true
   end
-  squid:BPI_Monster_JumpToVent(entrance, true)
+  if not exit then
+    return false, "NoVentExit"
+  end
+  if lair.isLeashed(squid) then
+    return false, "PowerOff"
+  end
+  isPeeking = false
+  local target = crewInCone(squid, { X = 0, Y = 0, Z = -1 }, config.vents.exitReach, 120)
+  squid:BPI_Monster_AttackFromVent(exit, target)
   return true
 end
 

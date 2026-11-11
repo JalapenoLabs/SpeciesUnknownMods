@@ -13,6 +13,8 @@ local fake = {
   frameQueue = {},
   objects = {},
   instances = {},
+  -- Each class's default object (UClass:GetCDO), by class name; an empty one unless a test gives its own.
+  classDefaults = {},
   calls = {},
   isHost = true,
   now = 0,
@@ -41,6 +43,7 @@ function fake.object(className, fields, methods, alsoKnownAs)
   local classInfo = {
     GetFName = function() return fake.name(className) end,
     GetAddress = function() return address end,
+    GetCDO = function() return fake.classDefaults[className] or {} end,
   }
   local builtins = {
     IsValid = function() return object.destroyed ~= true end,
@@ -104,9 +107,11 @@ end
 
 -- Gives a fake player controller what the camera code reads: the game's camera manager, with its cached crew body
 -- (Player) and its BPI_CameraPlayer_ResetPlayer, and a view target that follows SetViewTargetWithBlend the way the
--- engine's does. `crewBody` starts cached, as after the crew character was possessed.
+-- engine's does. `crewBody` starts cached, as after the crew character was possessed. The manager's look limit starts
+-- at its class default, the engine's.
 function fake.giveView(controller, crewBody)
-  local manager = fake.object("Character_CameraBP_C", { Player = crewBody or fake.invalid() }, {
+  fake.classDefaults.Character_CameraBP_C = { ViewPitchMin = -89.9 }
+  local manager = fake.object("Character_CameraBP_C", { Player = crewBody or fake.invalid(), ViewPitchMin = -89.9 }, {
     GetCameraLocation = function() return { X = 0, Y = 0, Z = 0 } end,
   })
   -- As the game's: follow the pawn, and cache it only when it is a crew character

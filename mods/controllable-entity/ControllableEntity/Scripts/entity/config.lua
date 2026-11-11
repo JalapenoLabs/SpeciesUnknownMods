@@ -57,6 +57,10 @@ return {
     exitReach = 400,
     -- A shaft more than this far above or below doesn't count: it belongs to another floor.
     verticalReach = 900,
+    -- How close across the duct floor the squid must be to the foot of a step up inside the ducts to climb it, and how
+    -- far above or below the foot it may be. A step rises 250 units, so a squid at its top is never at its foot.
+    climbReach = 250,
+    climbVerticalReach = 150,
   },
 
   lair = {
@@ -66,8 +70,9 @@ return {
     leashRadius = 1200,
     -- The shortest gap between two "the vents hold you" messages while the player pushes against the leash.
     warningInterval = 3,
-    -- The moves that would leave the ducts, which wait until the power is on.
-    heldMoves = { Leap = true, Vent = true, Ultimate = true },
+    -- The moves that would leave the ducts, which wait until the power is on. Venting decides for itself: dropping
+    -- out of the ducts waits, climbing inside them doesn't (abilities.lua).
+    heldMoves = { Leap = true, Ultimate = true },
   },
 
   vision = {
@@ -108,6 +113,9 @@ return {
     thirdPersonDistance = 320,
     -- How far above the squid's centre the camera's arm starts: the first-person eye height.
     height = 70,
+    -- How far down the player can look in third person, in degrees below level. Further down, the arm swings the camera
+    -- up through the ship's outer hull in places (playtest 6). First person keeps the game's own limit.
+    thirdPersonLowestPitch = -50,
   },
 
   look = {

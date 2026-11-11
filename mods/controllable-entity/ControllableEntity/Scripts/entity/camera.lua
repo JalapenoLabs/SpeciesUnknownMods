@@ -32,7 +32,7 @@ local IDENTITY_TRANSFORM = {
 }
 
 local isThirdPerson = true
--- The camera rig on the squid: { squidAddress, squid, arm, view }, or nil.
+-- The camera rig on the squid: { squidAddress, squid, manager, arm, view }, or nil.
 local rig = nil
 
 local function describe(actor)
@@ -72,12 +72,26 @@ local function buildRig(squid)
   return { squidAddress = squid:GetAddress(), arm = arm, view = view }
 end
 
--- In first person the squid's own mesh hides from its player, or the view is from inside its head (playtest 6). Owner
--- no-see hides it from the owner's view only, and possessing a pawn makes the controller its owner
--- (APawn::PossessedBy), so everyone else still sees the squid.
-local function applyDistance(squid)
+-- The camera manager's own lowest look pitch, from its class default: the value it had before the mod changed it, even
+-- after a hot reload of the mod.
+local function defaultLowestPitch(manager)
+  return manager:GetClass():GetCDO().ViewPitchMin
+end
+
+-- Applies the view: the arm's length, the squid's own mesh, and how far down the player can look.
+--   - In first person the squid's mesh hides from its player, or the view is from inside its head (playtest 6). Owner
+--     no-see hides it from the owner's view only, and possessing a pawn makes the controller its owner
+--     (APawn::PossessedBy), so everyone else still sees the squid.
+--   - In third person the arm swings up as the player looks down, and looking almost straight down took the camera up
+--     through the ship's outer hull, which blacked out the screen (playtest 6). Like most third-person cameras, it
+--     stops the look short of straight down (the camera manager's ViewPitchMin, which limits the control rotation);
+--     first person keeps the manager's own limit.
+local function applyView()
   rig.arm.TargetArmLength = isThirdPerson and config.camera.thirdPersonDistance or 0
-  squid.Mesh:SetOwnerNoSee(not isThirdPerson)
+  rig.squid.Mesh:SetOwnerNoSee(not isThirdPerson)
+  local ownLowestPitch = defaultLowestPitch(rig.manager)
+  rig.manager.ViewPitchMin = isThirdPerson and math.max(ownLowestPitch, config.camera.thirdPersonLowestPitch)
+    or ownLowestPitch
 end
 
 -- How far the camera was from the squid at the last report, so the log shows changes, not every second.
@@ -102,19 +116,20 @@ end
 -- Runs when the player becomes the entity and about once a second after, while they drive the squid: builds the rig
 -- once per squid, and hands the game's camera back to the squid whenever the game's own code has moved it.
 function camera.follow(controller, squid)
+  local manager = controller.PlayerCameraManager
+  if not manager:IsValid() then
+    game.log("No camera manager; the view stays as it is")
+    return
+  end
+
   if not rig or rig.squidAddress ~= squid:GetAddress() or not rig.view:IsValid() then
     rig = buildRig(squid)
     if not rig then
       return
     end
     rig.squid = squid
-    applyDistance(squid)
-  end
-
-  local manager = controller.PlayerCameraManager
-  if not manager:IsValid() then
-    game.log("No camera manager; the view stays as it is")
-    return
+    rig.manager = manager
+    applyView()
   end
 
   local viewTarget = controller:GetViewTarget()
@@ -131,8 +146,8 @@ end
 
 function camera.toggle()
   isThirdPerson = not isThirdPerson
-  if rig and rig.squid:IsValid() then
-    applyDistance(rig.squid)
+  if rig and rig.squid:IsValid() and rig.manager:IsValid() then
+    applyView()
   end
 end
 
@@ -140,6 +155,9 @@ end
 function camera.reset()
   if rig and rig.squid:IsValid() then
     rig.squid.Mesh:SetOwnerNoSee(false)
+  end
+  if rig and rig.manager:IsValid() then
+    rig.manager.ViewPitchMin = defaultLowestPitch(rig.manager)
   end
   if rig and rig.view:IsValid() then
     rig.view:K2_DestroyComponent(rig.view)

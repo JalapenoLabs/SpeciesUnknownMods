@@ -68,13 +68,20 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
   spots beside each shaft's top, inside the duct; `BPI_Vent_GetAllpointLocation` returns them. Crossing a shaft's
   `BoxOverlap` sets the monster's `InVent` (`BPI_Monster_SetInVent`, which also crouches it to fit the ducts).
   Hawking's persistent level `Maps/SpaceShip` places 265 shafts and about 970 vent navigation links
-  (`Nav_Link_VentPoint_*`); its sublevels add decoration only (`BP_VentWall`, `BP_VentDoor`).
+  (`Nav_Link_VentPoint_*`); its sublevels add decoration only (`BP_VentWall`, `BP_VentDoor`). The links taller than
+  250 (`Up500`, `Up550_Child`, `Up600_Child`) join a shaft to its room; `Nav_Link_VentPoint_Up250` is a 2.5 m step
+  inside the ducts, which the AI climbs through `BPI_Monster_ClimbVent250(link, fromUp)`: the monster warps to the
+  step's foot, 75 units to the link's left (or its top, 75 to the right and 250 up) and plays its `Vent250_Up` (or
+  `_Down`) montage, whose root motion does the climb. The duct pieces themselves (`Vent_1m`, `Vent_Door`,
+  `Vent_Hole_LowPart`, ...) are plain static meshes, and nothing but a shaft's box puts a monster in its vent state,
+  so the AI never uses the floor-level openings the crew crawl through.
 - **The camera ignores the view target.** The player camera manager (`Character_CameraBP`) overrides
   `BlueprintUpdateCamera`: while its cached crew body (`Player`) is valid, the camera sits at that body's `Camera`
   component, whatever `SetViewTarget` says. Its own `BPI_CameraPlayer_ResetPlayer(pawn)` sets the view target and
   caches the pawn only if it is a `BP_Character`, so passing any other pawn clears the cache and the engine's normal
   view of that pawn takes over. Changing `CameraStyle` from UE4SS does nothing (neither the property nor
-  `ClientSetCameraMode` moved the camera in playtest 4).
+  `ClientSetCameraMode` moved the camera in playtest 4). It keeps the engine's look limits (`ViewPitchMin`,
+  `ViewPitchMax`), which limit the control rotation and can be set at runtime.
 - **The ship streams in sections.** Each `BP_StreamingVolume_Manager` shows its sublevels while the local player's
   pawn overlaps one of its `TriggerVolumeList` volumes (`BP_FunctionLibrairy.GetOnlyVisualOverlap`: the pawn must be
   the local player controller's, a spectator or a death pawn). `BPI_Streaming_AddActorToTrigger(trigger, pawn, on)`
