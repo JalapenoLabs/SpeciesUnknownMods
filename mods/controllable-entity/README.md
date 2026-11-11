@@ -223,7 +223,7 @@ create: network events and a widget layout.
   | `links.lua` | both | Spawns a `BP_EntityLink` per player (host) and routes its events to the modules below |
   | `takeover.lua` | host | Entity mode, volunteering and the random pick, forcing the squid, possessing it, crew exclusion, loss |
   | `lair.lua` | host | The start in a vent away from the crew, and the leash until the power is on |
-  | `vents.lua` | host | Finding vent shafts and the in-duct spots beside them |
+  | `vents.lua` | both | Finding vent shafts, the in-duct spots beside them, and the steps up inside the ducts |
   | `abilities.lua` | host | Commands to squid moves, cooldowns, the grab rule, the meter's tick |
   | `movement.lua` | both | The squid's speed, the vent bonus, and the sprint and its stamina |
   | `meter.lua` | host | The kill meter and frenzy rules, as plain logic (unit tested) |
