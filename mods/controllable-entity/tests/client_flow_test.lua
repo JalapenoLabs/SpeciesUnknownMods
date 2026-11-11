@@ -256,10 +256,11 @@ assert(statusTexts[#statusTexts].args[1].text == "", "once the power is on, the 
 
 -- Regression (playtest 2): after quitting to the main menu the entity HUD stayed on screen. A map change must remove
 -- the old world's HUD and forget the old world's status until the host says otherwise.
+local removalsBeforeTravel = #fake.callsTo(widget, "RemoveFromParent")
 fake.world = fake.object("World")
 controller.Pawn = fake.invalid()
 fake.runLoops(33)
-assert(#fake.callsTo(widget, "RemoveFromParent") == 1, "the old world's HUD is removed")
+assert(#fake.callsTo(widget, "RemoveFromParent") == removalsBeforeTravel + 1, "the old world's HUD is removed")
 fake.runLoops(33)
 assert(createdWidgets == createdForMessage, "no HUD is rebuilt in a world where the host hasn't named this player")
 

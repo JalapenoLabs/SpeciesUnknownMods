@@ -15,7 +15,9 @@ local game = require("entity.game")
 local minimap = {}
 
 local WIDGET_CLASS = "/Game/Blueprints/Inventory/Map/UMG_MiniMap.UMG_MiniMap_C"
+local WIDGET_CLASS_NAME = "UMG_MiniMap_C"
 local FOLLOWER_CLASS = "/Script/Engine.StaticMeshActor"
+local FOLLOWER_CLASS_NAME = "StaticMeshActor"
 -- EAttachmentRule, EComponentMobility, ESlateVisibility, EWidgetClipping
 local SNAP_TO_TARGET = 2
 local KEEP_WORLD = 1
@@ -61,7 +63,22 @@ local function spawnFollower(world, squid)
   return follower
 end
 
+-- A hot reload of the mod forgets what it built but leaves it in the world (playtest 6: the old, unscaled minimap
+-- covered the screen). The mod's minimaps are the ones following a follower of its own, a plain StaticMeshActor; the
+-- crew's minimap tools follow the tool, and are left alone.
+local function removeLeftovers()
+  for _, leftover in ipairs(FindAllOf(WIDGET_CLASS_NAME) or {}) do
+    local followed = leftover:IsValid() and leftover.ParentActor
+    if followed and followed:IsValid() and followed:GetClass():GetFName():ToString() == FOLLOWER_CLASS_NAME then
+      leftover:RemoveFromParent()
+      followed:K2_DestroyActor()
+      game.log("Removed a minimap left by an earlier run of the mod")
+    end
+  end
+end
+
 local function build(controller, squid)
+  removeLeftovers()
   local widgetClass = loadWidgetClass()
   if not widgetClass then
     return nil

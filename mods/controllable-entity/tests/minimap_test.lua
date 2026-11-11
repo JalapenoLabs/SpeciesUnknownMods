@@ -33,6 +33,7 @@ fake.world = fake.object("World", nil, {
 })
 
 local minimapWidget = fake.object("UMG_MiniMap_C", {
+  ParentActor = fake.invalid(),
   Scale = 0.7,
   CanvasPanel_DynamicIcone = fake.object("CanvasPanel"),
   UMG_Icone_player_C_0 = fake.object("UMG_Icone_player_C"),
@@ -110,5 +111,16 @@ controller.Pawn = fake.invalid()
 fake.runLoops(33)
 assert(#fake.callsTo(minimapWidget, "RemoveFromParent") == 1, "the minimap leaves the screen")
 assert(follower.destroyed, "and its follower is removed")
+
+-- Regression (playtest 6): a hot reload left the old minimap on screen. A new run removes the mod's own leftovers,
+-- the minimaps following one of its followers, and leaves the crew's minimap tools alone
+local crewTool = fake.object("BP_Tool_MiniMap_C")
+local crewToolScreen = fake.object("UMG_MiniMap_C", { ParentActor = crewTool })
+local staleFollower = fake.object("StaticMeshActor")
+local staleMinimap = fake.object("UMG_MiniMap_C", { ParentActor = staleFollower })
+controller.Pawn = squid
+fake.runLoops(33)
+assert(#fake.callsTo(staleMinimap, "RemoveFromParent") == 1 and staleFollower.destroyed, "a leftover minimap is removed")
+assert(#fake.callsTo(crewToolScreen, "RemoveFromParent") == 0 and not crewTool.destroyed, "the crew's tool is left alone")
 
 print("minimap test passed")

@@ -121,6 +121,14 @@ local function ensureWidget(controller)
     return nil
   end
 
+  -- There is only ever one entity HUD. One already on screen was left by an earlier run of the mod: a hot reload
+  -- forgets the mod's state but not its widgets (playtest 6), and the old one would sit there frozen
+  for _, leftover in ipairs(FindAllOf(game.modClasses.hud.class) or {}) do
+    if leftover:IsValid() then
+      leftover:RemoveFromParent()
+    end
+  end
+
   local widget = StaticFindObject(game.paths.widgetLibrary):Create(controller, widgetClass, controller)
   widget:AddToViewport(50)
   for _, ability in ipairs(abilitySlots) do

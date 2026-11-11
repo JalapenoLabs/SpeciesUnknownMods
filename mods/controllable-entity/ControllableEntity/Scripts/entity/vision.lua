@@ -16,6 +16,7 @@ local vision = {}
 
 local POINT_LIGHT_CLASS = "/Script/Engine.PointLightComponent"
 local STATIC_MESH_ACTOR_CLASS = "/Script/Engine.StaticMeshActor"
+local STATIC_MESH_ACTOR_CLASS_NAME = "StaticMeshActor"
 local MARKER_MESH = "/Engine/BasicShapes/Cylinder.Cylinder"
 local MARKER_MATERIAL = "/Game/Blueprints/Inventory/Map/Materials/UnlitColor_MAT.UnlitColor_MAT"
 local MARKER_COLOR_PARAMETER = "Color"
@@ -67,6 +68,26 @@ local function giveLantern(squid)
   return lantern
 end
 
+-- A hot reload of the mod forgets its markers but leaves them in the world. They are the movable engine cylinders at
+-- the marker scale: a level's own cylinders are static, so none of the game's are touched.
+local function removeLeftoverMarkers(mesh)
+  local meshAddress = mesh:GetAddress()
+  local removed = 0
+  for _, actor in ipairs(FindAllOf(STATIC_MESH_ACTOR_CLASS_NAME) or {}) do
+    local disc = actor:IsValid() and actor.StaticMeshComponent
+    local isMarker = disc and disc:IsValid() and disc.Mobility == MOVABLE and disc.StaticMesh:IsValid()
+      and disc.StaticMesh:GetAddress() == meshAddress
+      and math.abs(actor:GetActorScale3D().Z - config.vision.markerScale.Z) < 1e-4
+    if isMarker then
+      actor:K2_DestroyActor()
+      removed = removed + 1
+    end
+  end
+  if removed > 0 then
+    game.log("Removed %d vent markers left by an earlier run of the mod", removed)
+  end
+end
+
 -- A pool of marker discs, spawned once per world and moved to the openings near the squid.
 local function spawnMarkers(world)
   local mesh = loadAsset(MARKER_MESH)
@@ -75,6 +96,7 @@ local function spawnMarkers(world)
   if not mesh or not material or not markerClass then
     return {}
   end
+  removeLeftoverMarkers(mesh)
 
   local markers = {}
   for _ = 1, config.vision.markerCount do
