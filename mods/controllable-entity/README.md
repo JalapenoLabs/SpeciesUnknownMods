@@ -104,7 +104,13 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
 - Interact climbs into the vent shaft within 4 m across the floor, or drops out of the one within 4 m onto any crew
   member below. Crouch peeks down through the grate. All three use the squid's own vent moves (`JumpToVent`,
   `AttackFromVent`, `LookFromVent`).
-- On the roadmap: highlighting nearby vent entrances, and an overlay of the duct network while inside.
+- **Seeing in the vents:** the ducts are unlit, and much of the network is invisible collision rather than modelled
+  walls. So the entity carries a soft light, and glowing light-blue discs mark the vent openings within 35 m: over
+  the holes in the duct floor while inside, on the floor under each vent while in a room. Only the entity player's
+  machine creates them, so nobody else sees either. They use the engine's own cylinder and the game's own unlit
+  material (the in-game map's), because a mod can't ship new material shaders for the game's renderer.
+- On the roadmap: a glowing path along the ducts to the nearest opening (needs the host's navigation data sent to
+  the entity), and an overlay of the duct network while inside.
 
 ### Controls and HUD
 
@@ -123,7 +129,8 @@ key the mod could reuse, so the mod's three keys are its own.
 | F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out |
 | F9 (mod key, host only) | Turn entity mode on or off |
 
-The view starts in third person, behind the squid along the player's look, pulling in when a wall is in the way.
+The view starts in third person, behind the squid along the player's look, passing through walls (many duct walls
+are invisible collision, which would otherwise pull the camera into the squid's head).
 First person is the squid's eye view. The game's own camera stays in its cached crew body's head, and the entity's
 body is parked, not destroyed (see [docs/game-internals.md](../../docs/game-internals.md#gameplay-state-worth-knowing)),
 so on the entity's machine the mod hands the game's camera the squid through its own `BPI_CameraPlayer_ResetPlayer`,
@@ -177,6 +184,7 @@ create: network events and a widget layout.
   | `senses.lua` | host | Noise sources to blurred pings |
   | `control.lua` | entity player | Input to movement and commands; the mod's keys |
   | `camera.lua` | entity player | Third and first person |
+  | `vision.lua` | entity player | The entity's own light and the vent-opening markers |
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
   | `game.lua`, `config.lua` | both | Game paths and helpers; every tunable |
 
@@ -232,6 +240,7 @@ kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack 
   and as the entity player's machine, against `tests/fake_ue4ss.lua`, a stand-in for UE4SS and the game objects.
 - `tests/entity_mode_test.lua`: F9, forcing the squid from the lobby, and the random pick.
 - `tests/lair_test.lua`: the start in a vent, the leash and the power.
+- `tests/vision_test.lua`: the entity's light and the vent markers.
 - `tests/solo_flow_test.lua` and `tests/lobby_display_squid_test.lua`: playing alone, and regressions from playtests.
 
 They prove the wiring, call shapes and rules. Only a playtest proves the game agrees with the stand-in.

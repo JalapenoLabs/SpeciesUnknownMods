@@ -60,6 +60,22 @@ return {
     heldMoves = { Leap = true, Vent = true, Ultimate = true },
   },
 
+  vision = {
+    -- The entity's own light, which only their machine renders: a soft, shadowless glow around the squid.
+    lanternCandelas = 80,
+    lanternRadius = 1500,
+    lanternColor = { R = 0.78, G = 0.88, B = 1.0, A = 1 },
+    -- Glowing markers at the vent openings within this distance (only the entity sees them), at most this many.
+    markerRange = 3500,
+    markerCount = 16,
+    -- Above 1, the unlit colour blooms, so the markers read as glowing.
+    markerColor = { R = 0.25, G = 1.4, B = 3.0, A = 1 },
+    -- Marker disc size, as the scale of the engine's 1 m cylinder.
+    markerScale = { X = 0.8, Y = 0.8, Z = 0.03 },
+    -- How often the markers follow the squid around.
+    markerRefreshSeconds = 0.5,
+  },
+
   camera = {
     -- How far the third-person view sits behind the squid.
     thirdPersonDistance = 320,

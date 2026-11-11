@@ -10,7 +10,7 @@
 -- nor ClientSetCameraMode moved the camera.)
 --
 -- The squid has no camera of its own, so the mod gives it one on this machine: a spring arm on the squid, pointing
--- along the player's look and pulling in when a wall is in the way, with a camera at its end. The engine views a pawn
+-- along the player's look, with a camera at its end. The arm passes through walls rather than pulling in. The engine views a pawn
 -- through its camera component. Third person is the arm at full length; first person is the arm at zero length.
 
 local config = require("entity.config")
@@ -63,6 +63,9 @@ local function buildRig(squid)
 
   arm:K2_SetRelativeLocation({ X = 0, Y = 0, Z = config.camera.height }, false, {}, true)
   arm.bUsePawnControlRotation = true
+  -- Much of the duct network is invisible collision, which kept pulling the camera in to the squid's head (playtest
+  -- 4). Clipping through walls is fine for the entity, so the arm ignores them
+  arm.bDoCollisionTest = false
   view:K2_AttachToComponent(arm, FName(ARM_END_SOCKET), SNAP_TO_TARGET, SNAP_TO_TARGET, SNAP_TO_TARGET, false)
   game.log("Gave the squid a camera")
   return { squidAddress = squid:GetAddress(), arm = arm, view = view }

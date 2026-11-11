@@ -43,6 +43,17 @@ function vents.nearest(location, reach)
   return best
 end
 
+-- Where a shaft opens: the hole in the duct floor when seen from inside the ducts (its Box_Up trigger, at the top of
+-- the shaft), or the floor under it when seen from the room below.
+function vents.openingOf(vent, fromInside)
+  if fromInside then
+    local top = vent.Box_Up:K2_GetComponentLocation()
+    return { X = top.X, Y = top.Y, Z = top.Z }
+  end
+  local floor = vent:K2_GetActorLocation()
+  return { X = floor.X, Y = floor.Y, Z = floor.Z }
+end
+
 -- The in-duct spots beside a shaft's top, as plain vectors; empty when the shaft has none.
 function vents.spotsOf(vent)
   local spots = {}

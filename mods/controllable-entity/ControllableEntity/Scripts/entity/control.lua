@@ -10,6 +10,7 @@
 
 local camera = require("entity.camera")
 local config = require("entity.config")
+local vision = require("entity.vision")
 local game = require("entity.game")
 local links = require("entity.links")
 
@@ -201,6 +202,15 @@ function control.register()
     if squid then
       camera.follow(controller, squid)
     end
+  end)
+  LoopInGameThreadWithDelay(100, function()
+    local controller = game.localController()
+    local squid = controller and drivenSquid(controller)
+    if squid then
+      vision.follow(controller, squid)
+      return
+    end
+    vision.forget()
   end)
   links.onClientEvent("BecameEntity", onBecameEntity)
   links.onClientEvent("Lost", camera.reset)
