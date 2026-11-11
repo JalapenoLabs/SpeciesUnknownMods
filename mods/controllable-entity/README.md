@@ -175,9 +175,9 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
 - Space climbs into the vent shaft within 4 m across the floor, or drops out of the one within 4 m onto any crew
   member below. Inside the ducts, at the foot of a step up (where a duct rises 2.5 m, like an elbow joint), Space
   climbs it instead when the step is nearer than an opening. Crouch peeks down through the grate; Crouch again,
-  crawling away from the grate, the leap or a climb ends the peek. All four use the
-  squid's own vent moves (`JumpToVent`, `AttackFromVent`, `ClimbVent250`, `LookFromVent`). Climbing stays inside the
-  ducts, so the lair allows it before the power is on.
+  crawling away from the grate, the leap or a climb ends the peek. All four use the squid's own vent moves
+  (`JumpToVent`, `AttackFromVent`, `ClimbVent250`, `LookFromVent`). Climbing stays inside the ducts, so the lair
+  allows it before the power is on.
 - **Crawl openings:** the floor-level openings the crew crouch through into the ducts (six on Hawking, two in crew
   quarters and four in the lab) take the squid too: as it moves into one, the host puts it in its crouched vent
   state, and coming back out the game's own trigger stands it up. Only the squid crawls; an entity that doesn't use
