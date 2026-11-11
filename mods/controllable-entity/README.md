@@ -173,8 +173,8 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
 ### Vents
 
 - Space climbs into the vent shaft within 4 m across the floor, or drops out of the one within 4 m onto any crew
-  member below. Inside the ducts, at the foot of a step up (where a duct rises 2.5 m, like an elbow joint), Space
-  climbs it instead when the step is nearer than an opening. Crouch peeks down through the grate; Crouch again,
+  member below. Inside the ducts, at either end of a step (where a duct rises 2.5 m, like an elbow joint), Space
+  climbs it up or down instead when the step is nearer than an opening. Crouch peeks down through the grate; Crouch again,
   crawling away from the grate, the leap or a climb ends the peek. All four use the squid's own vent moves
   (`JumpToVent`, `AttackFromVent`, `ClimbVent250`, `LookFromVent`). Climbing stays inside the ducts, so the lair
   allows it before the power is on.
@@ -577,7 +577,7 @@ one friend.
    power is on. Hunt." and roams freely. A contract that starts with the power on shows the squid free from the start.
 7. **Vents and peeking.** Once free: Space over a vent opening drops out; Space standing under a vent climbs in.
    At the foot of a step up inside the ducts (an elbow joint the crew can only drop down), Space climbs it, even
-   before the power is on. In third person, looking down stops at about 50° and the screen never goes black.
+   before the power is on, and at its top Space climbs back down. In third person, looking down stops at about 50° and the screen never goes black.
    Over a grate in a vent, `C Peek` shows under the minimap; Crouch peeks through the grate, and the hint goes while
    peek recharges. Away from a grate there's no hint. Shoot with nobody near: the squid swings at the air.
    Press 1, 2 and 3: a roar, a curious call and a long call, each with a short cooldown.
