@@ -17,8 +17,6 @@ local game = require("entity.game")
 fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
 })
-local volumeClass = fake.object("VolumeClass")
-fake.objects["/Script/Engine.Volume"] = volumeClass
 fake.installModPak(game.modClasses)
 fake.object("GameStateBase")
 fake.world = fake.object("World")
@@ -32,14 +30,18 @@ local squid = fake.object("BP_Monster_Poulpi_C", { location = { X = 0, Y = 0, Z 
   K2_GetActorLocation = function(self) return self.location end,
 })
 
--- A volume covering X from -500 to 500, and one covering X from 1000 to 2000, each with its own manager
-local function volume(minimumX, maximumX)
+-- A volume around X = 0 and one around X = 1500, each 1000 units wide, each with its own manager. GetActorBounds
+-- returns its box through out parameters, which UE4SS fills into the table passed for them (playtest 5:
+-- AVolume.EncompassesPoint isn't callable from Lua)
+local function volume(centreX)
   return fake.object("TriggerVolume", nil, {
-    IsA = function(_, class) return class == volumeClass end,
-    EncompassesPoint = function(_, point) return point.X >= minimumX and point.X <= maximumX end,
+    GetActorBounds = function(_, _, out)
+      out.Origin = { X = centreX, Y = 0, Z = 0 }
+      out.BoxExtent = { X = 500, Y = 500, Z = 500 }
+    end,
   })
 end
-local nearVolume, farVolume = volume(-500, 500), volume(1000, 2000)
+local nearVolume, farVolume = volume(0), volume(1500)
 local function manager(trigger)
   return fake.object("BP_StreamingVolume_Manager_C", { TriggerVolumeList = fake.array({ trigger }) })
 end

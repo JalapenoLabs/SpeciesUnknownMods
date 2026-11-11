@@ -7,17 +7,46 @@
 -- volumes' overlap events, and the squid's collision never overlaps them, so walls and floors stayed hidden around
 -- the entity (playtest 5). The managers' own BPI_Streaming_AddActorToTrigger enters or leaves a volume by hand, and
 -- runs the same check the overlaps do (BP_FunctionLibrairy.GetOnlyVisualOverlap: the local player's pawn counts),
--- so the mod tells them when the squid is inside a volume, from the volume's own shape (AVolume.EncompassesPoint).
+-- so the mod tells them when the squid is inside a volume's bounding box (AActor.GetActorBounds; AVolume's exact
+-- EncompassesPoint isn't exposed to Blueprints or Lua). A rotated volume's box is a little larger than the volume,
+-- which only shows a section slightly early.
 
 local game = require("entity.game")
 
 local streaming = {}
 
 local MANAGER_CLASS = "BP_StreamingVolume_Manager_C"
-local VOLUME_CLASS = "/Script/Engine.Volume"
 
 -- The volumes the squid is inside, by "<manager address>:<volume address>": { manager, volume }.
 local enteredVolumes = {}
+-- Each volume's bounding box, by address: volumes never move, so it is read once. { origin, extent }
+local boundsByVolume = {}
+
+-- The out parameters come back in the table passed for them, under their names.
+local function boundsOf(volume)
+  local address = volume:GetAddress()
+  local bounds = boundsByVolume[address]
+  if bounds then
+    return bounds
+  end
+  local out = {}
+  volume:GetActorBounds(false, out, out, false)
+  if not out.Origin or not out.BoxExtent then
+    game.log("A streaming volume gave no bounds; its section is left to the game")
+    boundsByVolume[address] = false
+    return false
+  end
+  bounds = { origin = out.Origin, extent = out.BoxExtent }
+  boundsByVolume[address] = bounds
+  return bounds
+end
+
+local function isInside(volume, location)
+  local bounds = boundsOf(volume)
+  return bounds and math.abs(location.X - bounds.origin.X) <= bounds.extent.X
+    and math.abs(location.Y - bounds.origin.Y) <= bounds.extent.Y
+    and math.abs(location.Z - bounds.origin.Z) <= bounds.extent.Z
+end
 
 local function volumesOf(manager)
   local volumes = {}
@@ -36,14 +65,13 @@ end
 
 -- Runs a few times a second on the entity player's machine while they drive the squid.
 function streaming.follow(squid)
-  local volumeClass = StaticFindObject(VOLUME_CLASS)
   local location = squid:K2_GetActorLocation()
   local stillInside = {}
 
   for _, manager in ipairs(FindAllOf(MANAGER_CLASS) or {}) do
     if manager:IsValid() then
       for _, volume in ipairs(volumesOf(manager)) do
-        if volume:IsA(volumeClass) and volume:EncompassesPoint(location, 0, {}) then
+        if isInside(volume, location) then
           local key = manager:GetAddress() .. ":" .. volume:GetAddress()
           stillInside[key] = { manager = manager, volume = volume }
           if not enteredVolumes[key] then
