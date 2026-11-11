@@ -169,7 +169,8 @@ The HUD runs along the top of the screen, in the game's own style for key prompt
   show the entity where that player is.
 - The crew HUD (status bars, objectives, crosshair) is hidden while the player is the squid, and so are the wall maps
   on the bridge and in the planet's power room (`UMG_Map`, `UMG_Map_POLAR`, blank on the entity's screen only): they
-  show where the mission's items are, which the entity must find out by hunting, so the crew can mislead them.
+  show where the mission's items are, which the entity must find out by hunting, so the crew can mislead them. The
+  respawn capsules' screens show `?????` instead of the name of the crew member who took one (`UMG_ScreenCapsule`).
 
 The keys shown are the game's default bindings; a player who rebinds an action sees the default. The icons are
 SVGs in [`art/icons/`](art/icons/).

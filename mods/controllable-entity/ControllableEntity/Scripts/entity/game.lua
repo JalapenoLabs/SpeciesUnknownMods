@@ -19,6 +19,7 @@ game.paths = {
   weaponClass = "/Game/Weapon/Weapon_Base.Weapon_Base_C",
   characterClass = "/Game/Blueprints/Player/BP_ParentCharacter.BP_ParentCharacter_C",
   engineClass = "/Game/Blueprints/Engine/BP_Engine.BP_Engine_C",
+  capsuleScreenClass = "/Game/Blueprints/Interact/UMG_ScreenCapsule.UMG_ScreenCapsule_C",
   grabInterruptedMontage =
     "/Game/Blueprints/Monsters/Poulpi/Anim/Hit/Poulpi_Hit_DuringGrab_Front_Montage.Poulpi_Hit_DuringGrab_Front_Montage",
   inputLibrary = "/Script/EnhancedInput.Default__EnhancedInputLibrary",
@@ -47,6 +48,8 @@ game.classNames = {
   -- The ship's and the planet's wall maps (BP_MapMain, BP_MapMain_POLAR show these on a widget component): the whole
   -- map with the mission's items on it, so where the crew's special weapon lies.
   wallMapWidgets = { "UMG_Map_C", "UMG_Map_POLAR_C" },
+  -- The respawn capsule's screen (BP_CapsuleScreen), which names the crew member who took the capsule.
+  capsuleScreenWidget = "UMG_ScreenCapsule_C",
 }
 
 -- MonsterList value for the squid (BP_Lobby_FunctionLibrairy.GetMonsterSoftClass).

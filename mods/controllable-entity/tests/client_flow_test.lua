@@ -70,6 +70,11 @@ local squidComponents = fake.acceptComponents(squid)
 local crewHud = fake.object("UI_HUD_Display_C")
 -- The bridge's wall map, which shows where the mission's items are
 local wallMap = fake.object("UMG_Map_C", nil, { GetVisibility = function() return 4 end })
+-- A respawn capsule's screen, naming the crew member who took it
+local capsuleScreen = fake.object("UMG_ScreenCapsule_C", {
+  Pseudo = { text = "Aidan" },
+  TextBlock_Pseudo = fake.object("TextBlock"),
+})
 
 -- Regression (playtest 3): a module whose handler fails must not stop the others hearing the same event. Here a
 -- handler registered before everyone else's fails on the takeover; the HUD still learns the player is the entity
@@ -190,6 +195,13 @@ assert(#fake.callsTo(crewHud, "RemoveFromParent") >= 1, "the crew HUD comes off 
 -- Regression (playtest 6): the wall maps told the entity where the crew's special weapon was
 local wallMapVisibility = fake.callsTo(wallMap, "SetVisibility")
 assert(#wallMapVisibility >= 1 and wallMapVisibility[1].args[1] == 1, "the wall maps are blanked for the entity")
+-- Regression (playtest 6): the capsule screens named who could still respawn
+assert(capsuleScreen.Pseudo.text == "?????", "a capsule's occupant is a mystery to the entity")
+assert(lastArgument(capsuleScreen.TextBlock_Pseudo, "SetText").text == "?????", "on its screen too")
+fake.loadClass(game.paths.capsuleScreenClass)
+capsuleScreen.Pseudo = { text = "Aidan" }
+fake.hooks[game.paths.capsuleScreenClass .. ":BPI_UI_SetText"](fake.param(capsuleScreen), fake.param({ text = "Aidan" }))
+assert(capsuleScreen.Pseudo.text == "?????", "a name written later is masked at once")
 assert(lastArgument(widget.UltimateBar, "SetPercent") == 0.5, "the bar shows the replicated meter")
 assert(lastArgument(widget.UltimateText, "SetText").text == "HEAD GRAB  50%")
 assert(lastArgument(widget.LashKeyText, "SetText").text == "LMB", "each ability shows its key")

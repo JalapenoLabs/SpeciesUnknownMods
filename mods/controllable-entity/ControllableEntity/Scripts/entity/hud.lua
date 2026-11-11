@@ -18,6 +18,8 @@ local HIDDEN = 2
 local VISIBLE_NO_INPUT = 3
 -- The crew character can rebuild its HUD (on respawn, after menus), so the entity's machine checks for it this often.
 local CREW_HUD_CHECK_SECONDS = 0.5
+-- What a respawn capsule's screen shows the entity instead of the name of the crew member who took it.
+local CAPSULE_NAME_MASK = "?????"
 -- How long a message stays: a second, plus 300 ms a word, and never under three seconds.
 local MESSAGE_BASE_SECONDS = 1
 local MESSAGE_SECONDS_PER_WORD = 0.3
@@ -233,6 +235,18 @@ local function drawPings(widget, controller, now)
   end
 end
 
+-- A respawn capsule's screen names the crew member who took it, which tells the entity who can still come back. The
+-- screen keeps the name in its Pseudo and writes it into TextBlock_Pseudo when the name or its step changes
+-- (UMG_ScreenCapsule), so both are masked: the game's own redraws then show the mask too.
+local function maskCapsuleName(capsuleScreen)
+  if not capsuleScreen:IsValid() then
+    return
+  end
+  local mask = FText(CAPSULE_NAME_MASK)
+  capsuleScreen.Pseudo = mask
+  capsuleScreen.TextBlock_Pseudo:SetText(mask)
+end
+
 -- The crew HUD belongs to the parked crew body, so it would stay on screen over the squid's view. It comes off the
 -- screen rather than being hidden: the respawn-capsule status sets its own visibility again, and isn't reported as
 -- in the viewport either, so the removal doesn't ask first (removing a widget that isn't shown does nothing).
@@ -258,6 +272,9 @@ local function hideCrewHud(now)
         wallMap:SetVisibility(COLLAPSED)
       end
     end
+  end
+  for _, capsuleScreen in ipairs(FindAllOf(game.classNames.capsuleScreenWidget) or {}) do
+    maskCapsuleName(capsuleScreen)
   end
 end
 
@@ -394,6 +411,16 @@ function hud.register()
   end
 
   links.onPing(onPing)
+
+  -- Masked as soon as the game writes a name or redraws, so the real name never shows for a frame; the sweep in
+  -- hideCrewHud covers screens that named someone before this player became the entity
+  for _, functionName in ipairs({ "BPI_UI_SetText", "BPI_UI_SetStep" }) do
+    game.hookWhenLoaded(game.paths.capsuleScreenClass, functionName, function(context)
+      if state.isEntity then
+        maskCapsuleName(context:get())
+      end
+    end)
+  end
   -- About 30 frames a second: smooth enough for markers over a moving camera
   LoopInGameThreadWithDelay(33, render)
 end
