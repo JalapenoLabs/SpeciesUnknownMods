@@ -102,22 +102,39 @@ function fake.array(elements)
   })
 end
 
--- Gives a fake player controller what the camera code reads: a camera manager, and a view target that follows
--- SetViewTargetWithBlend the way the engine's does.
-function fake.giveView(controller, cameraManager)
-  controller.PlayerCameraManager = cameraManager or fake.object("PlayerCameraManager", { FreeCamDistance = 256 }, {
+-- Gives a fake player controller what the camera code reads: the game's camera manager, with its cached crew body
+-- (Player) and its BPI_CameraPlayer_ResetPlayer, and a view target that follows SetViewTargetWithBlend the way the
+-- engine's does. `crewBody` starts cached, as after the crew character was possessed.
+function fake.giveView(controller, crewBody)
+  local manager = fake.object("Character_CameraBP_C", { Player = crewBody or fake.invalid() }, {
     GetCameraLocation = function() return { X = 0, Y = 0, Z = 0 } end,
   })
+  -- As the game's: follow the pawn, and cache it only when it is a crew character
+  manager.BPI_CameraPlayer_ResetPlayer = function(self, pawn)
+    table.insert(fake.calls, { object = self, method = "BPI_CameraPlayer_ResetPlayer", args = { pawn } })
+    controller:SetViewTargetWithBlend(pawn, 0, 0, 0, false)
+    local isCrew = pawn:GetClass():GetFName():ToString() == "BP_Character_C"
+    self.Player = isCrew and pawn or fake.invalid()
+  end
+  controller.PlayerCameraManager = manager
   controller.viewTarget = fake.invalid()
   controller.GetViewTarget = function(self) return self.viewTarget end
-  -- The engine's setter for the camera style; the property itself can't be written from Lua (playtest 4)
-  controller.ClientSetCameraMode = function(self, style)
-    self.PlayerCameraManager.CameraStyle = style
-  end
   controller.SetViewTargetWithBlend = function(self, target, ...)
     table.insert(fake.calls, { object = self, method = "SetViewTargetWithBlend", args = { target, ... } })
     self.viewTarget = target
   end
+end
+
+-- Lets a fake actor take runtime components (AActor.AddComponentByClass), as the camera rig needs. Returns the list
+-- the components are added to.
+function fake.acceptComponents(actor)
+  local components = {}
+  actor.AddComponentByClass = function()
+    local component = fake.object("Component")
+    table.insert(components, component)
+    return component
+  end
+  return components
 end
 
 -- Makes the mod's pak classes loadable the way the game would: through AssetRegistryHelpers.GetAsset, by package

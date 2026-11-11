@@ -123,10 +123,11 @@ key the mod could reuse, so the mod's three keys are its own.
 | F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out |
 | F9 (mod key, host only) | Turn entity mode on or off |
 
-The view starts in third person: the engine's own free camera behind the squid, which pulls in when a wall is in
-the way. First person is the squid's eye view. Both are engine camera styles (`FreeCam`, `FirstPerson`), because the
-game's own camera stays in the crew body's head while that body exists, and the entity's is parked, not destroyed
-(see [docs/game-internals.md](../../docs/game-internals.md#gameplay-state-worth-knowing)).
+The view starts in third person, behind the squid along the player's look, pulling in when a wall is in the way.
+First person is the squid's eye view. The game's own camera stays in its cached crew body's head, and the entity's
+body is parked, not destroyed (see [docs/game-internals.md](../../docs/game-internals.md#gameplay-state-worth-knowing)),
+so on the entity's machine the mod hands the game's camera the squid through its own `BPI_CameraPlayer_ResetPlayer`,
+and gives the squid a spring arm with a camera on it. Third person is the arm at 3.2 m, first person at zero.
 
 The HUD runs along the top of the screen, in the game's own style for key prompts:
 

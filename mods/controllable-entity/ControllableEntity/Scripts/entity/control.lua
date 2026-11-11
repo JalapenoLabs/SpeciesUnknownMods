@@ -93,7 +93,7 @@ local function toggleView(controller, actionValueParameter)
   if not drivenSquid(controller) or not buttonPressed(actionValueParameter) then
     return
   end
-  camera.toggle(controller)
+  camera.toggle()
 end
 
 -- The pause menu opens only while the controller's canPause is on (BP_MyPlayerController._CanOpenPauseMenu), and the
@@ -164,8 +164,8 @@ local function reportArrival(actionName, controller)
   game.log("Input %s arrived (pawn: %s%s)", actionName, pawnClass, drivingSquid and ", driving the squid" or "")
 end
 
--- On the player's own machine, as they become the entity: the camera goes to the squid (the host sets it too, but
--- that only arrives by replication), and any input the game had told the controller to ignore is let through again.
+-- On the player's own machine, as they become the entity: the camera goes to the squid (see camera.lua), and any input
+-- the game had told the controller to ignore is let through again.
 local function onBecameEntity()
   local controller = game.localController()
   if not controller then
@@ -173,9 +173,8 @@ local function onBecameEntity()
   end
   local squid = drivenSquid(controller)
   if squid then
-    controller:SetViewTargetWithBlend(squid, 0, 0, 0, false)
+    camera.follow(controller, squid)
   end
-  camera.begin(controller)
   game.log("Became the entity; move input ignored: %s, look input ignored: %s",
     tostring(controller:IsMoveInputIgnored()), tostring(controller:IsLookInputIgnored()))
   controller:ResetIgnoreMoveInput()
@@ -200,16 +199,11 @@ function control.register()
     local controller = game.localController()
     local squid = controller and drivenSquid(controller)
     if squid then
-      camera.keepOnSquid(controller, squid)
+      camera.follow(controller, squid)
     end
   end)
   links.onClientEvent("BecameEntity", onBecameEntity)
-  links.onClientEvent("Lost", function()
-    local controller = game.localController()
-    if controller then
-      camera.reset(controller)
-    end
-  end)
+  links.onClientEvent("Lost", camera.reset)
 end
 
 return control

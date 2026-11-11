@@ -71,8 +71,10 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
   (`Nav_Link_VentPoint_*`); its sublevels add decoration only (`BP_VentWall`, `BP_VentDoor`).
 - **The camera ignores the view target.** The player camera manager (`Character_CameraBP`) overrides
   `BlueprintUpdateCamera`: while its cached crew body (`Player`) is valid, the camera sits at that body's `Camera`
-  component, whatever `SetViewTarget` says. The engine's built-in `CameraStyle` values (`FreeCam`, `ThirdPerson`,
-  `FirstPerson`) bypass the override, since the engine only calls it for the default style.
+  component, whatever `SetViewTarget` says. Its own `BPI_CameraPlayer_ResetPlayer(pawn)` sets the view target and
+  caches the pawn only if it is a `BP_Character`, so passing any other pawn clears the cache and the engine's normal
+  view of that pawn takes over. Changing `CameraStyle` from UE4SS does nothing (neither the property nor
+  `ClientSetCameraMode` moved the camera in playtest 4).
 - **Monsters respawn when stuck.** `BP_BaseMonster."Check If Stuck"` runs every second once an AI controller
   possesses the monster. After 20 seconds without moving it calls `BP_GameManager.InitMonster(false, ...)`, which
   destroys the monster and spawns a new one. `ShouldCheckIfStuck` turns the check off.

@@ -60,15 +60,7 @@ fake.objects[game.paths.widgetLibrary] = fake.object("WidgetBlueprintLibrary", n
   end,
 })
 
--- Regression (playtest 3): UE4SS doesn't hand CameraStyle back as a readable name, so reading it crashed the takeover.
--- The fake's starting value can't be read either; the mod must only ever write it.
-local cameraManager = fake.object("PlayerCameraManager", { CameraStyle = {}, FreeCamDistance = 256 }, {
-  GetCameraLocation = function() return { X = 0, Y = 0, Z = 0 } end,
-})
-local controller = fake.object("BP_MyPlayerController_C", {
-  Pawn = fake.invalid(),
-  PlayerCameraManager = cameraManager,
-}, {
+local controller = fake.object("BP_MyPlayerController_C", { Pawn = fake.invalid() }, {
   IsLocalController = function() return true end,
   GetControlRotation = function() return { Pitch = 0, Yaw = 90, Roll = 0 } end,
   ProjectWorldLocationToScreen = function(_, _, screen)
@@ -76,11 +68,15 @@ local controller = fake.object("BP_MyPlayerController_C", {
     return true
   end,
 }, { "PlayerController" })
-fake.giveView(controller, cameraManager)
+-- The player's crew body, which the game's camera manager has cached since it was possessed
+local crewBody = fake.object("BP_Character_C")
+fake.giveView(controller, crewBody)
+local cameraManager = controller.PlayerCameraManager
 local link = fake.object("BP_EntityLink_C", { Owner = controller, Meter = 0.5, Frenzy = false })
 local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false }, {
   K2_GetActorLocation = function() return { X = 0, Y = 300, Z = 0 } end,
 })
+local squidComponents = fake.acceptComponents(squid)
 -- The crew HUD the player's crew body created before the takeover
 local crewHud = fake.object("UI_HUD_Display_C", nil, { GetVisibility = function() return 4 end })
 
@@ -117,7 +113,7 @@ assert(#commands == 1 and commands[1].args[1]:ToString() == "Volunteer")
 fake.keybinds.SPACE()
 assert(#fake.callsTo(link, "EntityServerCommand") == 1, "the ultimate key does nothing as crew")
 flashlightHook(fake.param(controller), fake.param({ pressed = true }))
-assert(cameraManager.CameraStyle.ToString == nil, "the flashlight is the crew's own as crew")
+assert(#squidComponents == 0, "the flashlight is the crew's own as crew")
 
 -- Entity mode: every player's F9 goes to the host, which decides whether it counts
 fake.keybinds.F9()
@@ -132,8 +128,14 @@ local createdForMessage = createdWidgets
 -- The host makes this player the entity
 controller.Pawn = squid
 fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("BecameEntity")), fake.param(0))
-assert(cameraManager.CameraStyle:ToString() == "FreeCam", "the entity starts in third person")
-assert(cameraManager.FreeCamDistance == config.camera.thirdPersonDistance)
+
+-- Regression (playtest 4): the game's camera stayed in the cached crew body, 17,000 units from the squid. The game's
+-- own ResetPlayer hands its camera the squid, which clears the cache
+assert(controller:GetViewTarget() == squid, "the camera follows the squid")
+assert(not cameraManager.Player:IsValid(), "and no longer the crew body")
+local arm = squidComponents[1]
+assert(#squidComponents == 2 and arm.bUsePawnControlRotation, "the squid gets a camera on an arm that follows the look")
+assert(arm.TargetArmLength == config.camera.thirdPersonDistance, "the entity starts in third person")
 -- Regression (playtest 3): Escape did nothing as the squid, because the crew body had turned pausing off
 local pauseHook = fake.hooks[controllerPath .. "InpActEvt_IA_OpenPauseMenu_K2Node_EnhancedInputActionEvent_10"]
 controller.canPause = false
@@ -145,14 +147,12 @@ controller.canPause = true
 pauseHook(fake.param(controller), fake.param({ pressed = true }))
 assert(#fake.callsTo(controller, "OpenPauseMenu") == 1, "when the game could pause, its own handler opened the menu")
 
--- Regression (playtest 3): the game's camera manager pins its default view to the parked crew body, so first person
--- must be the engine's own FirstPerson style, never "Default"
 flashlightHook(fake.param(controller), fake.param({ pressed = true }))
-assert(cameraManager.CameraStyle:ToString() == "FirstPerson", "the flashlight switches to first person")
+assert(arm.TargetArmLength == 0, "the flashlight switches to first person")
 flashlightHook(fake.param(controller), fake.param({ pressed = false }))
-assert(cameraManager.CameraStyle:ToString() == "FirstPerson", "releasing the key changes nothing")
+assert(arm.TargetArmLength == 0, "releasing the key changes nothing")
 flashlightHook(fake.param(controller), fake.param({ pressed = true }))
-assert(cameraManager.CameraStyle:ToString() == "FreeCam", "and back to third person")
+assert(arm.TargetArmLength == config.camera.thirdPersonDistance, "and back to third person")
 
 moveHook(fake.param(controller), fake.param({ X = 0, Y = 1 }))
 local moves = fake.callsTo(squid, "AddMovementInput")
@@ -171,13 +171,12 @@ fake.keybinds.SPACE()
 commands = fake.callsTo(link, "EntityServerCommand")
 assert(commands[#commands].args[1]:ToString() == "Ultimate")
 
--- Regression (playtest 4): something in the game kept the view off the squid. While the player drives the squid, the
--- view goes back to it every second
+-- If the game's own code moves the camera elsewhere, it goes back to the squid within a second, keeping its rig
 local shuttleCamera = fake.object("CameraActor")
 controller:SetViewTargetWithBlend(shuttleCamera, 0, 0, 0, false)
 fake.runLoops(1000)
 assert(controller:GetViewTarget() == squid, "the view is put back on the squid")
-assert(cameraManager.CameraStyle:ToString() ~= "Default", "with the squid's camera style")
+assert(#squidComponents == 2, "the squid's camera is built once")
 
 -- The HUD shows the meter and a ping
 fake.customEvents.EntityClientPing(fake.param(link), fake.param({ X = 100, Y = 0, Z = 0 }), fake.param(1.0),

@@ -2,68 +2,37 @@
 
 -- The entity player's view, on their own machine: third person by default, first person on request.
 --
--- The game's camera manager (Character_CameraBP.BlueprintUpdateCamera) ignores the view target: while its crew body
--- exists, the camera sits in that body's head, and the entity's crew body is parked, not destroyed. The engine's
--- built-in camera styles bypass that override (PlayerCameraManager.UpdateViewTarget only calls it for the default
--- style), so both views use one:
--- - Third person, "FreeCam": FreeCamDistance behind the view target along the player's look, pulled in when a wall is
---   in the way.
--- - First person, "FirstPerson": through the view target's eyes (GetActorEyesViewPoint).
--- The camera manager runs on the player's own machine, so none of this touches the host.
+-- The game's camera manager (Character_CameraBP.BlueprintUpdateCamera) doesn't follow the view target: while it has a
+-- crew body cached (its Player variable), the camera sits in that body's head, and the entity's crew body is parked,
+-- not destroyed. Its own way to follow another pawn is BPI_CameraPlayer_ResetPlayer, which sets the view target and
+-- caches the pawn only if it is a crew character, so handing it the squid clears the cache and the engine's normal
+-- view takes over. (Playtest 4 showed the engine's CameraStyle can't be changed from Lua: neither writing the property
+-- nor ClientSetCameraMode moved the camera.)
+--
+-- The squid has no camera of its own, so the mod gives it one on this machine: a spring arm on the squid, pointing
+-- along the player's look and pulling in when a wall is in the way, with a camera at its end. The engine views a pawn
+-- through its camera component. Third person is the arm at full length; first person is the arm at zero length.
 
 local config = require("entity.config")
 local game = require("entity.game")
 
 local camera = {}
 
--- PlayerCameraManager.CameraStyle values. "Default" is the game's own camera, which this game never changes itself.
--- The style is set through the engine's own APlayerController.ClientSetCameraMode: in playtest 4, writing the property
--- from Lua left the camera where it was, 17,000 units from the squid. (UE4SS doesn't hand the property back as a
--- readable name either, so the mod never reads it.)
-local THIRD_PERSON_STYLE = "FreeCam"
-local FIRST_PERSON_STYLE = "FirstPerson"
-local GAME_STYLE = "Default"
+local SPRING_ARM_CLASS = "/Script/Engine.SpringArmComponent"
+local CAMERA_CLASS = "/Script/Engine.CameraComponent"
+-- The spring arm's socket at the end of the arm (USpringArmComponent::SocketName).
+local ARM_END_SOCKET = "SpringEndpoint"
+-- EAttachmentRule
+local SNAP_TO_TARGET = 2
+local IDENTITY_TRANSFORM = {
+  Rotation = { X = 0, Y = 0, Z = 0, W = 1 },
+  Translation = { X = 0, Y = 0, Z = 0 },
+  Scale3D = { X = 1, Y = 1, Z = 1 },
+}
 
 local isThirdPerson = true
--- False once the player has lost: the game's own camera follows the crew again.
-local isEntityView = false
-
-local function apply(controller)
-  local manager = controller.PlayerCameraManager
-  if not manager:IsValid() then
-    game.log("No camera manager; the view stays as it is")
-    return
-  end
-
-  if not isEntityView then
-    controller:ClientSetCameraMode(FName(GAME_STYLE))
-    return
-  end
-  if isThirdPerson then
-    manager.FreeCamDistance = config.camera.thirdPersonDistance
-    controller:ClientSetCameraMode(FName(THIRD_PERSON_STYLE))
-    return
-  end
-  controller:ClientSetCameraMode(FName(FIRST_PERSON_STYLE))
-end
-
--- Starts the entity's view: third person, the easier view for a body that big.
-function camera.begin(controller)
-  isEntityView = true
-  isThirdPerson = true
-  apply(controller)
-end
-
-function camera.toggle(controller)
-  isThirdPerson = not isThirdPerson
-  apply(controller)
-end
-
--- Back to the game's own view, for watching the crew after losing.
-function camera.reset(controller)
-  isEntityView = false
-  apply(controller)
-end
+-- The camera rig on the squid: { squidAddress, arm, view }, or nil.
+local rig = nil
 
 local function describe(actor)
   if not actor or not actor:IsValid() then
@@ -72,28 +41,34 @@ local function describe(actor)
   return actor:GetClass():GetFName():ToString()
 end
 
+-- Adds the spring arm and camera to the squid; nil after logging when the engine won't make them.
+local function buildRig(squid)
+  local arm = squid:AddComponentByClass(StaticFindObject(SPRING_ARM_CLASS), false, IDENTITY_TRANSFORM, false)
+  local view = squid:AddComponentByClass(StaticFindObject(CAMERA_CLASS), true, IDENTITY_TRANSFORM, false)
+  if not arm or not arm:IsValid() or not view or not view:IsValid() then
+    game.log("Could not give the squid a camera; the view stays as it is")
+    return nil
+  end
+
+  arm:K2_SetRelativeLocation({ X = 0, Y = 0, Z = config.camera.height }, false, {}, true)
+  arm.bUsePawnControlRotation = true
+  view:K2_AttachToComponent(arm, FName(ARM_END_SOCKET), SNAP_TO_TARGET, SNAP_TO_TARGET, SNAP_TO_TARGET, false)
+  game.log("Gave the squid a camera")
+  return { squidAddress = squid:GetAddress(), arm = arm, view = view }
+end
+
+local function applyDistance()
+  rig.arm.TargetArmLength = isThirdPerson and config.camera.thirdPersonDistance or 0
+end
+
 -- How far the camera was from the squid at the last report, so the log shows changes, not every second.
 local lastReportedDistance = nil
 -- Distance changes smaller than this aren't worth a log line.
 local REPORT_DISTANCE_STEP = 250
 
--- Runs about once a second while the player drives the squid. The game's own code can move the view elsewhere (back
--- to the crew body, or to a fixed camera such as the shuttle's), so the view target and style are put back on the
--- squid whenever they've moved, and the log says what had them. It also reports where the camera really is, so a
--- playtest log shows whether the player is seeing the squid at all.
-function camera.keepOnSquid(controller, squid)
-  local viewTarget = controller:GetViewTarget()
-  if not viewTarget:IsValid() or viewTarget:GetAddress() ~= squid:GetAddress() then
-    game.log("The view was on %s; putting it back on the squid", describe(viewTarget))
-    controller:SetViewTargetWithBlend(squid, 0, 0, 0, false)
-  end
-  apply(controller)
-
-  local manager = controller.PlayerCameraManager
-  if not manager:IsValid() then
-    return
-  end
-  local cameraLocation = manager:GetCameraLocation()
+-- Playtest diagnostics: where the camera really is, relative to the squid.
+local function reportDistance(controller, squid)
+  local cameraLocation = controller.PlayerCameraManager:GetCameraLocation()
   local squidLocation = squid:K2_GetActorLocation()
   local distance = game.distance(cameraLocation, squidLocation)
   if lastReportedDistance and math.abs(distance - lastReportedDistance) < REPORT_DISTANCE_STEP then
@@ -103,6 +78,53 @@ function camera.keepOnSquid(controller, squid)
   game.log("The camera is %.0f units from the squid (camera %.0f, %.0f, %.0f; squid %.0f, %.0f, %.0f; %s)", distance,
     cameraLocation.X, cameraLocation.Y, cameraLocation.Z, squidLocation.X, squidLocation.Y, squidLocation.Z,
     isThirdPerson and "third person" or "first person")
+end
+
+-- Runs when the player becomes the entity and about once a second after, while they drive the squid: builds the rig
+-- once per squid, and hands the game's camera back to the squid whenever the game's own code has moved it.
+function camera.follow(controller, squid)
+  if not rig or rig.squidAddress ~= squid:GetAddress() or not rig.view:IsValid() then
+    rig = buildRig(squid)
+    if not rig then
+      return
+    end
+    applyDistance()
+  end
+
+  local manager = controller.PlayerCameraManager
+  if not manager:IsValid() then
+    game.log("No camera manager; the view stays as it is")
+    return
+  end
+
+  local viewTarget = controller:GetViewTarget()
+  local cachedCrewBody = manager.Player
+  local followsSquid = viewTarget:IsValid() and viewTarget:GetAddress() == squid:GetAddress()
+  if cachedCrewBody:IsValid() or not followsSquid then
+    local previous = cachedCrewBody:IsValid() and cachedCrewBody or viewTarget
+    game.log("The game's camera was following %s; handing it the squid", describe(previous))
+    manager:BPI_CameraPlayer_ResetPlayer(squid)
+  end
+
+  reportDistance(controller, squid)
+end
+
+function camera.toggle()
+  isThirdPerson = not isThirdPerson
+  if rig then
+    applyDistance()
+  end
+end
+
+-- After losing: the rig goes, and the game's camera follows whoever the host points it at.
+function camera.reset()
+  if rig and rig.view:IsValid() then
+    rig.view:K2_DestroyComponent(rig.view)
+    rig.arm:K2_DestroyComponent(rig.arm)
+  end
+  rig = nil
+  isThirdPerson = true
+  lastReportedDistance = nil
 end
 
 return camera

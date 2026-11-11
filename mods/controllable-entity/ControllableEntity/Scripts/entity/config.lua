@@ -63,6 +63,8 @@ return {
   camera = {
     -- How far the third-person view sits behind the squid.
     thirdPersonDistance = 320,
+    -- How far above the squid's centre the camera's arm starts: the first-person eye height.
+    height = 70,
   },
 
   look = {
