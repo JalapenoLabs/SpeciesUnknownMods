@@ -60,11 +60,13 @@ local controller = fake.object("BP_MyPlayerController_C", { Pawn = fake.invalid(
 local crewBody = fake.object("BP_Character_C")
 fake.giveView(controller, crewBody)
 local cameraManager = controller.PlayerCameraManager
-local link = fake.object("BP_EntityLink_C", { Owner = controller, Meter = 0.5, Frenzy = false })
+local link = fake.object("BP_EntityLink_C", {
+  Owner = controller, Meter = 0.5, Frenzy = false, Health = 0.8, Downed = false, Stamina = 1,
+})
 local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false, Mesh = fake.object("SkeletalMeshComponent") }, {
   K2_GetActorLocation = function() return { X = 0, Y = 300, Z = 0 } end,
 })
-fake.giveMovement(squid)
+fake.giveSquidState(squid)
 local squidComponents = fake.acceptComponents(squid)
 -- The crew HUD the player's crew body created before the takeover
 local crewHud = fake.object("UI_HUD_Display_C")
@@ -88,6 +90,7 @@ fake.loadClass(game.paths.controllerClass, {
   "InpActEvt_IA_Shoot_K2Node_EnhancedInputActionEvent_37",
   "InpActEvt_IA_FlashLight_K2Node_EnhancedInputActionEvent_44",
   "InpActEvt_IA_Interact_K2Node_EnhancedInputActionEvent_30",
+  "InpActEvt_IA_HoldTool_K2Node_EnhancedInputActionEvent_19",
   "InpActEvt_IA_OpenPauseMenu_K2Node_EnhancedInputActionEvent_10",
   "InpActEvt_IA_Reload_K2Node_EnhancedInputActionEvent_32",
 })
@@ -95,6 +98,8 @@ local controllerPath = game.paths.controllerClass .. ":"
 local moveHook = fake.hooks[controllerPath .. "InpActEvt_IA_Move_K2Node_EnhancedInputActionEvent_27"]
 local shootHook = fake.hooks[controllerPath .. "InpActEvt_IA_Shoot_K2Node_EnhancedInputActionEvent_37"]
 local flashlightHook = fake.hooks[controllerPath .. "InpActEvt_IA_FlashLight_K2Node_EnhancedInputActionEvent_44"]
+local interactHook = fake.hooks[controllerPath .. "InpActEvt_IA_Interact_K2Node_EnhancedInputActionEvent_30"]
+local holdToolHook = fake.hooks[controllerPath .. "InpActEvt_IA_HoldTool_K2Node_EnhancedInputActionEvent_19"]
 assert(moveHook and shootHook and flashlightHook, "the controller's move, shoot and flashlight handlers are hooked")
 assert(not fake.hooks[controllerPath .. "InpActEvt_IA_Reload_K2Node_EnhancedInputActionEvent_32"],
   "actions the squid doesn't use are left alone")
@@ -107,8 +112,8 @@ assert(#fake.callsTo(squid, "AddMovementInput") == 0)
 fake.keybinds.F8()
 local commands = fake.callsTo(link, "EntityServerCommand")
 assert(#commands == 1 and commands[1].args[1]:ToString() == "Volunteer")
-fake.keybinds.SPACE()
-assert(#fake.callsTo(link, "EntityServerCommand") == 1, "the vent key does nothing as crew")
+holdToolHook(fake.param(controller), fake.param({ pressed = true }))
+assert(#fake.callsTo(link, "EntityServerCommand") == 1, "the vent key is the crew's own as crew")
 flashlightHook(fake.param(controller), fake.param({ pressed = true }))
 assert(#squidComponents == 0, "the flashlight is the crew's own as crew")
 
@@ -167,14 +172,14 @@ assert(#commands == commandsBeforeShooting + 1 and commands[#commands].args[1]:T
   "a press sends one command, a release none")
 assert(math.abs(commands[#commands].args[2].Y - 1) < 1e-9, "the command carries the aim")
 
--- Space vents and Interact (E) fires the ultimate (playtest 6)
-fake.keybinds.SPACE()
+-- HoldTool (Space) vents and Interact (E) fires the ultimate (playtest 6), through the game's own bindings
+holdToolHook(fake.param(controller), fake.param({ pressed = true }))
 commands = fake.callsTo(link, "EntityServerCommand")
 assert(commands[#commands].args[1]:ToString() == "Vent", "Space vents")
-fake.hooks[controllerPath .. "InpActEvt_IA_Interact_K2Node_EnhancedInputActionEvent_30"](fake.param(controller),
-  fake.param({ pressed = true }))
+interactHook(fake.param(controller), fake.param({ pressed = true }))
 commands = fake.callsTo(link, "EntityServerCommand")
 assert(commands[#commands].args[1]:ToString() == "Ultimate", "Interact fires the ultimate")
+assert(not fake.keybinds.SPACE, "venting is no mod key, so it stays out of the game's menus")
 
 -- If the game's own code moves the camera elsewhere, it goes back to the squid within a second, keeping its rig
 local shuttleCamera = fake.object("CameraActor")
@@ -212,24 +217,69 @@ capsuleScreen.Pseudo = { text = "Aidan" }
 local capsuleSetText = fake.hooks[game.paths.capsuleScreenClass .. ":BPI_UI_SetText"]
 capsuleSetText(fake.param(capsuleScreen), fake.param({ text = "Aidan" }))
 assert(capsuleScreen.Pseudo.text == "?????", "a name written later is masked at once")
-assert(lastArgument(widget.UltimateBar, "SetPercent") == 0.5, "the bar shows the replicated meter")
-assert(lastArgument(widget.UltimateText, "SetText").text == "HEAD GRAB  50%")
-assert(lastArgument(widget.LashKeyText, "SetText").text == "LMB", "each ability shows its key")
-assert(lastArgument(widget.UltimateKeyText, "SetText").text == "E")
-assert(lastArgument(widget.Abilities, "SetVisibility") == 3, "the abilities show once the player is the entity")
+assert(lastArgument(widget.Actions, "SetVisibility") == 3, "the actions show once the player is the entity")
+assert(lastArgument(widget.UltimateBar, "SetPercent") == 0.5, "the ultimate's bar shows the replicated meter")
+assert(lastArgument(widget.UltimateBar, "SetVisibility") == 3, "while it charges")
 
--- A cooldown fills its bar; a ready ability hides it
-assert(lastArgument(widget.LashBar, "SetVisibility") == 2, "a ready ability shows no bar")
+-- Regression (playtest 6): a full meter kept "HEAD GRAB READY" on screen; the ultimate now shows like every action,
+-- its bar gone once it's ready
+link.Meter = 1
+fake.runLoops(33)
+assert(lastArgument(widget.UltimateBar, "SetVisibility") == 2, "a ready ultimate shows no bar")
+
+-- A cooldown fills its bar; a ready action hides it
+assert(lastArgument(widget.LashBar, "SetVisibility") == 2, "a ready action shows no bar")
 fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("Cooldown.Attack")), fake.param(0))
 fake.runLoops(33)
-assert(lastArgument(widget.LashBar, "SetVisibility") == 3, "a recharging ability shows its bar")
-assert(lastArgument(widget.LashBar, "SetPercent") == 1, "the bar starts full and drains")
+assert(lastArgument(widget.LashBar, "SetVisibility") == 3, "a recharging action shows its bar")
+assert(lastArgument(widget.LashBar, "SetPercent") == 0, "the bar starts empty and fills")
 
--- Peeking needs a vent, so outside one its slot dims; inside, it lights up
-assert(lastArgument(widget.PeekSlot, "SetRenderOpacity") < 1, "peek is dimmed outside a vent")
-squid.InVent = true
+-- The health bar shows the pool the squid is on (playtest 6), green while it stands and red once it's down
+assert(lastArgument(widget.HealthBar, "SetPercent") == 0.8, "the health bar shows the replicated pool")
+assert(lastArgument(widget.HealthBar, "SetFillColorAndOpacity").R < 0.5, "in the crew HUD's green while standing")
+link.Downed, link.Health = true, 0.3
 fake.runLoops(33)
-assert(lastArgument(widget.PeekSlot, "SetRenderOpacity") == 1, "and usable inside one")
+assert(lastArgument(widget.HealthBar, "SetFillColorAndOpacity").R > 0.5, "and red once the squid is down")
+link.Downed, link.Health = false, 0.8
+-- The stamina bar shows only once sprinting has used some
+assert(lastArgument(widget.StaminaBar, "SetVisibility") == 2, "full stamina shows no bar")
+link.Stamina = 0.4
+fake.runLoops(33)
+assert(lastArgument(widget.StaminaBar, "SetVisibility") == 3 and lastArgument(widget.StaminaBar, "SetPercent") == 0.4,
+  "a used stamina bar shows how much is left")
+
+-- The view cone sits on the minimap's centre and turns with the look (yaw 90 is up on the north-up map); the key hints
+-- sit under the minimap
+local minimapCentre = config.minimap.margin + config.minimap.size / 2
+local conePosition = lastArgument(widget.ViewCone.Slot, "SetPosition")
+assert(conePosition.X == -minimapCentre and conePosition.Y == minimapCentre, "the cone is on the minimap's centre")
+assert(lastArgument(widget.ViewCone, "SetRenderTransformAngle") == 0, "pointing where the player looks")
+assert(lastArgument(widget.Hints.Slot, "SetPosition").Y > config.minimap.margin + config.minimap.size,
+  "the hints sit under the minimap")
+assert(lastArgument(widget.Hints, "SetVisibility") == 3, "and show to begin with")
+
+-- Regression (playtest 6): peek's slot sat on screen all the time. Its prompt shows only while C would work: in a
+-- vent, over a grate, with peek recharged
+fake.object("BP_Vent_Up_C", nil, { K2_GetActorLocation = function() return { X = 0, Y = 400, Z = 150 } end })
+assert(lastArgument(widget.PeekPrompt, "SetVisibility") == 2, "no peek prompt outside a vent")
+squid.InVent = true
+fake.now = 1
+fake.runLoops(33)
+assert(lastArgument(widget.PeekPrompt, "SetVisibility") == 3, "the prompt shows in a vent over a grate")
+fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("Cooldown.Peek")), fake.param(0))
+fake.runLoops(33)
+assert(lastArgument(widget.PeekPrompt, "SetVisibility") == 2, "and hides while peek recharges")
+fake.now = 2
+-- H hides the prompts and hints, and brings them back
+fake.keybinds.H()
+fake.runLoops(33)
+assert(lastArgument(widget.PeekPrompt, "SetVisibility") == 2 and lastArgument(widget.Hints, "SetVisibility") == 2,
+  "H hides the peek prompt and the hints")
+fake.keybinds.H()
+fake.runLoops(33)
+assert(lastArgument(widget.PeekPrompt, "SetVisibility") == 3 and lastArgument(widget.Hints, "SetVisibility") == 3,
+  "and H again shows them")
+fake.now = 0
 assert(lastArgument(widget.Ping0.Slot, "SetPosition").X == 400, "markers sit at the projected spot, in widget units")
 assert(lastArgument(widget.Ping0, "SetRenderScale").X > 1, "gunshots draw bigger than the plain marker")
 
@@ -288,6 +338,6 @@ controller.Pawn = squid
 local createdBeforeReload = createdWidgets
 fake.runLoops(33)
 assert(createdWidgets == createdBeforeReload + 1, "the reloaded HUD comes back while the player drives the squid")
-assert(lastArgument(widget.Abilities, "SetVisibility") == 3, "with the abilities showing")
+assert(lastArgument(widget.Actions, "SetVisibility") == 3, "with the actions showing")
 
 print("client flow test passed")

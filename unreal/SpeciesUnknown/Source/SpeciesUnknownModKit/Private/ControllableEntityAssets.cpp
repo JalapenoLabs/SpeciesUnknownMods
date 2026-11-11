@@ -58,9 +58,14 @@ namespace {
 			},
 		});
 
-		// Continuous state the HUD reads every frame; the host is the only writer
+		// Continuous state the HUD reads every frame; the host is the only writer. Health is the fraction left of the pool
+		// the squid is on: its stagger pool while standing, its real health while Downed (knocked to the ground). The
+		// squid's own health doesn't replicate, so the host sends it here
 		Spec.Variables.Add({TEXT("Meter"), ModPinTypes::Float(), COND_OwnerOnly});
 		Spec.Variables.Add({TEXT("Frenzy"), ModPinTypes::Bool(), COND_OwnerOnly});
+		Spec.Variables.Add({TEXT("Health"), ModPinTypes::Float(), COND_OwnerOnly});
+		Spec.Variables.Add({TEXT("Downed"), ModPinTypes::Bool(), COND_OwnerOnly});
+		Spec.Variables.Add({TEXT("Stamina"), ModPinTypes::Float(), COND_OwnerOnly});
 		return Spec;
 	}
 
@@ -76,9 +81,8 @@ namespace {
 		{TEXT("Lash"), TEXT("lash")},
 		{TEXT("Leap"), TEXT("leap")},
 		{TEXT("Vent"), TEXT("vent")},
-		{TEXT("Peek"), TEXT("peek")},
-		{TEXT("View"), TEXT("view")},
 		{TEXT("HeadGrab"), TEXT("head-grab")},
+		{TEXT("ViewCone"), TEXT("view-cone")},
 	};
 
 	FString IconAssetPath(const TCHAR* IconName) {
@@ -113,80 +117,152 @@ namespace {
 		return Element;
 	}
 
-	// One ability the way the game shows its own (the flashlight): an icon, the key in a rounded white box, and a bar
-	// to the right that Lua shows while the ability recharges. Lua reaches the parts as <Prefix>Icon, <Prefix>Key and
-	// <Prefix>KeyText, <Prefix>Bar, and dims the whole <Prefix>Slot while the ability can't be used. The key label is
+	FModWidgetElement MakeKeyCap(const TCHAR* Name, const TCHAR* KeyLabel, int32 FontSize) {
+		FModWidgetElement Key;
+		Key.Name = Name;
+		Key.Kind = EModWidgetKind::KeyCap;
+		Key.Text = KeyLabel;
+		Key.FontSize = FontSize;
+		return Key;
+	}
+
+	FModWidgetElement MakeBar(const TCHAR* Name, FVector2D Size, FLinearColor Color) {
+		FModWidgetElement Bar;
+		Bar.Name = Name;
+		Bar.Kind = EModWidgetKind::ProgressBar;
+		Bar.Size = Size;
+		Bar.Color = Color;
+		return Bar;
+	}
+
+	// One action in the stack, the way the game shows its flashlight and tool rows: a bar on the left that Lua shows
+	// while the action recharges (its space stays reserved, so the stack never shifts), the icon, and the key in a
+	// rounded white box when the action has one worth naming. Lua reaches the parts as <Prefix>Bar, <Prefix>Icon,
+	// <Prefix>Key and <Prefix>KeyText, and dims the whole <Prefix>Slot while the action can't be used. The key label is
 	// a placeholder: Lua sets it.
-	FModWidgetElement MakeAbilitySlot(const TCHAR* Prefix, const TCHAR* IconName, const TCHAR* KeyLabel,
-		double IconSize, FVector2D BarSize, FLinearColor BarColor, int32 KeyFontSize) {
+	FModWidgetElement MakeActionSlot(const TCHAR* Prefix, const TCHAR* IconName, const TCHAR* KeyLabel,
+		FLinearColor BarColor) {
 		FModWidgetElement Icon;
 		Icon.Name = FName(FString(Prefix) + TEXT("Icon"));
 		Icon.Kind = EModWidgetKind::Image;
 		Icon.TexturePath = IconAssetPath(IconName);
-		Icon.Size = FVector2D(IconSize, IconSize);
-
-		FModWidgetElement Key;
-		Key.Name = FName(FString(Prefix) + TEXT("Key"));
-		Key.Kind = EModWidgetKind::KeyCap;
-		Key.Text = KeyLabel;
-		Key.FontSize = KeyFontSize;
-
-		FModWidgetElement Bar;
-		Bar.Name = FName(FString(Prefix) + TEXT("Bar"));
-		Bar.Kind = EModWidgetKind::ProgressBar;
-		Bar.Size = BarSize;
-		Bar.Color = BarColor;
+		Icon.Size = FVector2D(34.0, 34.0);
 
 		FModWidgetElement Slot;
 		Slot.Name = FName(FString(Prefix) + TEXT("Slot"));
 		Slot.Kind = EModWidgetKind::Row;
-		Slot.Gap = 8.0f;
-		Slot.Children = {Icon, Key, Bar};
+		Slot.Gap = 10.0f;
+		Slot.Children = {MakeBar(*(FString(Prefix) + TEXT("Bar")), FVector2D(56.0, 6.0), BarColor), Icon};
+		if (KeyLabel) {
+			Slot.Children.Add(MakeKeyCap(*(FString(Prefix) + TEXT("Key")), KeyLabel, 14));
+		}
 		return Slot;
 	}
 
-	// WBP_EntityHUD: the entity player's HUD, along the top of the screen. Abilities run along the top left, the
-	// ultimate (the kill meter) sits top centre with its percentage, the frenzy banner and the host's messages below
-	// it, and a pool of noise markers that Lua positions over the world each frame.
+	// A label inside a row, which places it
+	FModWidgetElement MakeLabel(const TCHAR* Name, const TCHAR* Text, int32 FontSize, FLinearColor Color) {
+		FModWidgetElement Label;
+		Label.Name = Name;
+		Label.Kind = EModWidgetKind::Text;
+		Label.Text = Text;
+		Label.FontSize = FontSize;
+		Label.Color = Color;
+		return Label;
+	}
+
+	// WBP_EntityHUD: the entity player's HUD, laid out like the crew's own. Bottom left: the actions stacked
+	// vertically, with the health and stamina bars below them. Top right: the minimap (the game's own widget, which Lua
+	// adds) with a view cone over it and the key hints under it. Bottom centre: the frenzy banner and the host's
+	// messages. Lower centre: the peek prompt, like the game's "press E" prompt. Noise markers are positioned over the
+	// world by Lua each frame.
 	FModWidgetSpec MakeEntityHudSpec() {
 		const FLinearColor Ultimate(1.0f, 0.70f, 0.23f);
 		const FLinearColor Frenzy(1.0f, 0.29f, 0.24f);
-		const FLinearColor Cooldown(0.92f, 0.95f, 0.96f);
+		// The crew HUD's own fills (UI_HUD_Display's cooked bars): its flashlight and tool bars' pale blue-grey for
+		// the recharging actions, its health green, and its half-white stamina
+		const FLinearColor Cooldown(0.584f, 0.708f, 0.768f);
+		const FLinearColor Health(0.025f, 0.25f, 0.119f, 0.75f);
+		const FLinearColor Stamina(1.0f, 1.0f, 1.0f, 0.5f);
+		const FLinearColor Hint(0.82f, 0.86f, 0.88f);
 
 		FModWidgetSpec Spec;
 		Spec.AssetPath = TEXT("/Game/Mods/ControllableEntity/WBP_EntityHUD");
 
-		const FVector2D AbilityBarSize(44.0, 6.0);
-		FModWidgetElement Abilities;
-		Abilities.Name = TEXT("Abilities");
-		Abilities.Kind = EModWidgetKind::Row;
-		Abilities.Anchors = FAnchors(0.0f, 0.0f);
-		Abilities.Alignment = FVector2D(0.0f, 0.0f);
-		Abilities.Position = FVector2D(40.0, 36.0);
-		Abilities.Gap = 22.0f;
-		Abilities.Children = {
-			MakeAbilitySlot(TEXT("Lash"), TEXT("Lash"), TEXT("LMB"), 36.0, AbilityBarSize, Cooldown, 14),
-			MakeAbilitySlot(TEXT("Leap"), TEXT("Leap"), TEXT("RMB"), 36.0, AbilityBarSize, Cooldown, 14),
-			MakeAbilitySlot(TEXT("Vent"), TEXT("Vent"), TEXT("E"), 36.0, AbilityBarSize, Cooldown, 14),
-			MakeAbilitySlot(TEXT("Peek"), TEXT("Peek"), TEXT("C"), 36.0, AbilityBarSize, Cooldown, 14),
-			MakeAbilitySlot(TEXT("View"), TEXT("View"), TEXT("F"), 36.0, AbilityBarSize, Cooldown, 14),
+		const FAnchors BottomLeft(0.0f, 1.0f);
+		const FVector2D SitOnCorner(0.0f, 1.0f);
+
+		FModWidgetElement Actions;
+		Actions.Name = TEXT("Actions");
+		Actions.Kind = EModWidgetKind::Column;
+		Actions.Anchors = BottomLeft;
+		Actions.Alignment = SitOnCorner;
+		Actions.Position = FVector2D(56.0, -92.0);
+		Actions.Gap = 10.0f;
+		Actions.Children = {
+			MakeActionSlot(TEXT("Ultimate"), TEXT("HeadGrab"), TEXT("E"), Ultimate),
+			MakeActionSlot(TEXT("Vent"), TEXT("Vent"), TEXT("SPACE"), Cooldown),
+			MakeActionSlot(TEXT("Leap"), TEXT("Leap"), nullptr, Cooldown),
+			MakeActionSlot(TEXT("Lash"), TEXT("Lash"), nullptr, Cooldown),
 		};
-		Spec.Elements.Add(Abilities);
+		Spec.Elements.Add(Actions);
 
-		FModWidgetElement UltimateSlot = MakeAbilitySlot(TEXT("Ultimate"), TEXT("HeadGrab"), TEXT("SPACE"), 44.0,
-			FVector2D(260.0, 10.0), Ultimate, 15);
-		UltimateSlot.Anchors = FAnchors(0.5f, 0.0f);
-		UltimateSlot.Alignment = FVector2D(0.5f, 0.0f);
-		UltimateSlot.Position = FVector2D(0.0, 30.0);
-		Spec.Elements.Add(UltimateSlot);
+		FModWidgetElement HealthBar = MakeBar(TEXT("HealthBar"), FVector2D(300.0, 12.0), Health);
+		HealthBar.Anchors = BottomLeft;
+		HealthBar.Alignment = SitOnCorner;
+		HealthBar.Position = FVector2D(56.0, -64.0);
+		Spec.Elements.Add(HealthBar);
 
-		const FAnchors TopCentre(0.5f, 0.0f);
-		const FVector2D HangBelow(0.5f, 0.0f);
-		Spec.Elements.Add(MakeText(TEXT("UltimateText"), TopCentre, HangBelow, FVector2D(0.0, 86.0), 18, Ultimate,
+		FModWidgetElement StaminaBar = MakeBar(TEXT("StaminaBar"), FVector2D(300.0, 6.0), Stamina);
+		StaminaBar.Anchors = BottomLeft;
+		StaminaBar.Alignment = SitOnCorner;
+		StaminaBar.Position = FVector2D(56.0, -48.0);
+		Spec.Elements.Add(StaminaBar);
+
+		// The view cone and the key hints go over and under the minimap, which Lua adds and sizes (minimap.lua), so Lua
+		// places them from the same settings; anchored top right, the corner the minimap sits in. Lua turns the cone with
+		// the player's look
+		FModWidgetElement ViewCone;
+		ViewCone.Name = TEXT("ViewCone");
+		ViewCone.Kind = EModWidgetKind::Image;
+		ViewCone.TexturePath = IconAssetPath(TEXT("ViewCone"));
+		ViewCone.Anchors = FAnchors(1.0f, 0.0f);
+		ViewCone.Alignment = FVector2D(0.5f, 0.5f);
+		ViewCone.Size = FVector2D(150.0, 150.0);
+		ViewCone.Color = FLinearColor(1.0f, 1.0f, 1.0f, 0.4f);
+		Spec.Elements.Add(ViewCone);
+
+		// Key hints under the minimap, small: H shows or hides the hints and prompts, F switches the view
+		FModWidgetElement Hints;
+		Hints.Name = TEXT("Hints");
+		Hints.Kind = EModWidgetKind::Row;
+		Hints.Anchors = FAnchors(1.0f, 0.0f);
+		Hints.Alignment = FVector2D(1.0f, 0.0f);
+		Hints.Gap = 6.0f;
+		Hints.Children = {
+			MakeKeyCap(TEXT("HintsKey"), TEXT("H"), 11), MakeLabel(TEXT("HintsLabel"), TEXT("hints"), 12, Hint),
+			MakeKeyCap(TEXT("ViewKey"), TEXT("F"), 11), MakeLabel(TEXT("ViewLabel"), TEXT("camera"), 12, Hint),
+		};
+		Spec.Elements.Add(Hints);
+
+		// The peek prompt, where the game shows its own "press E" prompt
+		FModWidgetElement PeekPrompt;
+		PeekPrompt.Name = TEXT("PeekPrompt");
+		PeekPrompt.Kind = EModWidgetKind::Row;
+		PeekPrompt.Anchors = FAnchors(0.5f, 0.66f);
+		PeekPrompt.Alignment = FVector2D(0.5f, 0.5f);
+		PeekPrompt.Gap = 8.0f;
+		PeekPrompt.bHidden = true;
+		PeekPrompt.Children = {
+			MakeKeyCap(TEXT("PeekKey"), TEXT("C"), 15),
+			MakeLabel(TEXT("PeekLabel"), TEXT("Peek"), 18, FLinearColor::White),
+		};
+		Spec.Elements.Add(PeekPrompt);
+
+		const FAnchors BottomCentre(0.5f, 1.0f);
+		const FVector2D SitOnEdge(0.5f, 1.0f);
+		Spec.Elements.Add(MakeText(TEXT("FrenzyText"), BottomCentre, SitOnEdge, FVector2D(0.0, -150.0), 26, Frenzy,
 			TEXT("")));
-		Spec.Elements.Add(MakeText(TEXT("FrenzyText"), TopCentre, HangBelow, FVector2D(0.0, 114.0), 26, Frenzy,
-			TEXT("")));
-		Spec.Elements.Add(MakeText(TEXT("StatusText"), TopCentre, HangBelow, FVector2D(0.0, 156.0), 22,
+		Spec.Elements.Add(MakeText(TEXT("StatusText"), BottomCentre, SitOnEdge, FVector2D(0.0, -110.0), 22,
 			FLinearColor::White, TEXT("")));
 
 		// Markers are positioned in screen pixels from the top-left corner, so they anchor there

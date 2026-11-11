@@ -48,7 +48,7 @@ fake.giveView(controller)
 local squid = fake.object("BP_Monster_Poulpi_C", { InVent = true, location = { X = 0, Y = 0, Z = 300 } }, {
   K2_GetActorLocation = function(self) return self.location end,
 })
-fake.giveMovement(squid)
+fake.giveSquidState(squid)
 local squidComponents = fake.acceptComponents(squid)
 
 -- Two vents near the squid and one far away. Each opens into the duct at its top (Box_Up) and stands on a room's floor

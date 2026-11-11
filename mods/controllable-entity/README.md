@@ -104,7 +104,7 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
 
 ### Vents
 
-- Interact climbs into the vent shaft within 4 m across the floor, or drops out of the one within 4 m onto any crew
+- Space climbs into the vent shaft within 4 m across the floor, or drops out of the one within 4 m onto any crew
   member below. Crouch peeks down through the grate. All three use the squid's own vent moves (`JumpToVent`,
   `AttackFromVent`, `LookFromVent`).
 - **Seeing in the vents:** the ducts are unlit, and much of the network is invisible collision rather than modelled
@@ -124,8 +124,8 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
 
 ### Controls and HUD
 
-The entity uses the player's own input actions, so their key bindings carry over. The game has no jump and no free
-key the mod could reuse, so the mod's three keys are its own.
+The entity uses the player's own input actions, so their key bindings carry over. What the game has no action for
+gets a mod key of its own.
 
 | Input | As the entity |
 |-------|---------------|
@@ -135,11 +135,12 @@ key the mod could reuse, so the mod's three keys are its own.
 | Interact (`IA_Interact`, E) | Ultimate: with a full meter, leap (or drop) and the grab kills |
 | Crouch (`IA_Crouch`) | Peek down through the grate while in a vent |
 | Flashlight (`IA_FlashLight`) | Switch between third person (the start) and first person; in first person the squid's own mesh is hidden from its player |
-| Space (mod key) | Climb into the nearest vent, or drop out of it onto whoever is below |
+| Hold Tool (`IA_HoldTool`, Space) | Climb into the nearest vent, or drop out of it onto whoever is below |
 | F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out |
 | F9 (mod key, host only) | Turn entity mode on or off |
 | Left Shift (mod key, held) | Sprint, on stamina |
 | `.` and `,` (mod keys) | Zoom the minimap in and out |
+| H (mod key) | Hide the peek prompt and the key hints under the minimap, or show them again |
 
 The view starts in third person, behind the squid along the player's look, passing through walls (many duct walls
 are invisible collision, which would otherwise pull the camera into the squid's head).
@@ -148,37 +149,49 @@ body is parked, not destroyed (see [docs/game-internals.md](../../docs/game-inte
 so on the entity's machine the mod hands the game's camera the squid through its own `BPI_CameraPlayer_ResetPlayer`,
 and gives the squid a spring arm with a camera on it. Third person is the arm at 3.2 m, first person at zero.
 
-The HUD runs along the top of the screen, in the game's own style for key prompts:
+The HUD is laid out like the crew's own, so the top of the screen holds only the minimap:
 
-- **Abilities, top left:** lash, leap, vent, peek and view, each an icon with its key in a rounded white box. While
-  an ability recharges, a bar to the right of its key drains; the bar's space stays reserved, so the row never
-  shifts. An ability that can't be used right now dims: peeking outside a vent, and the moves that leave the ducts
-  while the lair holds the squid.
-- **The ultimate, top centre:** a skull, the Space key and the kill meter's bar, with `HEAD GRAB  73%` (then
-  `HEAD GRAB READY`) below it. In full frenzy the bar turns red and shows the re-arm instead.
-- **Below it:** the `FRENZY` banner, then the host's messages. A message stays a second plus 300 ms a word, at least
-  three seconds; the volunteer's status and the lair's "wait for the power" hint stay until they change.
+- **Actions, bottom left, stacked:** the ultimate (a skull and E), venting (Space), the leap and the lash. Each shows
+  a bar on its left while it charges, in the crew HUD's flashlight-bar colour, and nothing once it's ready; the bar's
+  space stays reserved, so the stack never shifts. The ultimate's bar is the kill meter (amber), or in full frenzy the
+  re-arm between kills (red). The lash and the leap are the mouse buttons, so they show no key. A move the lair holds
+  back (leaving the ducts before the power is on) dims.
+- **Health and stamina, under the actions:** the health bar shows the pool the squid is on. Standing, that is its
+  stagger pool, in the crew HUD's green: hits drain it, and at zero the squid is knocked down. Down, it is the squid's
+  real health, in red, which only the crew's fire drains while the squid is down and burning. The stamina bar shows
+  only once sprinting has used some, as the crew's does.
+- **The peek prompt, lower centre:** `C Peek`, in the style of the game's own "press E" prompt, shown only while
+  peeking would work: in a vent, over a grate, with peek recharged.
+- **Bottom centre:** the `FRENZY` banner, then the host's messages. A message stays a second plus 300 ms a word, at
+  least three seconds; the volunteer's status and the lair's "wait for the power" hint stay until they change.
 - **Noise pings** as coloured markers over the world: red gunshots, blue footsteps, amber alarms, doors and
   explosions.
 - **The minimap, top right:** the game's own minimap (the screen of the crew's minimap tool, `UMG_MiniMap`), always
-  centred on the squid with north up, and the player icon turning with the squid. The widget is laid out as a
-  1024-unit square (its Tick has the number written in), so it stays that size, clipped to it, scaled down to a
-  300-unit square pinned at its top-right corner. The map draws world +Y up and +X to the left. The widget turns its map with
-  whatever it follows, so it follows an invisible actor that rides with the squid but never turns. Its item icons
-  (the special weapons, the black box) are hidden: they stay on the map while a crew member carries them, which would
-  show the entity where that player is.
+  centred on the squid with north up, the player icon turning with the squid, and a view cone turning with the look.
+  The widget is laid out as a 1024-unit square (its Tick has the number written in), so it stays that size, clipped
+  to it, scaled down to a 300-unit square pinned at its top-right corner. The map draws world +Y up and +X to the
+  left. The widget turns its map with whatever it follows, so it follows an invisible actor that rides with the squid
+  but never turns. Its item icons (the special weapons, the black box) are hidden: they stay on the map while a crew
+  member carries them, which would show the entity where that player is.
+- **Key hints, under the minimap, small:** `H hints` and `F camera`. H hides them and the peek prompt, and brings them
+  back.
 - The crew HUD (status bars, objectives, crosshair) is hidden while the player is the squid, and so are the wall maps
   on the bridge and in the planet's power room (`UMG_Map`, `UMG_Map_POLAR`, blank on the entity's screen only): they
   show where the mission's items are, which the entity must find out by hunting, so the crew can mislead them. The
   respawn capsules' screens show `?????` instead of the name of the crew member who took one (`UMG_ScreenCapsule`).
+
+The bars are the mod's own, rounded like the crew's and in its colours (read from the game's cooked HUD): the crew
+HUD's bars can't be handed to the mod's widget, because a progress bar's style can only be set from C++ or the editor
+(`UProgressBar::SetWidgetStyle` isn't Blueprint-callable), and the crew HUD itself is driven by the crew character.
 
 The keys shown are the game's default bindings; a player who rebinds an action sees the default. The icons are
 SVGs in [`art/icons/`](art/icons/).
 
 The squid moves at the game's combat speed, 30% faster in the vents than the game's own crouched speed. Holding
 Left Shift sprints at the squid's top speed (the game's own, as when the AI monster gets angry) for up to 6 seconds;
-the stamina refills over 10 seconds, and an out-of-breath squid sprints again once it is back to 30%. The crew's sprint is bound on the crew character, not the controller, so the mod watches Shift itself.
-The host owns the stamina; both machines apply the same speed (see `movement.lua`).
+the stamina refills over 10 seconds, and an out-of-breath squid sprints again once it is back to 30%. The crew's
+sprint is bound on the crew character, not the controller, so the mod watches Shift itself. The host owns the
+stamina; both machines apply the same speed (see `movement.lua`).
 
 ## Install
 
@@ -220,8 +233,10 @@ create: network events and a widget layout.
   - `BP_EntityLink`: a replicated actor the host spawns for every player, owned by their controller and relevant to
     them alone. Its events, `EntityServerCommand` (player to host), `EntityClientPing` and `EntityClientEvent`
     (host to player), have no logic of their own: UE4SS's `RegisterCustomEvent` runs Lua when each one executes,
-    on the machine it executes on. Its replicated `Meter` and `Frenzy` feed the HUD.
-  - `WBP_EntityHUD`: the HUD's layout, and its six icons as UI textures. Lua fills in every value, keys included.
+    on the machine it executes on. Its replicated `Meter`, `Frenzy`, `Health`, `Downed` and `Stamina` feed the HUD:
+    the squid's own health doesn't replicate, so the host sends the pool it is on.
+  - `WBP_EntityHUD`: the HUD's layout, and its five icons as UI textures (the four actions and the view cone). Lua
+    fills in every value and places what sits on the minimap.
 - **Runtime Blueprint only, by necessity.** Unreal projects normally put systems in C++, but a pak mod cannot ship
   C++: the game's executable does not contain our modules. Any C++ stays in editor-only tooling.
 - **Built with UE 5.7.4** (changelist 51494982, the game's exact engine build), so cooked assets match the game.
@@ -434,24 +449,29 @@ one friend.
    `Move value X=...` and `Look value X=...` lines once each. If walking or looking still does nothing, send the log:
    those lines say whether the input reaches the squid. Check the crew see the squid move smoothly, and note any
    rubber-banding.
-5. **The view and the HUD.** The Flashlight key switches to first person and back. The crew HUD (health, stamina,
-   objectives, crosshair) is gone; the entity HUD is there.
+5. **The view and the HUD.** The Flashlight key switches to first person and back; in first person the squid's own
+   body is gone from view. The crew HUD (health, stamina, objectives, crosshair) is gone. The entity HUD has the
+   actions stacked bottom left with the health bar (full, green) under them, and only the minimap at the top, with
+   a view cone that turns as you look and `H hints  F camera` under it. Sprint until the stamina bar appears under
+   the health bar; it goes once full again. H hides the hints, H again brings them back.
 6. **The lair.** With the power still off, the hint "Lurk in the vents until the crew turns the power on" stays on
-   screen. Crawl away from the start: past about 12 m the squid snaps back, and Interact, Aim and Space answer "The
-   vents hold you until the power is on". When the crew turns the power on, the entity sees "The power is on. Hunt."
-   and roams freely. Alone, nobody can turn it on; a contract that starts with the power on shows the squid free
-   from the start.
-7. **Vents and peeking.** Once free: Interact over a vent opening drops out; Interact standing under a vent climbs
-   in; Crouch in a vent peeks through the grate. Crouch outside a vent says "Peek works from inside a vent".
+   screen. Crawl away from the start: past about 12 m the squid snaps back, and Space, Aim and E answer "The vents
+   hold you until the power is on"; their rows in the stack are dimmed. When the crew turns the power on, the
+   entity sees "The power is on. Hunt." and roams freely. Alone, nobody can turn it on; a contract that starts with
+   the power on shows the squid free from the start.
+7. **Vents and peeking.** Once free: Space over a vent opening drops out; Space standing under a vent climbs in.
+   Over a grate in a vent, a `C Peek` prompt shows; Crouch peeks through the grate, and the prompt goes while peek
+   recharges. Away from a grate there's no prompt. Shoot with nobody near: the squid swings at the air.
 8. **Entity mode.** In a co-op lobby the host presses F9: only the host sees "Entity mode: OFF"; the next mission
    rolls its own monster and nobody becomes it. F9 again turns it back on. A client's F9 shows "The host turns entity
    mode on or off".
 9. **The random pick.** In co-op, with nobody volunteering, start a contract: the squid is the specimen, and when it
    appears one random player becomes it (only they are told). The next mission picks again.
-10. **The lash and the leap.** Shoot next to a crew member: a lash with a cooldown on the HUD. Aim: a leap where you
-   look; a grab on landing breaks off with "Your hunger isn't ready".
-11. **The kill.** Wait for the meter to fill (90 s, faster near noise), press Space facing a crew member: the leap's
-   grab kills. The meter empties.
+10. **The lash and the leap.** Shoot next to a crew member: a lash, and its bar fills in the stack. Aim: a leap where
+   you look; a grab on landing breaks off with "Your hunger isn't ready". Have the crew shoot the squid: the health
+   bar drains, and when the squid is knocked down it turns red and shows the real health.
+11. **The kill.** Wait for the ultimate's bar to fill and disappear (90 s, faster near noise), press E facing a crew
+   member: the leap's grab kills. The bar comes back empty.
 12. **Senses.** Have the crew shoot, walk and trigger doors and alarms out of sight. The entity sees fading markers
    through walls, never the players themselves.
 13. **Frenzy.** On an extraction contract, pick up the black box: `FRENZY` appears and grabs kill without meter, each

@@ -25,6 +25,7 @@ local hostController = fake.object("BP_MyPlayerController_C", { PlayerState = ho
   IsLocalController = function() return true end,
   IsPlayerController = function() return true end,
   K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
+  GetControlRotation = function() return { Pitch = 0, Yaw = 0, Roll = 0 } end,
 }, { "PlayerController" })
 fake.giveView(hostController)
 hostController.Possess = function(self, pawn)
@@ -54,7 +55,7 @@ local squid = fake.object("BP_Monster_Poulpi_C", { Controller = fake.invalid() }
   BPI_Monster_GetSpeedByType = function(_, _, out) out.Speed = 400 end,
   K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
 })
-fake.giveMovement(squid)
+fake.giveSquidState(squid)
 fake.object("BP_GameManager_C", { Monster = squid })
 local movement = fake.object("CharacterMovementComponent")
 local hostBody = fake.object("BP_Character_C", { CharacterMovement = movement })

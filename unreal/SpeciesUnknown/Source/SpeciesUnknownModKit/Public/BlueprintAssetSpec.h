@@ -76,6 +76,8 @@ enum class EModWidgetKind : uint8 {
 	KeyCap,
 	// Its children, left to right, centred vertically and `Gap` pixels apart.
 	Row,
+	// Its children, top to bottom, left-aligned and `Gap` pixels apart.
+	Column,
 };
 
 // One widget on the widget's canvas, or inside a row. Every element becomes a variable on the generated class under
@@ -98,7 +100,7 @@ struct FModWidgetElement {
 	bool bHidden = false;
 	// Image: the long package path of a texture built from an FModTextureSpec.
 	FString TexturePath;
-	// Row: the elements it holds, and the space between them.
+	// Row and Column: the elements they hold, and the space between them.
 	TArray<FModWidgetElement> Children;
 	float Gap = 0.0f;
 };

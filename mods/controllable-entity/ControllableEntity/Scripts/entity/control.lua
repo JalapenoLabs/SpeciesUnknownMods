@@ -10,6 +10,7 @@
 
 local camera = require("entity.camera")
 local config = require("entity.config")
+local hud = require("entity.hud")
 local minimap = require("entity.minimap")
 local movement = require("entity.movement")
 local streaming = require("entity.streaming")
@@ -115,7 +116,7 @@ end
 
 -- The handler for each game input action the entity uses, by the action's name (IA_<Name>). Buttons become a host
 -- command when pressed, except the flashlight, which the squid has no use for and which switches the view instead.
--- Interact fires the ultimate (venting is on Space, a mod key).
+-- Interact (E) fires the ultimate and HoldTool (Space) vents (playtest 6).
 -- The rest of the game's actions (reload, weapon slots, ...) mean nothing to the squid.
 local handlerByAction = {
   Move = move,
@@ -123,20 +124,21 @@ local handlerByAction = {
   Shoot = button("Attack"),
   ADS = button("Leap"),
   Interact = button("Ultimate"),
+  HoldTool = button("Vent"),
   Crouch = button("Peek"),
   FlashLight = toggleView,
   OpenPauseMenu = openPauseMenu,
 }
 
--- The game has no jump, so the mod's own keys fill in: venting on Space, volunteering in the lobby, entity mode (the
--- host decides whether a press counts) and the minimap's zoom. UE4SS key binds run outside the game thread, so each hops onto it before
--- touching game objects.
+-- The mod's own keys, for what the game has no action for: volunteering in the lobby, entity mode (the host decides
+-- whether a press counts), the minimap's zoom and the hints. UE4SS key binds run outside the game thread, so each hops
+-- onto it before touching game objects.
 local function registerKeys()
-  RegisterKeyBind(Key[config.keys.vent], function()
+  RegisterKeyBind(Key[config.keys.hints], function()
     ExecuteInGameThread(function()
       local controller = game.localController()
       if controller and drivenSquid(controller) then
-        links.sendCommand("Vent", aimOf(controller), nil)
+        hud.toggleHints()
       end
     end)
   end)

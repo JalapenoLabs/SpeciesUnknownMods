@@ -72,7 +72,8 @@ return {
 
   vision = {
     -- The entity's own light, which only their machine renders: a soft, shadowless glow around the squid, full in the
-    -- unlit ducts and faint in the rooms, which the game keeps dark on purpose (the crew are meant to need flashlights).
+    -- unlit ducts and faint in the rooms, which the game keeps dark on purpose (the crew are meant to need
+    -- flashlights).
     lanternCandelas = 80,
     lanternRadius = 1500,
     roomLanternCandelas = 20,
@@ -133,8 +134,8 @@ return {
   },
 
   keys = {
-    -- UE4SS key names (the game binds none of them). The ultimate is the game's Interact action (E by default).
-    vent = "SPACE",
+    -- UE4SS key names for the mod's own keys, which the game binds to nothing. The squid's moves are the game's own
+    -- actions instead (control.lua), so the player's own bindings carry over.
     volunteer = "F8",
     -- Host only: turns entity mode on or off for the session.
     entityMode = "F9",
@@ -144,7 +145,7 @@ return {
     -- Minimap zoom (UE4SS key names: "." and ",").
     zoomIn = "OEM_PERIOD",
     zoomOut = "OEM_COMMA",
-    -- Shows or hides the on-screen prompts and key hints.
+    -- Shows or hides the peek prompt and the key hints under the minimap.
     hints = "H",
   },
 }

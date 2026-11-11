@@ -29,7 +29,7 @@ fake.giveView(controller)
 local squid = fake.object("BP_Monster_Poulpi_C", { location = { X = 0, Y = 0, Z = 0 } }, {
   K2_GetActorLocation = function(self) return self.location end,
 })
-fake.giveMovement(squid)
+fake.giveSquidState(squid)
 
 -- A volume around X = 0 and one around X = 1500, each 1000 units wide, each with its own manager. GetActorBounds
 -- returns its box through two struct out parameters, which UE4SS fills field by field into the table passed for

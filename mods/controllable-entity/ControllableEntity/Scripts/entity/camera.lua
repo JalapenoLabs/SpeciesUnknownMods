@@ -10,8 +10,9 @@
 -- nor ClientSetCameraMode moved the camera.)
 --
 -- The squid has no camera of its own, so the mod gives it one on this machine: a spring arm on the squid, pointing
--- along the player's look, with a camera at its end. The arm passes through walls rather than pulling in. The engine views a pawn
--- through its camera component. Third person is the arm at full length; first person is the arm at zero length.
+-- along the player's look, with a camera at its end. The arm passes through walls rather than pulling in. The engine
+-- views a pawn through its camera component. Third person is the arm at full length; first person is the arm at zero
+-- length, with the squid's own mesh hidden from its player.
 
 local config = require("entity.config")
 local game = require("entity.game")

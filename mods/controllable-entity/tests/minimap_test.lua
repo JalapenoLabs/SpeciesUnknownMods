@@ -62,7 +62,7 @@ local squid = fake.object("BP_Monster_Poulpi_C", { yaw = 30 }, {
   K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
   K2_GetActorRotation = function(self) return { Pitch = 0, Yaw = self.yaw, Roll = 0 } end,
 })
-fake.giveMovement(squid)
+fake.giveSquidState(squid)
 
 dofile("mods/controllable-entity/ControllableEntity/Scripts/main.lua")
 
@@ -135,7 +135,9 @@ local staleFollower = fake.object("StaticMeshActor")
 local staleMinimap = fake.object("UMG_MiniMap_C", { ParentActor = staleFollower })
 controller.Pawn = squid
 fake.runLoops(33)
-assert(#fake.callsTo(staleMinimap, "RemoveFromParent") == 1 and staleFollower.destroyed, "a leftover minimap is removed")
-assert(#fake.callsTo(crewToolScreen, "RemoveFromParent") == 0 and not crewTool.destroyed, "the crew's tool is left alone")
+assert(#fake.callsTo(staleMinimap, "RemoveFromParent") == 1 and staleFollower.destroyed,
+  "a leftover minimap is removed")
+assert(#fake.callsTo(crewToolScreen, "RemoveFromParent") == 0 and not crewTool.destroyed,
+  "the crew's tool is left alone")
 
 print("minimap test passed")

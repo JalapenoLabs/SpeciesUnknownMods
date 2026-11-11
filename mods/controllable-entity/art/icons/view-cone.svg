@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- View cone for the minimap: a 70-degree wedge from the centre, pointing up, fading out with distance. Lua turns it
+       with the player's look. -->
+  <defs>
+    <radialGradient id="fade" cx="64" cy="64" r="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <path fill="url(#fade)" d="M64 64 L28.4 13.2 A62 62 0 0 1 99.6 13.2 Z"/>
+</svg>

@@ -11,6 +11,7 @@ local game = require("entity.game")
 local lair = require("entity.lair")
 local links = require("entity.links")
 local Meter = require("entity.meter")
+local movement = require("entity.movement")
 local takeover = require("entity.takeover")
 local vents = require("entity.vents")
 
@@ -246,6 +247,16 @@ function abilities.tick()
   else
     link.Meter = meter.value
   end
+
+  -- The HUD's health bar shows the pool the squid is on: stagger while standing, real health while down
+  local squid = entity.squid
+  local fields = game.squidHealthFields
+  local downed = squid[fields.downed] == true
+  local current = downed and squid[fields.health] or squid[fields.stagger]
+  local maximum = downed and squid[fields.maxHealth] or squid[fields.maxStagger]
+  link.Downed = downed
+  link.Health = (maximum and maximum > 0) and current / maximum or 1
+  link.Stamina = movement.stamina()
 end
 
 function abilities.register()

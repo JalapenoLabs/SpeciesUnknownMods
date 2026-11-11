@@ -14,6 +14,8 @@
 #include "Components/ProgressBar.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "EdGraphSchema_K2.h"
 #include "EditorAssetLibrary.h"
 #include "Engine/Blueprint.h"
@@ -36,8 +38,9 @@ static constexpr int32 EventNodeSpacing = 200;
 static constexpr float KeyCapCornerRadius = 5.0f;
 static const FMargin KeyCapPadding(8.0f, 2.0f);
 static const FLinearColor KeyCapTextColor(0.04f, 0.04f, 0.05f);
-// Progress bars sit on a dark track, so they read over the game's bright and dark scenes alike.
-static const FLinearColor ProgressTrackColor(0.0f, 0.0f, 0.0f, 0.45f);
+// Progress bars sit on the dark blue-grey track every bar of the crew HUD shares (UI_HUD_Display's cooked bars), so
+// they read over the game's bright and dark scenes alike.
+static const FLinearColor ProgressTrackColor(0.063f, 0.102f, 0.12f, 0.75f);
 
 namespace {
 	// A solid brush with rounded corners, drawn by Slate itself (no texture needed).
@@ -331,6 +334,7 @@ UWidget* FBlueprintAssetBuilder::ConstructElement(UWidgetTree* WidgetTree, const
 		{EModWidgetKind::Image, &FBlueprintAssetBuilder::ConstructImage},
 		{EModWidgetKind::KeyCap, &FBlueprintAssetBuilder::ConstructKeyCap},
 		{EModWidgetKind::Row, &FBlueprintAssetBuilder::ConstructRow},
+		{EModWidgetKind::Column, &FBlueprintAssetBuilder::ConstructColumn},
 	};
 
 	UWidget* Widget = ConstructorByKind[Element.Kind](WidgetTree, Element);
@@ -417,27 +421,51 @@ UWidget* FBlueprintAssetBuilder::ConstructKeyCap(UWidgetTree* WidgetTree, const 
 	return KeyCap;
 }
 
+UWidget* FBlueprintAssetBuilder::ConstructSizedChild(UWidgetTree* WidgetTree, const FModWidgetElement& Child) {
+	UWidget* ChildWidget = ConstructElement(WidgetTree, Child);
+
+	// ConstructElement logged what was missing
+	if (!ChildWidget || Child.Size.IsZero()) {
+		return ChildWidget;
+	}
+
+	// A fixed size holds the child's space even while Lua hides it, so the rest of the row or column never shifts
+	USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(),
+		FName(Child.Name.ToString() + TEXT("Size")));
+	SizeBox->SetWidthOverride(Child.Size.X);
+	SizeBox->SetHeightOverride(Child.Size.Y);
+	SizeBox->SetContent(ChildWidget);
+	return SizeBox;
+}
+
+UWidget* FBlueprintAssetBuilder::ConstructColumn(UWidgetTree* WidgetTree, const FModWidgetElement& Element) {
+	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), Element.Name);
+
+	for (int32 ChildIndex = 0; ChildIndex < Element.Children.Num(); ++ChildIndex) {
+		UWidget* PlacedWidget = ConstructSizedChild(WidgetTree, Element.Children[ChildIndex]);
+
+		// The child's construction logged what was missing; a column with a hole in it isn't worth shipping
+		if (!PlacedWidget) {
+			return nullptr;
+		}
+
+		UVerticalBoxSlot* Slot = Column->AddChildToVerticalBox(PlacedWidget);
+		Slot->SetHorizontalAlignment(HAlign_Left);
+		const float LeadingGap = ChildIndex == 0 ? 0.0f : Element.Gap;
+		Slot->SetPadding(FMargin(0.0f, LeadingGap, 0.0f, 0.0f));
+	}
+	return Column;
+}
+
 UWidget* FBlueprintAssetBuilder::ConstructRow(UWidgetTree* WidgetTree, const FModWidgetElement& Element) {
 	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), Element.Name);
 
 	for (int32 ChildIndex = 0; ChildIndex < Element.Children.Num(); ++ChildIndex) {
-		const FModWidgetElement& Child = Element.Children[ChildIndex];
-		UWidget* ChildWidget = ConstructElement(WidgetTree, Child);
+		UWidget* PlacedWidget = ConstructSizedChild(WidgetTree, Element.Children[ChildIndex]);
 
-		// ConstructElement logged what was missing; a row with a hole in it isn't worth shipping
-		if (!ChildWidget) {
+		// The child's construction logged what was missing; a row with a hole in it isn't worth shipping
+		if (!PlacedWidget) {
 			return nullptr;
-		}
-
-		// A fixed size holds the child's space even while Lua hides it, so the rest of the row never shifts
-		UWidget* PlacedWidget = ChildWidget;
-		if (!Child.Size.IsZero()) {
-			USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(),
-				FName(Child.Name.ToString() + TEXT("Size")));
-			SizeBox->SetWidthOverride(Child.Size.X);
-			SizeBox->SetHeightOverride(Child.Size.Y);
-			SizeBox->SetContent(ChildWidget);
-			PlacedWidget = SizeBox;
 		}
 
 		UHorizontalBoxSlot* Slot = Row->AddChildToHorizontalBox(PlacedWidget);

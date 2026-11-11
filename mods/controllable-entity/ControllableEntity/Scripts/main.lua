@@ -28,8 +28,8 @@ control.register()
 hud.register()
 game.hookLoadedClasses()
 
--- Host loops: links and the takeover reconcile once a second; the meter, the lair's leash and the squid's speed run five
--- times a second.
+-- Host loops: links and the takeover reconcile once a second; the squid's speed, the meter and the lair's leash run
+-- five times a second.
 LoopInGameThreadWithDelay(1000, function()
   if not game.isHost() then
     return
@@ -42,12 +42,13 @@ LoopInGameThreadWithDelay(200, function()
   if not game.isHost() then
     return
   end
-  abilities.tick()
-  lair.tick()
+  -- The speed and stamina first, so the link the meter's tick fills carries this tick's stamina
   local entity = takeover.activeEntity()
   if entity then
     movement.tickHost(entity, game.timeSeconds(entity.squid))
   end
+  abilities.tick()
+  lair.tick()
 end)
 
 game.log("Loaded. %s in the lobby volunteers to be the entity; the host's %s turns entity mode on or off.",

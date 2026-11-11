@@ -1,8 +1,8 @@
 -- Copyright © 2026 Jalapeno Labs
 
 -- What only the entity player sees, on their own machine: a light around the squid (full in the unlit ducts, faint in
--- the rooms), and glowing markers at the vent openings nearby. The ducts are unlit, and much of the network is invisible collision rather than modelled walls, so
--- without these the entity can't tell where they are (playtest 4).
+-- the rooms), and glowing markers at the vent openings nearby. The ducts are unlit, and much of the network is
+-- invisible collision rather than modelled walls, so without these the entity can't tell where they are (playtest 4).
 --
 -- Everything here is created on the entity player's machine and never replicated, so no one else sees it. The
 -- markers are the engine's own cylinder with the game's own unlit material (the in-game map's UnlitColor_MAT), both

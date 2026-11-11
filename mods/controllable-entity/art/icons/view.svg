@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <!-- View: a camera, for switching between third and first person. -->
-  <path fill="#fff" stroke="#000" stroke-opacity="0.4" stroke-width="3" paint-order="stroke"
-    d="M22 38 H78 a10 10 0 0 1 10 10 V80 a10 10 0 0 1 -10 10 H22 a10 10 0 0 1 -10 -10 V48 a10 10 0 0 1 10 -10 Z
-       M92 58 L116 42 V86 L92 70 Z"/>
-</svg>

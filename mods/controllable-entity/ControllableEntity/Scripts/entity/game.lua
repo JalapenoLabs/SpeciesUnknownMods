@@ -54,6 +54,17 @@ game.classNames = {
   capsuleScreenWidget = "UMG_ScreenCapsule_C",
 }
 
+-- The squid's two health pools (BP_Monster_Poulpi's own fields, not BP_BaseMonster's, so another monster kit needs its
+-- own). Hits drain the stagger pool, and at zero the squid falls to the ground (IsOnGround); only while it is down and
+-- burning (HeatValue) do hits drain its real health, and at zero health it dies. Neither replicates.
+game.squidHealthFields = {
+  health = "Health",
+  maxHealth = "MaxHealth",
+  stagger = "HealthTemporal",
+  maxStagger = "MaxHealthTemporal",
+  downed = "IsOnGround",
+}
+
 -- MonsterList value for the squid (BP_Lobby_FunctionLibrairy.GetMonsterSoftClass).
 game.squidMonsterType = 2
 

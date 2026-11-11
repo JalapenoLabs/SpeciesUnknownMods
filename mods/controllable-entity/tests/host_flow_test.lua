@@ -115,7 +115,7 @@ local squid = fake.object("BP_Monster_Poulpi_C", {
   K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
   BPI_Monster_GetSpeedByType = function(_, speedType, out) out.Speed = 400 + speedType end,
 })
-fake.giveMovement(squid)
+fake.giveSquidState(squid)
 fake.object("BP_GameManager_C", { Monster = squid })
 local crewBody = fake.object("BP_Character_C", { CharacterMovement = fake.object("CharacterMovementComponent") }, {
   K2_GetActorLocation = function() return { X = 200, Y = 0, Z = 0 } end,
@@ -203,6 +203,18 @@ assert(#pings == 1 and pings[1].args[3]:ToString() == "Gunshot", "the shot is he
 fake.runLoops(200)
 assert(linkOf(crewController).Frenzy == true, "frenzy replicates through the link")
 
+-- So does the health pool the squid is on, which the game doesn't replicate (playtest 6): the stagger pool while it
+-- stands, its real health once it's down
+squid.HealthTemporal, squid.MaxHealthTemporal = 30, 60
+squid.Health, squid.MaxHealth = 20, 100
+fake.runLoops(200)
+assert(linkOf(crewController).Health == 0.5 and linkOf(crewController).Downed == false, "standing: the stagger pool")
+squid.IsOnGround = true
+fake.runLoops(200)
+assert(linkOf(crewController).Health == 0.2 and linkOf(crewController).Downed == true, "down: the real health")
+squid.IsOnGround = false
+assert(linkOf(crewController).Stamina == 1, "and the stamina, full before any sprint")
+
 -- Sprinting: top speed while Shift is held, until the stamina runs out
 fake.now = 100
 fake.runLoops(200)
@@ -214,6 +226,7 @@ assert(squid.CharacterMovement.MaxWalkSpeed == 404, "the entity sprints at the s
 fake.now = 101 + config.movement.sprintSeconds
 fake.runLoops(200)
 assert(lastEvent(crewController) == "Sprint.Tired", "a full sprint runs out of breath")
+assert(linkOf(crewController).Stamina == 0, "with the stamina on the entity's HUD spent")
 assert(squid.CharacterMovement.MaxWalkSpeed == 401, "and the squid slows to combat speed")
 fake.now = fake.now + config.movement.staminaRefillSeconds
 fake.runLoops(200)

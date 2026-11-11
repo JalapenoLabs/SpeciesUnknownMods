@@ -82,6 +82,22 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
 - **Monsters respawn when stuck.** `BP_BaseMonster."Check If Stuck"` runs every second once an AI controller
   possesses the monster. After 20 seconds without moving it calls `BP_GameManager.InitMonster(false, ...)`, which
   destroys the monster and spawns a new one. `ShouldCheckIfStuck` turns the check off.
+- **The squid has two health pools** (`BP_Monster_Poulpi`; neither replicates). Hits drain `HealthTemporal`, its
+  stagger pool; at zero the squid falls to the ground (`IsOnGround`) and `MaxHealthTemporal` grows by 10%. Only while
+  it is down and burning (`HeatValue` above 0.15) do hits drain `Health`; at zero it breaks its eye and head and dies.
+  `Health` regenerates while it isn't heated, and `HealthTemporal` refills a little every tick.
+- **The squid's basic attack** always plays `Poulpi_Attack_Small1_Montage` (`GetAttackSimpleAnim`), through the
+  `AttackSimpleAnim (Clients)` multicast. Its damage is the montage's notify, a sphere check in front of the monster
+  (`BP_ParentMonster.BasicSphereAttackDamage`) that runs only while the monster is attacking. `SetSimpleAttack` does
+  nothing without a valid target.
+- **Default key bindings** (`IMC_Default`): Shift sprint, C crouch, LMB shoot, RMB aim, R reload, E interact,
+  F flashlight, G drop weapon, Space hold tool, Tab show names, Left Ctrl radio. Each action's event handler on
+  `BP_MyPlayerController` forwards to the possessed pawn. H, F8, F9 and the punctuation keys are free.
+- **The crew HUD** (`/Game/Blueprints/UI/UI_HUD_Display`) is driven by events from the crew character
+  (`SetHealthValue`, `SetStaminaValue`, `SetFlashLightValue`, ...). Its bars are progress bars on a shared dark track
+  (linear `0.063, 0.102, 0.12, 0.75`), filled health green (`0.025, 0.25, 0.119, 0.75`), half-white for stamina, and
+  pale blue-grey (`0.584, 0.708, 0.768`) for the flashlight and tool. Their rounded shape is the material
+  `Mat_RoundedBox_UI`, whose instances set only size and corner radius; the colour is the bar's own.
 
 ## Paths on this machine
 

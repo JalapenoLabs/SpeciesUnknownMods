@@ -125,9 +125,13 @@ function fake.giveView(controller, crewBody)
   end
 end
 
--- Gives a fake squid the parts its speed lives in, as the game's: GetSpeedByType answers 400 plus the speed type through
--- its out parameter, and SetSpeed sets the walk speed and half of it crouched (calls are recorded).
-function fake.giveMovement(squid)
+-- Gives a fake squid the state the mod reads from it, as the game's. Its speed: GetSpeedByType answers 400 plus the
+-- speed type through its out parameter, and SetSpeed sets the walk speed and half of it crouched (calls are recorded).
+-- Its health: both pools full, standing.
+function fake.giveSquidState(squid)
+  squid.Health, squid.MaxHealth = 100, 100
+  squid.HealthTemporal, squid.MaxHealthTemporal = 60, 60
+  squid.IsOnGround = false
   squid.CharacterMovement = fake.object("CharacterMovementComponent", { MaxWalkSpeed = 0, MaxWalkSpeedCrouched = 0 })
   squid.BPI_Monster_GetSpeedByType = function(_, speedType, out) out.Speed = 400 + speedType end
   squid.BPI_Monster_SetSpeed = function(self, speed)
@@ -142,14 +146,13 @@ function fake.entityHud()
   local function element(name)
     return fake.object(name, { Slot = fake.object(name .. "Slot") })
   end
-  local widget = fake.object("WBP_EntityHUD_C", {
-    Abilities = element("Abilities"),
-    UltimateText = element("UltimateText"),
-    FrenzyText = element("FrenzyText"),
-    StatusText = element("StatusText"),
-  })
-  for _, prefix in ipairs({ "Lash", "Leap", "Vent", "Peek", "View", "Ultimate" }) do
-    for _, part in ipairs({ "Slot", "Icon", "Key", "KeyText", "Bar" }) do
+  local widget = fake.object("WBP_EntityHUD_C")
+  local parts = { "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "PeekPrompt", "FrenzyText", "StatusText" }
+  for _, name in ipairs(parts) do
+    widget[name] = element(name)
+  end
+  for _, prefix in ipairs({ "Ultimate", "Vent", "Leap", "Lash" }) do
+    for _, part in ipairs({ "Slot", "Icon", "Bar" }) do
       widget[prefix .. part] = element(prefix .. part)
     end
   end

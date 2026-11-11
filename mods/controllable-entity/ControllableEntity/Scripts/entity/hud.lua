@@ -1,13 +1,18 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- The entity player's HUD (WBP_EntityHUD), on their own machine, along the top of the screen: the abilities top left
--- in the game's own style (icon, key, and a bar while recharging), the kill meter top centre from their link's
--- replicated state, short messages from the host's events below it, and noise pings drawn over the world. While the
--- player is the squid, the crew HUD their parked body left behind is hidden.
+-- The entity player's HUD (WBP_EntityHUD), on their own machine, laid out like the crew's own (playtest 6):
+--   - bottom left, the actions stacked (the ultimate, venting, the leap and the lash), each with a bar on its left
+--     while it recharges, and the health and stamina bars under them;
+--   - top right, the minimap (minimap.lua) with a view cone over it and the key hints under it;
+--   - the peek prompt where the game shows its own "press E" prompt, while peeking would work;
+--   - bottom centre, the frenzy banner and short messages from the host's events.
+-- Noise pings are drawn over the world. While the player is the squid, the crew HUD their parked body left behind is
+-- hidden. The bars, the health and the stamina come from the player's link, which the host fills (abilities.lua).
 
 local config = require("entity.config")
 local game = require("entity.game")
 local links = require("entity.links")
+local vents = require("entity.vents")
 
 local hud = {}
 
@@ -18,6 +23,10 @@ local HIDDEN = 2
 local VISIBLE_NO_INPUT = 3
 -- The crew character can rebuild its HUD (on respawn, after menus), so the entity's machine checks for it this often.
 local CREW_HUD_CHECK_SECONDS = 0.5
+-- Finding the grate under the squid walks every vent shaft, so the peek prompt checks for one this often.
+local PEEK_CHECK_SECONDS = 0.25
+-- The space between the minimap's bottom edge and the key hints, in HUD units.
+local HINTS_GAP = 10
 -- What a respawn capsule's screen shows the entity instead of the name of the crew member who took it.
 local CAPSULE_NAME_MASK = "?????"
 -- How long a message stays: a second, plus 300 ms a word, and never under three seconds.
@@ -31,21 +40,28 @@ local pingColorByKind = {
   Alarm = { R = 1.0, G = 0.70, B = 0.23 },
 }
 
--- An ability that can't be used right now (peeking outside a vent, leaving the lair before the power is on) dims.
+-- A move the lair holds back (leaving the ducts before the power is on) dims.
 local UNUSABLE_OPACITY = 0.35
 local ultimateColor = { R = 1.0, G = 0.70, B = 0.23, A = 1 }
 local frenzyColor = { R = 1.0, G = 0.29, B = 0.24, A = 1 }
-
--- The ability slots along the top left, by their prefix in WBP_EntityHUD: the host command whose cooldown the bar
--- shows, and the key shown in the box. The keys are the game's default bindings for the input actions the squid
--- reuses (control.lua), so a player who rebinds them sees the defaults.
-local abilitySlots = {
-  { prefix = "Lash", command = "Attack", key = "LMB" },
-  { prefix = "Leap", command = "Leap", key = "RMB" },
-  { prefix = "Vent", command = "Vent", key = config.keys.vent },
-  { prefix = "Peek", command = "Peek", key = "C", needsVent = true },
-  { prefix = "View", key = "F" },
+-- The health bar is the crew HUD's own green while the squid stands, so hits only stagger it, and red once it is down,
+-- when the crew's fire can kill it.
+local healthColorByDowned = {
+  [false] = { R = 0.025, G = 0.25, B = 0.119, A = 0.75 },
+  [true] = { R = 0.8, G = 0.06, B = 0.04, A = 0.75 },
 }
+
+-- The actions in the stack that recharge on a cooldown, by their prefix in WBP_EntityHUD, and the host command whose
+-- cooldown their bar shows. Their key labels are built in: the game's default bindings for the actions the squid
+-- reuses (control.lua), so a player who rebinds them sees the defaults.
+local cooldownSlots = {
+  { prefix = "Vent", command = "Vent" },
+  { prefix = "Leap", command = "Leap" },
+  { prefix = "Lash", command = "Attack" },
+}
+
+-- What only the entity sees, hidden before the takeover (a volunteer sees only their status line).
+local ENTITY_PARTS = { "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "PeekPrompt" }
 
 local messageByEvent = {
   Volunteered = "You'll be the entity next mission. Only you know. F8 backs out.",
@@ -87,6 +103,9 @@ local function freshState(worldKey)
     -- Whether the lair holds the squid in the ducts (until the power is on).
     isLeashed = false,
     nextCrewHudCheckAt = 0,
+    -- Whether the squid is in a vent over a grate it could peek through, rechecked every PEEK_CHECK_SECONDS.
+    isOverGrate = false,
+    nextPeekCheckAt = 0,
     cooldownEndsAt = {},
     pings = {},
     nextPingSlot = 1,
@@ -95,6 +114,8 @@ local function freshState(worldKey)
 end
 
 local state = freshState(nil)
+-- Whether the peek prompt and the key hints show. H switches them, and the choice holds across maps.
+local hintsShown = true
 
 -- A map change (into a mission, back to the lobby or the main menu) leaves nothing of the old world's HUD behind.
 -- Checked before drawing and before every host event, so an event that lands first in a new world isn't wiped.
@@ -134,11 +155,16 @@ local function ensureWidget(controller)
 
   local widget = StaticFindObject(game.paths.widgetLibrary):Create(controller, widgetClass, controller)
   widget:AddToViewport(50)
-  for _, ability in ipairs(abilitySlots) do
-    widget[ability.prefix .. "KeyText"]:SetText(FText(ability.key))
-  end
-  -- The ultimate is the game's Interact action, E by default
-  widget.UltimateKeyText:SetText(FText("E"))
+
+  -- The view cone goes over the minimap's centre and the hints under its bottom edge, placed from the minimap's own
+  -- size and margin (minimap.lua); both are anchored to the top-right corner the minimap sits in
+  local minimapCentre = config.minimap.margin + config.minimap.size / 2
+  widget.ViewCone.Slot:SetPosition({ X = -minimapCentre, Y = minimapCentre })
+  widget.Hints.Slot:SetPosition({
+    X = -config.minimap.margin,
+    Y = config.minimap.margin + config.minimap.size + HINTS_GAP,
+  })
+
   state.widget = widget
   return widget
 end
@@ -155,42 +181,52 @@ end
 -- Drawing
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
--- The ultimate: the kill meter outside full frenzy, the re-arm progress inside it.
-local function drawUltimate(widget, link)
-  local readiness = link.Meter
-  local inFrenzy = link.Frenzy
-  local ready = readiness >= 1
-
-  widget.UltimateBar:SetPercent(readiness)
-  widget.UltimateBar:SetFillColorAndOpacity(inFrenzy and frenzyColor or ultimateColor)
-  setText(widget.FrenzyText, inFrenzy and "FRENZY" or "")
-
-  local label
-  if inFrenzy then
-    label = ready and "FRENZY KILL READY" or "FRENZY  re-arming"
-  else
-    label = ready and "HEAD GRAB READY" or string.format("HEAD GRAB  %d%%", math.floor(readiness * 100))
+-- A bar fills as its action recharges and hides once full (playtest 6: only while it isn't at 100%). Hidden rather
+-- than collapsed, it keeps its space, so the stack never shifts.
+local function drawCharge(bar, charge)
+  local isCharging = charge < 1
+  setShown(bar, isCharging)
+  if isCharging then
+    bar:SetPercent(charge)
   end
-  setText(widget.UltimateText, label)
-
-  local held = state.isLeashed and config.lair.heldMoves.Ultimate
-  widget.UltimateSlot:SetRenderOpacity((ready and not held) and 1 or UNUSABLE_OPACITY)
 end
 
--- Each ability's bar shows the cooldown draining, and hides (keeping its space) once the ability is ready.
-local function drawAbilities(widget, now, inVent)
-  for _, ability in ipairs(abilitySlots) do
-    local remaining = ability.command and (state.cooldownEndsAt[ability.command] or 0) - now or 0
-    local bar = widget[ability.prefix .. "Bar"]
-    setShown(bar, remaining > 0)
-    if remaining > 0 then
-      bar:SetPercent(remaining / config.cooldowns[ability.command])
-    end
-
-    local held = state.isLeashed and config.lair.heldMoves[ability.command]
-    local usable = not held and (inVent or not ability.needsVent)
-    widget[ability.prefix .. "Slot"]:SetRenderOpacity(usable and 1 or UNUSABLE_OPACITY)
+-- Every action shows the same way, the ultimate included (playtest 6): a bar while it charges, nothing once ready.
+-- The ultimate's bar is the kill meter, or in full frenzy the re-arm between kills, in the frenzy's red.
+local function drawActions(widget, link, now)
+  for _, slot in ipairs(cooldownSlots) do
+    local remaining = math.max(0, (state.cooldownEndsAt[slot.command] or 0) - now)
+    drawCharge(widget[slot.prefix .. "Bar"], 1 - remaining / config.cooldowns[slot.command])
+    local isHeld = state.isLeashed and config.lair.heldMoves[slot.command]
+    widget[slot.prefix .. "Slot"]:SetRenderOpacity(isHeld and UNUSABLE_OPACITY or 1)
   end
+
+  local inFrenzy = link.Frenzy
+  drawCharge(widget.UltimateBar, link.Meter)
+  widget.UltimateBar:SetFillColorAndOpacity(inFrenzy and frenzyColor or ultimateColor)
+  setText(widget.FrenzyText, inFrenzy and "FRENZY" or "")
+  local isUltimateHeld = state.isLeashed and config.lair.heldMoves.Ultimate
+  widget.UltimateSlot:SetRenderOpacity(isUltimateHeld and UNUSABLE_OPACITY or 1)
+end
+
+-- The health bar shows the pool the squid is on (playtest 6): its stagger while standing, its real health once a hit
+-- has knocked it down. Like the crew's, the stamina bar only shows once sprinting has used some.
+local function drawVitals(widget, link)
+  widget.HealthBar:SetPercent(link.Health)
+  widget.HealthBar:SetFillColorAndOpacity(healthColorByDowned[link.Downed == true])
+  drawCharge(widget.StaminaBar, link.Stamina)
+end
+
+-- The peek prompt shows while C would work, the way the game shows "press E" only while there is something to use
+-- (playtest 6): inside a vent, over a grate (the host's own rule, abilities.lua), with peek recharged.
+local function drawPeekPrompt(widget, squid, now)
+  if now >= state.nextPeekCheckAt then
+    state.nextPeekCheckAt = now + PEEK_CHECK_SECONDS
+    state.isOverGrate = squid.InVent == true
+      and vents.nearest(squid:K2_GetActorLocation(), config.vents.exitReach) ~= nil
+  end
+  local isRecharged = now >= (state.cooldownEndsAt.Peek or 0)
+  setShown(widget.PeekPrompt, hintsShown and state.isOverGrate and isRecharged)
 end
 
 -- Where a noise's marker goes, in widget units, and whether it is on the ring. A noise in view sits where it is, seen
@@ -289,7 +325,8 @@ local function render()
   -- Only the entity drives the squid, so driving it is proof enough: the host's BecameEntity may never arrive in this
   -- run of the mod (a hot reload on either machine forgets it, playtest 6)
   local pawn = controller.Pawn
-  if not state.isEntity and pawn:IsValid() and pawn:GetClass():GetFName():ToString() == game.classNames.squid then
+  local drivesSquid = pawn:IsValid() and pawn:GetClass():GetFName():ToString() == game.classNames.squid
+  if drivesSquid then
     state.isEntity = true
   end
   local now = game.timeSeconds(controller)
@@ -309,22 +346,26 @@ local function render()
     return
   end
   widget:SetVisibility(VISIBLE_NO_INPUT)
-
   setText(widget.StatusText, hasMessage and state.message or state.persistentStatus or "")
 
-  -- Before the takeover (a volunteer, or a message), only the status line shows
-  local link = state.isEntity and links.own() or nil
-  setShown(widget.Abilities, link ~= nil)
-  setShown(widget.UltimateSlot, link ~= nil)
+  local link = drivesSquid and links.own() or nil
   if not link then
-    setText(widget.UltimateText, "")
+    for _, part in ipairs(ENTITY_PARTS) do
+      setShown(widget[part], false)
+    end
     setText(widget.FrenzyText, "")
     return
   end
 
-  local pawn = controller.Pawn
-  drawUltimate(widget, link)
-  drawAbilities(widget, now, pawn:IsValid() and pawn.InVent == true)
+  setShown(widget.Actions, true)
+  setShown(widget.HealthBar, true)
+  setShown(widget.ViewCone, true)
+  setShown(widget.Hints, hintsShown)
+  drawActions(widget, link, now)
+  drawVitals(widget, link)
+  drawPeekPrompt(widget, pawn, now)
+  -- The cone turns with the player's look, the way the minimap's player icon turns with the squid (minimap.lua)
+  widget.ViewCone:SetRenderTransformAngle(controller:GetControlRotation().Yaw + config.minimap.iconAngleOffset)
   drawPings(widget, controller, now)
 end
 
@@ -385,6 +426,11 @@ local function onPing(location, _, kind)
   end
   state.pings[state.nextPingSlot] = { location = location, kind = kind, bornAt = game.timeSeconds(controller) }
   state.nextPingSlot = state.nextPingSlot % PING_MARKER_COUNT + 1
+end
+
+-- H: hides the peek prompt and the key hints, or shows them again (playtest 6).
+function hud.toggleHints()
+  hintsShown = not hintsShown
 end
 
 function hud.register()
