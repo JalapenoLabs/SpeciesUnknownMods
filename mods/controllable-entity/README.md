@@ -98,6 +98,18 @@ holds the special weapon (the same trigger as partial frenzy), the vents are onl
 - On the roadmap: moving a squid still in the vents 10 seconds after being forced out to the power room, and making
   the squid loud while it is hunted, so the crew can follow it.
 
+### Capture contracts: kill it off the shuttle
+
+A capture contract wants the specimen alive in the shuttle's capture cell, and killing it fails the contract. A human
+entity could keep away from the shuttle for good, so with an entity:
+
+- Killed anywhere off the shuttle, the entity counts as captured, and the crew completes the contract.
+- Killed aboard the shuttle (the shuttle's own aboard check, `BP_PlayerShip.MonsterInside`), the contract fails as the
+  game has it. So the entity wants to come aboard, where the crew may only capture it.
+- The mod finishes the mission the way a real capture does (the monster's `BPI_BasicMonster_SetIsCaptured`, then
+  `BPI_GameState_FinishGame(1)`) as the squid dies, before the game's own kill result about 15 seconds later, which
+  the game then ignores. Still to check in play: the lobby's specimen display after such a capture.
+
 ### Voice: the entity has no comms
 
 - Nobody hears the entity player at all, nearby or over the radio, and their radio key does nothing (not even its
@@ -262,6 +274,7 @@ create: network events and a widget layout.
   | `meter.lua` | host | The kill meter and frenzy rules, as plain logic (unit tested) |
   | `frenzy.lua` | host | The three frenzy triggers |
   | `hunt.lua` | host | The vents' time limit once the crew holds the special weapon |
+  | `capture.lua` | host | In capture contracts, the entity killed off the shuttle counts as captured |
   | `senses.lua` | host | Noise sources to blurred pings |
   | `control.lua` | entity player | Input to movement and commands; the mod's keys |
   | `camera.lua` | entity player | Third and first person |
@@ -328,6 +341,7 @@ kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack 
 - `tests/entity_mode_test.lua`: F9, forcing the squid from the lobby, and the random pick.
 - `tests/lair_test.lua`: the start in a vent, the leash and the power.
 - `tests/hunt_test.lua`: the vents' time limit once the crew holds the special weapon.
+- `tests/capture_test.lua`: the entity killed off or aboard the shuttle in capture contracts.
 - `tests/voice_test.lua`: the entity's mic and radio click, and crew radio speech sent nearby too.
 - `tests/vision_test.lua`: the entity's light and the vent markers.
 - `tests/areas_test.lua`: the map sections and the minimap's deck around the squid.

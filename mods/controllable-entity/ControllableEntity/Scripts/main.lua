@@ -7,6 +7,7 @@
 -- checks), while each player's machine handles their own input and HUD.
 
 local abilities = require("entity.abilities")
+local capture = require("entity.capture")
 local config = require("entity.config")
 local control = require("entity.control")
 local frenzy = require("entity.frenzy")
@@ -26,6 +27,7 @@ abilities.register()
 frenzy.register(abilities, takeover)
 hunt.register()
 voice.register(takeover)
+capture.register(takeover)
 movement.register(takeover.isEntityController)
 senses.register(abilities, takeover)
 control.register()
