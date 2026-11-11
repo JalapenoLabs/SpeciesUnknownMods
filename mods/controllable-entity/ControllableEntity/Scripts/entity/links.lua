@@ -16,8 +16,10 @@ local commandHandlers = {}
 local clientEventHandlers = {}
 local pingHandler = nil
 
--- Host: link actor per controller, keyed by the controller's address (a controller's Lua wrapper is not stable).
+-- Host: link per controller, keyed by the controller's address (a controller's Lua wrapper is not stable):
+-- { actor, spawnedOnPass }. Reconcile passes are counted so a link can be given a pass to replicate.
 local linkByControllerAddress = {}
+local reconcilePass = 0
 
 function links.onCommand(command, handler)
   commandHandlers[command] = handler
@@ -43,16 +45,17 @@ function links.reconcile()
     return
   end
 
+  reconcilePass = reconcilePass + 1
   local liveAddresses = {}
   for _, controller in ipairs(FindAllOf("PlayerController") or {}) do
     if controller:IsValid() then
       local address = controller:GetAddress()
       liveAddresses[address] = true
-      local link = linkByControllerAddress[address]
-      if not link or not link:IsValid() then
-        link = controller:GetWorld():SpawnActor(linkClass, controller:K2_GetActorLocation(), {})
+      local entry = linkByControllerAddress[address]
+      if not entry or not entry.actor:IsValid() then
+        local link = controller:GetWorld():SpawnActor(linkClass, controller:K2_GetActorLocation(), {})
         link:SetOwner(controller)
-        linkByControllerAddress[address] = link
+        linkByControllerAddress[address] = { actor = link, spawnedOnPass = reconcilePass }
       end
     end
   end
@@ -67,11 +70,18 @@ end
 
 -- The host's link for a controller, or nil until the next reconcile spawns it.
 function links.forController(controller)
-  local link = linkByControllerAddress[controller:GetAddress()]
-  if not link or not link:IsValid() then
+  local entry = linkByControllerAddress[controller:GetAddress()]
+  if not entry or not entry.actor:IsValid() then
     return nil
   end
-  return link
+  return entry.actor
+end
+
+-- Whether the controller's link has existed for a full reconcile pass. An event sent to a client on an actor that
+-- hasn't replicated to it yet has nowhere to arrive, so one-off announcements wait for this.
+function links.isEstablished(controller)
+  local entry = linkByControllerAddress[controller:GetAddress()]
+  return entry ~= nil and entry.actor:IsValid() and entry.spawnedOnPass < reconcilePass
 end
 
 function links.sendEvent(controller, kind, value)

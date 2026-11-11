@@ -30,6 +30,7 @@ local abilityLines = {
 
 local messageByEvent = {
   Volunteered = "You'll be the entity next mission. Only you know. (F8 to back out)",
+  WaitingForSquid = "You're the entity. The squid appears once someone leaves the shuttle.",
   Unvolunteered = "You're crew again.",
   VolunteerTaken = "Someone else already claimed the entity.",
   BecameEntity = "You are the entity. Hunt by sound.",
@@ -44,16 +45,36 @@ local messageByEvent = {
   ["Denied.UltimateNotReady"] = "Your hunger isn't ready.",
 }
 
-local state = {
-  isVolunteer = false,
-  isEntity = false,
-  message = nil,
-  messageUntil = 0,
-  cooldownEndsAt = {},
-  pings = {},
-  nextPingSlot = 1,
-  widget = nil,
-}
+-- Everything the HUD knows comes from the host's events in the current world; a new world starts blank and the host
+-- tells this player their status again.
+local function freshState(worldKey)
+  return {
+    worldKey = worldKey,
+    isVolunteer = false,
+    isEntity = false,
+    message = nil,
+    messageUntil = 0,
+    cooldownEndsAt = {},
+    pings = {},
+    nextPingSlot = 1,
+    widget = nil,
+  }
+end
+
+local state = freshState(nil)
+
+-- A map change (into a mission, back to the lobby or the main menu) leaves nothing of the old world's HUD behind.
+-- Checked before drawing and before every host event, so an event that lands first in a new world isn't wiped.
+local function syncWorld(controller)
+  local worldKey = controller:GetWorld():GetAddress()
+  if worldKey == state.worldKey then
+    return
+  end
+  if state.widget and state.widget:IsValid() then
+    state.widget:RemoveFromParent()
+  end
+  state = freshState(worldKey)
+end
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 -- Widget
@@ -142,6 +163,7 @@ local function render()
     return
   end
 
+  syncWorld(controller)
   local now = game.timeSeconds(controller)
   local hasMessage = state.message ~= nil and now < state.messageUntil
   if not state.isEntity and not state.isVolunteer and not hasMessage then
@@ -160,7 +182,7 @@ local function render()
   if hasMessage then
     setText(widget.StatusText, state.message)
   elseif state.isVolunteer and not state.isEntity then
-    setText(widget.StatusText, messageByEvent.Volunteered)
+    setText(widget.StatusText, state.lastStatus or messageByEvent.Volunteered)
   else
     setText(widget.StatusText, "")
   end
@@ -190,11 +212,16 @@ local function showMessage(kind)
   end
   state.message = messageByEvent[kind]
   state.messageUntil = game.timeSeconds(controller) + 3
+  -- Volunteer status messages stay on screen after their three seconds, until the next one replaces them
+  if kind == "Volunteered" or kind == "WaitingForSquid" then
+    state.lastStatus = state.message
+  end
 end
 
 -- What each host event changes beyond its message.
 local stateChangeByEvent = {
   Volunteered = function() state.isVolunteer = true end,
+  WaitingForSquid = function() state.isVolunteer = true end,
   Unvolunteered = function() state.isVolunteer = false end,
   BecameEntity = function() state.isEntity = true end,
   Lost = function()
@@ -215,6 +242,10 @@ end
 function hud.register()
   for kind in pairs(messageByEvent) do
     links.onClientEvent(kind, function()
+      local controller = game.localController()
+      if controller then
+        syncWorld(controller)
+      end
       local changeState = stateChangeByEvent[kind]
       if changeState then
         changeState()

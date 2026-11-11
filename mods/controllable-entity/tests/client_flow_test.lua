@@ -26,6 +26,7 @@ fake.objects[game.paths.widgetLayoutLibrary] = fake.object("WidgetLayoutLibrary"
 })
 fake.installModPak(game.modClasses)
 fake.object("GameStateBase")
+fake.world = fake.object("World")
 
 local function widgetElement(name)
   return fake.object(name, { Slot = fake.object(name .. "Slot") })
@@ -121,5 +122,14 @@ fake.runLoops(33)
 local visibilities = fake.callsTo(widget.Ping0, "SetVisibility")
 assert(visibilities[#visibilities].args[1] == 2, "a ping disappears after it fades")
 assert(createdWidgets == 1, "the HUD is reused")
+
+-- Regression (playtest 2): after quitting to the main menu the entity HUD stayed on screen. A map change must remove
+-- the old world's HUD and forget the old world's status until the host says otherwise.
+fake.world = fake.object("World")
+controller.Pawn = fake.invalid()
+fake.runLoops(33)
+assert(#fake.callsTo(widget, "RemoveFromParent") == 1, "the old world's HUD is removed")
+fake.runLoops(33)
+assert(createdWidgets == 1, "no HUD is rebuilt in a world where the host hasn't named this player")
 
 print("client flow test passed")

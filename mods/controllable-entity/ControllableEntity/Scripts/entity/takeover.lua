@@ -13,8 +13,10 @@ local takeover = {}
 -- Who volunteered, by the game's own lobby player id (stable across travel, unlike the controller and player state
 -- objects, which are rebuilt on every map).
 local volunteerKey = nil
--- The entity in the current world: { key, controller, squid, playerState }, or nil.
+-- The entity in the current world: { key, controller, squid, playerState, parkedBody, worldKey }, or nil.
 local activeEntity = nil
+-- The world the volunteer was last told their status in, so each new world tells them once.
+local announcedWorldKey = nil
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 -- Identity
@@ -37,6 +39,15 @@ local function playerKey(playerState)
 
   game.log("No lobby id for a player state; identifying it by name")
   return "name:" .. playerState:GetPlayerName():ToString()
+end
+
+-- Identifies the current world: its game state is rebuilt on every map, so its address changes with the world.
+local function currentWorldKey()
+  local gameState = FindFirstOf("GameStateBase")
+  if not gameState or not gameState:IsValid() then
+    return nil
+  end
+  return gameState:GetAddress()
 end
 
 local function controllerForKey(key)
@@ -85,6 +96,7 @@ local function onVolunteer(_, controller)
 
   if volunteerKey == key then
     volunteerKey = nil
+    announcedWorldKey = nil
     forceSquid(false)
     links.sendEvent(controller, "Unvolunteered")
     game.log("%s is no longer the entity", key)
@@ -97,6 +109,7 @@ local function onVolunteer(_, controller)
   end
 
   volunteerKey = key
+  announcedWorldKey = currentWorldKey()
   forceSquid(true)
   links.sendEvent(controller, "Volunteered")
   game.log("%s will be the entity next mission", key)
@@ -252,8 +265,45 @@ local function noticeLoss()
   end
 end
 
+local function isMainMenu()
+  local gameMode = FindFirstOf("BP_MainMenuGameMode_C")
+  return gameMode ~= nil and gameMode:IsValid()
+end
+
+-- Back at the main menu the session is over: nobody is the entity any more, and the next session's mission must roll
+-- its monster normally.
+local function forgetVolunteer()
+  game.log("%s is no longer the entity (back at the main menu)", volunteerKey)
+  volunteerKey = nil
+  announcedWorldKey = nil
+  forceSquid(false)
+end
+
+-- Tells the volunteer their status once per world, after their link has had time to reach them: in the lobby that
+-- they're signed up, in a mission that the squid is still to come.
+local function announceVolunteer(controller, worldKey)
+  if announcedWorldKey == worldKey or not links.isEstablished(controller) then
+    return
+  end
+  announcedWorldKey = worldKey
+  links.sendEvent(controller, isMission() and "WaitingForSquid" or "Volunteered")
+end
+
 -- Runs every second on the host.
 function takeover.reconcile()
+  local worldKey = currentWorldKey()
+
+  -- A map change took the entity's world with it (a mission ending normally travels back to the lobby): that's not
+  -- a loss, so the entity is forgotten quietly
+  if activeEntity and activeEntity.worldKey ~= worldKey then
+    activeEntity = nil
+  end
+
+  if volunteerKey and isMainMenu() then
+    forgetVolunteer()
+    return
+  end
+
   if activeEntity then
     local squidAlive = activeEntity.squid:IsValid() and activeEntity.controller:IsValid()
       and activeEntity.controller.Pawn:IsValid()
@@ -267,18 +317,25 @@ function takeover.reconcile()
     return
   end
 
-  if not volunteerKey or not isMission() then
+  if not volunteerKey then
     return
   end
 
+  -- The volunteer's controller arrives during the first seconds of every map; the next pass tries again
   local controller = controllerForKey(volunteerKey)
-  local squid = missionSquid()
-  -- Both arrive during the first seconds of a mission; the next pass tries again
-  if not controller or not squid then
+  if not controller then
+    return
+  end
+  announceVolunteer(controller, worldKey)
+
+  -- On Hawking the squid spawns only once a crew member leaves the shuttle
+  local squid = isMission() and missionSquid() or nil
+  if not squid then
     return
   end
 
   takeControl(controller, squid)
+  activeEntity.worldKey = worldKey
 end
 
 -- The crew character adds its player to the crew list once it is possessed (BP_Character.ReceivePossessed). If that

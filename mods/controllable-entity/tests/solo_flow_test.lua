@@ -16,7 +16,7 @@ fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
 })
 fake.installModPak(game.modClasses)
-fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })
+local gameInstance = fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })
 
 local hostState = fake.object("BP_MyPlayerState_C", nil, {
   BPI_PlayerState_GetLobbyPlayerID = function(_, out) out.ID = 0 end,
@@ -70,5 +70,21 @@ assert(#fake.callsTo(gameState, "UpdateInGamePlayers") == 0, "the only crew memb
 fake.object("BP_Character_C", { CharacterMovement = fake.object("CharacterMovementComponent") })
 fake.runLoops()
 assert(hostBody.destroyed, "once another crew body exists, the parked body is removed")
+
+-- The mission ends and the game travels on: a new world (new game state). That's not a loss.
+local function lastEventKind()
+  local events = fake.callsTo(hostLink, "EntityClientEvent")
+  return events[#events] and events[#events].args[1]:ToString()
+end
+gameState.destroyed = true
+squid.destroyed = true
+fake.object("GameStateBase")
+fake.runLoops(1000)
+assert(lastEventKind() ~= "Lost", "travelling to a new map is not losing")
+
+-- Regression (playtest 2): back at the main menu the volunteer must be forgotten, and the squid no longer forced
+fake.object("BP_MainMenuGameMode_C")
+fake.runLoops(1000)
+assert(gameInstance.spawnForceSessionMonster == 0, "the main menu clears the forced squid")
 
 print("solo flow test passed")

@@ -104,6 +104,21 @@ local function registerKeys()
   end)
 end
 
+-- Playtest diagnostics: the first time each action arrives at all, and the first time it arrives while the player
+-- drives the squid, so a playtest log shows exactly where input stops.
+local reportedArrivals = {}
+local function reportArrival(actionName, controller)
+  local drivingSquid = drivenSquid(controller) ~= nil
+  local key = actionName .. (drivingSquid and ":squid" or ":crew")
+  if reportedArrivals[key] then
+    return
+  end
+  reportedArrivals[key] = true
+  local pawn = controller.Pawn
+  local pawnClass = pawn:IsValid() and pawn:GetClass():GetFName():ToString() or "no pawn"
+  game.log("Input %s arrived (pawn: %s%s)", actionName, pawnClass, drivingSquid and ", driving the squid" or "")
+end
+
 function control.register()
   game.hookMatchingWhenLoaded(game.paths.controllerClass, "^InpActEvt_IA_(%w+)_K2Node_EnhancedInputActionEvent_%d+$",
     function(actionName)
@@ -112,7 +127,9 @@ function control.register()
         return nil
       end
       return function(context, actionValueParameter)
-        handler(context:get(), actionValueParameter)
+        local controller = context:get()
+        reportArrival(actionName, controller)
+        handler(controller, actionValueParameter)
       end
     end)
   registerKeys()
