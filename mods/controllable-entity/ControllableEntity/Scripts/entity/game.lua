@@ -34,12 +34,30 @@ game.classNames = {
   gameInstance = "BP_MyGameInstance_C",
   gameState = "BP_MyGameState_C",
   gameManager = "BP_GameManager_C",
-  -- The game's vent entrances; the Polar map uses a subclass.
+  -- Players' controllers. Spectators get BP_MyPlayerControllerSpectator, which isn't one of these.
+  playerController = "BP_MyPlayerController_C",
+  lobbyGameMode = "BP_LobbyGameMode_C",
+  missionGameMode = "BP_PlayableGameMode_C",
+  mainMenuGameMode = "BP_MainMenuGameMode_C",
+  -- The game's vent shafts; the Polar map uses a subclass.
   vents = { "BP_Vent_Up_C", "BP_Vent_Up_POLAR_C" },
+  -- The crew HUD, which the crew character creates (BP_Character): status bars, objectives and the crosshair.
+  crewHudWidgets = { "UI_HUD_Display_C", "UMG_ObjectiveList_C", "UI_Crosshair_Simple_C" },
 }
 
 -- MonsterList value for the squid (BP_Lobby_FunctionLibrairy.GetMonsterSoftClass).
 game.squidMonsterType = 2
+
+-- BP_MyGameState.LightStatut (LightStatutEnum), the ship's power. Missions start with it off unless the contract
+-- has power at start; the crew is safe from the monster until they turn it on.
+game.lightStatus = {
+  On = 0,
+  Off = 1,
+  -- Self destruct armed: the crew must evacuate.
+  Evacuation = 2,
+  -- Emergency power: on, but dimmed.
+  Limited = 3,
+}
 
 -- Contract types (BP_MyGameState.Contract.ContractType_2_...).
 game.contractTypes = {

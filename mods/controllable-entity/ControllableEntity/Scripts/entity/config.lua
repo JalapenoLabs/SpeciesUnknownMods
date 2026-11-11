@@ -41,10 +41,26 @@ return {
   },
 
   vents = {
-    -- How close to a vent entrance the squid must be to climb in.
-    enterReach = 300,
-    -- How far from a vent exit the squid can drop out of, measured while inside the duct.
+    -- How close across the floor the squid must be to a vent shaft to climb into it from the room below, or to drop
+    -- out of it from the duct above.
+    enterReach = 400,
     exitReach = 400,
+    -- A shaft more than this far above or below doesn't count: it belongs to another floor.
+    verticalReach = 900,
+  },
+
+  lair = {
+    -- The entity starts inside a vent at least this far from every crew member (the farthest one when none is).
+    minimumCrewDistance = 2500,
+    -- Until the crew turns the power on, the squid stays inside the ducts within this distance of its start.
+    leashRadius = 1200,
+    -- The shortest gap between two "the vents hold you" messages while the player pushes against the leash.
+    warningInterval = 3,
+  },
+
+  camera = {
+    -- How far the third-person view sits behind the squid.
+    thirdPersonDistance = 320,
   },
 
   look = {
@@ -65,8 +81,10 @@ return {
   },
 
   keys = {
-    -- UE4SS key names (the game binds neither).
+    -- UE4SS key names (the game binds none of them).
     ultimate = "SPACE",
     volunteer = "F8",
+    -- Host only: turns entity mode on or off for the session.
+    entityMode = "F9",
   },
 }

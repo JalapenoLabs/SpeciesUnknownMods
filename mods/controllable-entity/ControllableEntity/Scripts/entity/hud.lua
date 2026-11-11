@@ -2,7 +2,7 @@
 
 -- The entity player's HUD (WBP_EntityHUD), on their own machine: the kill meter and frenzy from their link's
 -- replicated state, ability cooldowns and short status messages from the host's events, and noise pings drawn over
--- the world.
+-- the world. While the player is the squid, the crew HUD their parked body left behind is hidden.
 
 local config = require("entity.config")
 local game = require("entity.game")
@@ -12,8 +12,15 @@ local hud = {}
 
 local PING_MARKER_COUNT = 12
 -- ESlateVisibility
-local VISIBLE_NO_INPUT = 3
+local COLLAPSED = 1
 local HIDDEN = 2
+local VISIBLE_NO_INPUT = 3
+-- The crew character can rebuild its HUD (on respawn, after menus), so the entity's machine checks for it this often.
+local CREW_HUD_CHECK_SECONDS = 0.5
+-- How long a message stays: a second, plus 300 ms a word, and never under three seconds.
+local MESSAGE_BASE_SECONDS = 1
+local MESSAGE_SECONDS_PER_WORD = 0.3
+local MESSAGE_MINIMUM_SECONDS = 3
 
 local pingColorByKind = {
   Gunshot = { R = 1.0, G = 0.29, B = 0.24 },
@@ -22,27 +29,36 @@ local pingColorByKind = {
 }
 
 local abilityLines = {
-  { command = "Attack", label = "Shoot      Lash" },
-  { command = "Leap", label = "Aim        Leap" },
-  { command = "Vent", label = "Interact   Vent" },
-  { command = "Peek", label = "Crouch     Peek" },
+  { command = "Attack", label = "Shoot        Lash" },
+  { command = "Leap", label = "Aim          Leap" },
+  { command = "Vent", label = "Interact     Vent" },
+  { command = "Peek", label = "Crouch       Peek" },
+  { label = "Flashlight   View" },
 }
 
 local messageByEvent = {
-  Volunteered = "You'll be the entity next mission. Only you know. (F8 to back out)",
-  WaitingForSquid = "You're the entity. The squid appears once someone leaves the shuttle.",
+  Volunteered = "You'll be the entity next mission. Only you know. F8 backs out.",
+  WaitingForSquid = "You're the entity. You take the squid once the crew leaves the shuttle.",
   Unvolunteered = "You're crew again.",
   VolunteerTaken = "Someone else already claimed the entity.",
   BecameEntity = "You are the entity. Hunt by sound.",
+  Leashed = "Lurk in the vents until the crew turns the power on.",
+  PowerRestored = "The power is on. Hunt.",
   Lost = "The crew got you. You're out of this mission.",
   KillStarted = "Got one.",
   FrenzyStarted = "FRENZY: every grab kills.",
   FrenzyPartial = "They have the weapon. Your hunger grows faster.",
+  EntityModeOn = "Entity mode: ON",
+  EntityModeOff = "Entity mode: OFF",
   ["Denied.Cooldown"] = "Not yet.",
-  ["Denied.NoTarget"] = "Nobody in reach.",
-  ["Denied.NoVent"] = "No vent here.",
-  ["Denied.NotInVent"] = "You need to be in a vent.",
+  ["Denied.NoTarget"] = "Get closer to a crew member.",
+  ["Denied.NoVentEntrance"] = "Stand under a vent to climb in.",
+  ["Denied.NoVentExit"] = "Crawl over a vent opening to drop out.",
+  ["Denied.NotInVent"] = "Peek works from inside a vent.",
+  ["Denied.PowerOff"] = "The vents hold you until the power is on.",
   ["Denied.UltimateNotReady"] = "Your hunger isn't ready.",
+  ["Denied.HostOnly"] = "The host turns entity mode on or off.",
+  ["Denied.EntityModeOff"] = "Entity mode is off. The host can turn it on.",
 }
 
 -- Everything the HUD knows comes from the host's events in the current world; a new world starts blank and the host
@@ -54,6 +70,10 @@ local function freshState(worldKey)
     isEntity = false,
     message = nil,
     messageUntil = 0,
+    -- A line that stays under the messages until the host's next event replaces it: the volunteer's status, or the
+    -- lair's hint while the power is off.
+    persistentStatus = nil,
+    nextCrewHudCheckAt = 0,
     cooldownEndsAt = {},
     pings = {},
     nextPingSlot = 1,
@@ -124,7 +144,7 @@ end
 local function drawAbilities(widget, now)
   local lines = {}
   for _, ability in ipairs(abilityLines) do
-    local remaining = (state.cooldownEndsAt[ability.command] or 0) - now
+    local remaining = ability.command and (state.cooldownEndsAt[ability.command] or 0) - now or 0
     if remaining > 0 then
       table.insert(lines, string.format("%s  %.1fs", ability.label, remaining))
     else
@@ -157,6 +177,21 @@ local function drawPings(widget, controller, now)
   end
 end
 
+-- The crew HUD belongs to the parked crew body, so it would stay on screen over the squid's view.
+local function hideCrewHud(now)
+  if now < state.nextCrewHudCheckAt then
+    return
+  end
+  state.nextCrewHudCheckAt = now + CREW_HUD_CHECK_SECONDS
+  for _, className in ipairs(game.classNames.crewHudWidgets) do
+    for _, crewWidget in ipairs(FindAllOf(className) or {}) do
+      if crewWidget:IsValid() and crewWidget:GetVisibility() ~= COLLAPSED then
+        crewWidget:SetVisibility(COLLAPSED)
+      end
+    end
+  end
+end
+
 local function render()
   local controller = game.localController()
   if not controller then
@@ -165,6 +200,9 @@ local function render()
 
   syncWorld(controller)
   local now = game.timeSeconds(controller)
+  if state.isEntity then
+    hideCrewHud(now)
+  end
   local hasMessage = state.message ~= nil and now < state.messageUntil
   if not state.isEntity and not state.isVolunteer and not hasMessage then
     if state.widget and state.widget:IsValid() then
@@ -179,13 +217,7 @@ local function render()
   end
   widget:SetVisibility(VISIBLE_NO_INPUT)
 
-  if hasMessage then
-    setText(widget.StatusText, state.message)
-  elseif state.isVolunteer and not state.isEntity then
-    setText(widget.StatusText, state.lastStatus or messageByEvent.Volunteered)
-  else
-    setText(widget.StatusText, "")
-  end
+  setText(widget.StatusText, hasMessage and state.message or state.persistentStatus or "")
 
   local link = state.isEntity and links.own() or nil
   if not link then
@@ -210,22 +242,36 @@ local function showMessage(kind)
   if not controller then
     return
   end
-  state.message = messageByEvent[kind]
-  state.messageUntil = game.timeSeconds(controller) + 3
-  -- Volunteer status messages stay on screen after their three seconds, until the next one replaces them
-  if kind == "Volunteered" or kind == "WaitingForSquid" then
-    state.lastStatus = state.message
-  end
+  local message = messageByEvent[kind]
+  local _, wordCount = message:gsub("%S+", "")
+  local seconds = math.max(MESSAGE_MINIMUM_SECONDS, MESSAGE_BASE_SECONDS + MESSAGE_SECONDS_PER_WORD * wordCount)
+  state.message = message
+  state.messageUntil = game.timeSeconds(controller) + seconds
 end
 
 -- What each host event changes beyond its message.
 local stateChangeByEvent = {
-  Volunteered = function() state.isVolunteer = true end,
-  WaitingForSquid = function() state.isVolunteer = true end,
-  Unvolunteered = function() state.isVolunteer = false end,
-  BecameEntity = function() state.isEntity = true end,
+  Volunteered = function()
+    state.isVolunteer = true
+    state.persistentStatus = messageByEvent.Volunteered
+  end,
+  WaitingForSquid = function()
+    state.isVolunteer = true
+    state.persistentStatus = messageByEvent.WaitingForSquid
+  end,
+  Unvolunteered = function()
+    state.isVolunteer = false
+    state.persistentStatus = nil
+  end,
+  BecameEntity = function()
+    state.isEntity = true
+    state.persistentStatus = nil
+  end,
+  Leashed = function() state.persistentStatus = messageByEvent.Leashed end,
+  PowerRestored = function() state.persistentStatus = nil end,
   Lost = function()
     state.isEntity = false
+    state.persistentStatus = nil
     state.pings = {}
   end,
 }

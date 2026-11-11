@@ -55,6 +55,24 @@ All in `SpeciesUnknown/Content/Paks/`:
 | `/Game/Blueprints/BPI/BPI_GameInstance` | Interface the game instance implements |
 | `/Game/Blueprints/Online/BP_Online_FunctionLibrary` | Builds session settings (main, private by code, public) |
 
+## Gameplay state worth knowing
+
+Read from the Blueprint bytecode; the mods that rely on each fact link back here.
+
+- **The ship's power** is `BP_MyGameState.LightStatut` (`LightStatutEnum`, replicated): 0 on, 1 off, 2 evacuation
+  (self destruct armed; `CanLightOff` is false), 3 limited (emergency power, dimmed). `BP_GameManager` sets it at
+  mission start: off, unless the contract has `PowerAtStart` (then it stays on, or limited with `EmergencyPower`).
+  `OnRep_LightStatut` runs on every machine when it changes.
+- **Vents** are `BP_Vent_Up` actors (`BP_Vent_Up_POLAR` on Polar): vertical shafts from a room's ceiling into the
+  ducts, standing on the room's floor. Up to four billboard components (`Point1Component` to `Point4Component`) mark
+  spots beside each shaft's top, inside the duct; `BPI_Vent_GetAllpointLocation` returns them. Crossing a shaft's
+  `BoxOverlap` sets the monster's `InVent` (`BPI_Monster_SetInVent`, which also crouches it to fit the ducts).
+  Hawking's persistent level `Maps/SpaceShip` places 265 shafts and about 970 vent navigation links
+  (`Nav_Link_VentPoint_*`); its sublevels add decoration only (`BP_VentWall`, `BP_VentDoor`).
+- **Monsters respawn when stuck.** `BP_BaseMonster."Check If Stuck"` runs every second once an AI controller
+  possesses the monster. After 20 seconds without moving it calls `BP_GameManager.InitMonster(false, ...)`, which
+  destroys the monster and spawns a new one. `ShouldCheckIfStuck` turns the check off.
+
 ## Paths on this machine
 
 | What | Path |

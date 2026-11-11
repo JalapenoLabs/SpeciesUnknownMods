@@ -8,9 +8,11 @@
 
 local config = require("entity.config")
 local game = require("entity.game")
+local lair = require("entity.lair")
 local links = require("entity.links")
 local Meter = require("entity.meter")
 local takeover = require("entity.takeover")
+local vents = require("entity.vents")
 
 local abilities = {}
 
@@ -46,22 +48,6 @@ local function crewInCone(squid, aim, reach, coneDegrees)
     end
   end
   return best, bestDistance
-end
-
-local function nearestVent(squid, reach)
-  local origin = squid:K2_GetActorLocation()
-  local best, bestDistance = nil, reach
-  for _, className in ipairs(game.classNames.vents) do
-    for _, vent in ipairs(FindAllOf(className) or {}) do
-      if vent:IsValid() then
-        local distance = game.distance(origin, vent:K2_GetActorLocation())
-        if distance <= bestDistance then
-          best, bestDistance = vent, distance
-        end
-      end
-    end
-  end
-  return best
 end
 
 -- The aim flattened onto the ground, for moves that travel along the floor.
@@ -103,9 +89,9 @@ end
 
 local function vent(squid, aim)
   if squid.InVent then
-    local exit = nearestVent(squid, config.vents.exitReach)
+    local exit = vents.nearest(squid:K2_GetActorLocation(), config.vents.exitReach)
     if not exit then
-      return false, "NoVent"
+      return false, "NoVentExit"
     end
     isPeeking = false
     local target = crewInCone(squid, { X = 0, Y = 0, Z = -1 }, config.vents.exitReach, 120)
@@ -113,9 +99,9 @@ local function vent(squid, aim)
     return true
   end
 
-  local entrance = nearestVent(squid, config.vents.enterReach)
+  local entrance = vents.nearest(squid:K2_GetActorLocation(), config.vents.enterReach)
   if not entrance then
-    return false, "NoVent"
+    return false, "NoVentEntrance"
   end
   squid:BPI_Monster_JumpToVent(entrance, true)
   return true
@@ -125,9 +111,9 @@ local function peek(squid)
   if not squid.InVent then
     return false, "NotInVent"
   end
-  local grate = nearestVent(squid, config.vents.exitReach)
+  local grate = vents.nearest(squid:K2_GetActorLocation(), config.vents.exitReach)
   if not grate then
-    return false, "NoVent"
+    return false, "NoVentExit"
   end
   isPeeking = not isPeeking
   squid:BPI_Monster_LookFromVent(grate, isPeeking, false)
@@ -153,12 +139,24 @@ local moveByCommand = {
   Ultimate = ultimate,
 }
 
+-- The moves that would leave the ducts, which wait while the lair holds the squid (until the power is on).
+local leavesTheVents = {
+  Leap = true,
+  Vent = true,
+  Ultimate = true,
+}
+
 -- Runs a command from the entity player: checks it came from the entity and is off cooldown, then moves the squid.
 local function runCommand(command)
   return function(_, controller, aim)
     local entity = takeover.activeEntity()
     if not entity or not takeover.isEntityController(controller) then
       game.log("%s from a player who isn't the entity; ignored", command)
+      return
+    end
+
+    if leavesTheVents[command] and lair.isLeashed(entity.squid) then
+      links.sendEvent(controller, "Denied.PowerOff")
       return
     end
 

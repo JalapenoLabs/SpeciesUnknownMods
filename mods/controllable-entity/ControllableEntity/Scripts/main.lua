@@ -12,6 +12,7 @@ local control = require("entity.control")
 local frenzy = require("entity.frenzy")
 local game = require("entity.game")
 local hud = require("entity.hud")
+local lair = require("entity.lair")
 local links = require("entity.links")
 local senses = require("entity.senses")
 local takeover = require("entity.takeover")
@@ -25,7 +26,7 @@ control.register()
 hud.register()
 game.hookLoadedClasses()
 
--- Host loops: links and the takeover reconcile once a second; the meter advances five times a second.
+-- Host loops: links and the takeover reconcile once a second; the meter and the lair's leash run five times a second.
 LoopInGameThreadWithDelay(1000, function()
   if not game.isHost() then
     return
@@ -37,7 +38,9 @@ end)
 LoopInGameThreadWithDelay(200, function()
   if game.isHost() then
     abilities.tick()
+    lair.tick()
   end
 end)
 
-game.log("Loaded. %s in the lobby volunteers to be the entity.", config.keys.volunteer)
+game.log("Loaded. %s in the lobby volunteers to be the entity; the host's %s turns entity mode on or off.",
+  config.keys.volunteer, config.keys.entityMode)

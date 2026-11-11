@@ -5,9 +5,10 @@
 -- The game binds all gameplay input on its player controller (BP_MyPlayerController.InpActEvt_IA_*), and every
 -- handler forwards to the possessed pawn's BPI_PlayerInput interface. The squid doesn't implement it, so while the
 -- player drives the squid those handlers do nothing; post-hooks on them drive the squid instead. The player's own
--- key bindings therefore carry over unchanged. Movement and look apply here, where the player's movement
--- prediction runs; every other action is a command for the host.
+-- key bindings therefore carry over unchanged. Movement, look and the view apply here, where the player's movement
+-- prediction and camera run; every other action is a command for the host.
 
+local camera = require("entity.camera")
 local config = require("entity.config")
 local game = require("entity.game")
 local links = require("entity.links")
@@ -88,8 +89,16 @@ local function button(command)
   end
 end
 
+local function toggleView(controller, actionValueParameter)
+  if not drivenSquid(controller) or not buttonPressed(actionValueParameter) then
+    return
+  end
+  camera.toggle(controller)
+end
+
 -- The handler for each game input action the entity uses, by the action's name (IA_<Name>). Buttons become a host
--- command when pressed; the rest of the game's actions (reload, weapon slots, ...) mean nothing to the squid.
+-- command when pressed, except the flashlight, which the squid has no use for and which switches the view instead.
+-- The rest of the game's actions (reload, weapon slots, ...) mean nothing to the squid.
 local handlerByAction = {
   Move = move,
   Look = look,
@@ -97,10 +106,12 @@ local handlerByAction = {
   ADS = button("Leap"),
   Interact = button("Vent"),
   Crouch = button("Peek"),
+  FlashLight = toggleView,
 }
 
--- The game has no jump, so the mod's own keys fill in: the ultimate, and volunteering in the lobby. UE4SS key binds
--- run outside the game thread, so each hops onto it before touching game objects.
+-- The game has no jump, so the mod's own keys fill in: the ultimate, volunteering in the lobby, and entity mode (the
+-- host decides whether a press counts). UE4SS key binds run outside the game thread, so each hops onto it before
+-- touching game objects.
 local function registerKeys()
   RegisterKeyBind(Key[config.keys.ultimate], function()
     ExecuteInGameThread(function()
@@ -114,6 +125,12 @@ local function registerKeys()
   RegisterKeyBind(Key[config.keys.volunteer], function()
     ExecuteInGameThread(function()
       links.sendCommand("Volunteer", nil, nil)
+    end)
+  end)
+
+  RegisterKeyBind(Key[config.keys.entityMode], function()
+    ExecuteInGameThread(function()
+      links.sendCommand("ToggleEntityMode", nil, nil)
     end)
   end)
 end
@@ -144,6 +161,7 @@ local function onBecameEntity()
   if squid then
     controller:SetViewTargetWithBlend(squid, 0, 0, 0, false)
   end
+  camera.begin(controller)
   game.log("Became the entity; move input ignored: %s, look input ignored: %s",
     tostring(controller:IsMoveInputIgnored()), tostring(controller:IsLookInputIgnored()))
   controller:ResetIgnoreMoveInput()
@@ -165,6 +183,12 @@ function control.register()
     end)
   registerKeys()
   links.onClientEvent("BecameEntity", onBecameEntity)
+  links.onClientEvent("Lost", function()
+    local controller = game.localController()
+    if controller then
+      camera.reset(controller)
+    end
+  end)
 end
 
 return control

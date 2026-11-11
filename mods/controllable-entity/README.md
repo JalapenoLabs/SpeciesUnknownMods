@@ -3,7 +3,8 @@
 One player becomes the mission's monster and hunts the crew. Balanced around a kill meter instead of free instant
 kills, and around sound instead of wallhacks.
 
-- **Status:** first version built and tested offline, awaiting its first playtest (see [Test plan](#test-plan)).
+- **Status:** playtested alone twice (volunteering, takeover and HUD work); moving, the lair and co-op are next
+  (see [Test plan](#test-plan)).
 - **Payload:** the Lua mod [`ControllableEntity/`](ControllableEntity/) plus the pak `ControllableEntity_P`, built by
   `scripts/package-mods.sh`.
 - **Who installs it:** every player (the mod adds networked gameplay and a HUD).
@@ -19,10 +20,30 @@ kills, and around sound instead of wallhacks.
 
 ### Choosing the entity
 
-- In the lobby, a player presses F8 to be the entity next mission (F8 again backs out). The choice is private:
-  only that player sees it; the host is told over the network. There is one entity per mission.
-- The entity is chosen before the mission loads, so the mission spawns the squid as its specimen, with the right
-  bodies and corpses loaded.
+- **Entity mode** is on by default. The host's F9 turns it on or off for the session, and only the host sees the
+  "Entity mode: ON/OFF" message. Anyone else's F9 shows them that the host decides. Turning it off releases the
+  volunteer; an entity already playing finishes their mission.
+- **Volunteering:** in the lobby, a player presses F8 to be the entity next mission (F8 again backs out). The choice
+  is private: only that player sees it; the host is told over the network. There is one entity per mission.
+- **Random pick:** in co-op with no volunteer, a random player becomes the entity when the squid appears. The pick
+  lasts one mission. Playing alone there is no random pick, only a volunteer.
+- While entity mode is on, every co-op mission's specimen is the squid, and so is a solo mission with a volunteer.
+  The squid is forced from the lobby, before the mission loads, so the mission spawns it with the right bodies and
+  corpses loaded. The mission rolls its monster seconds after it loads, before every player has arrived, which is
+  why the random pick can't wait until then to decide.
+
+### The start: the lair and the power
+
+- At the takeover the squid goes straight into a vent (its lair), at least 25 m from every crew member when the
+  map allows, otherwise as far from them as possible. It doesn't start where the game spawned it.
+- Missions start with the ship's power off, and the crew is safe until they turn it on: the game's own grace
+  period. Until then the squid stays in the ducts within 12 m of its lair. Moving and looking stay free, and so do
+  the lash and peeking, but leaving the ducts (the vent drop, the leap, the ultimate) waits for the power. Straying
+  past the leash, or dropping out of the ducts, puts the squid back.
+- Once the power is on, the squid is free for good, even if the crew turns the power off again. Contracts that
+  start with the power on leave it free from the start.
+- How the game represents the power and the vents:
+  [docs/game-internals.md](../../docs/game-internals.md#gameplay-state-worth-knowing).
 
 ### Kill meter
 
@@ -80,15 +101,15 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
 
 ### Vents
 
-- Interact climbs into the nearest vent entrance within 3 m, or drops out of the nearest exit within 4 m onto any
-  crew member below. Crouch peeks down through the grate. All three use the squid's own vent moves (`JumpToVent`,
+- Interact climbs into the vent shaft within 4 m across the floor, or drops out of the one within 4 m onto any crew
+  member below. Crouch peeks down through the grate. All three use the squid's own vent moves (`JumpToVent`,
   `AttackFromVent`, `LookFromVent`).
 - On the roadmap: highlighting nearby vent entrances, and an overlay of the duct network while inside.
 
 ### Controls and HUD
 
 The entity uses the player's own input actions, so their key bindings carry over. The game has no jump and no free
-key the mod could reuse, so the mod's two keys are its own.
+key the mod could reuse, so the mod's three keys are its own.
 
 | Input | As the entity |
 |-------|---------------|
@@ -97,12 +118,19 @@ key the mod could reuse, so the mod's two keys are its own.
 | Aim (`IA_ADS`) | Leap where you look; a grab on landing is broken off unless the kill is ready |
 | Interact (`IA_Interact`) | Climb into the nearest vent, or drop out of it onto whoever is below |
 | Crouch (`IA_Crouch`) | Peek down through the grate while in a vent |
+| Flashlight (`IA_FlashLight`) | Switch between third person (the start) and first person |
 | Space (mod key) | Ultimate: with a full meter, leap (or drop) and the grab kills |
 | F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out |
+| F9 (mod key, host only) | Turn entity mode on or off |
+
+The view starts in third person: the engine's own free camera behind the squid, which pulls in when a wall is in
+the way. First person is the squid's eye view.
 
 The HUD puts the kill meter bottom centre (`HEAD GRAB  73%`, then `HEAD GRAB READY [SPACE]`), abilities with their
 cooldowns bottom left, a `FRENZY` banner top centre, short messages mid-screen, and noise pings as coloured
-markers over the world: red gunshots, blue footsteps, amber alarms, doors and explosions.
+markers over the world: red gunshots, blue footsteps, amber alarms, doors and explosions. A message stays a second
+plus 300 ms a word, at least three seconds; the volunteer's status and the lair's "wait for the power" hint stay
+until they change. The crew HUD (status bars, objectives, crosshair) is hidden while the player is the squid.
 
 There's no sprint yet: the crew's sprint is bound on the crew character, not the controller, so it never reaches
 the squid. The squid moves at the game's combat speed.
@@ -126,13 +154,16 @@ create: network events and a widget layout.
   | Module | Runs on | Does |
   |--------|---------|------|
   | `links.lua` | both | Spawns a `BP_EntityLink` per player (host) and routes its events to the modules below |
-  | `takeover.lua` | host | Volunteering, forcing the squid, possessing it, crew exclusion, loss |
+  | `takeover.lua` | host | Entity mode, volunteering and the random pick, forcing the squid, possessing it, crew exclusion, loss |
+  | `lair.lua` | host | The start in a vent away from the crew, and the leash until the power is on |
+  | `vents.lua` | host | Finding vent shafts and the in-duct spots beside them |
   | `abilities.lua` | host | Commands to squid moves, cooldowns, the grab rule, the meter's tick |
   | `meter.lua` | host | The kill meter and frenzy rules, as plain logic (unit tested) |
   | `frenzy.lua` | host | The three frenzy triggers |
   | `senses.lua` | host | Noise sources to blurred pings |
   | `control.lua` | entity player | Input to movement and commands; the mod's keys |
-  | `hud.lua` | entity player | The HUD |
+  | `camera.lua` | entity player | Third and first person |
+  | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
   | `game.lua`, `config.lua` | both | Game paths and helpers; every tunable |
 
 - **Blueprint pak** (`ControllableEntity_P`, in `Content/Paks/~mods/`), generated from code by the asset builder
@@ -185,6 +216,9 @@ kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack 
 - `tests/meter_test.lua`: the meter and frenzy rules.
 - `tests/host_flow_test.lua` and `tests/client_flow_test.lua`: the real scripts through a whole round, as the host
   and as the entity player's machine, against `tests/fake_ue4ss.lua`, a stand-in for UE4SS and the game objects.
+- `tests/entity_mode_test.lua`: F9, forcing the squid from the lobby, and the random pick.
+- `tests/lair_test.lua`: the start in a vent, the leash and the power.
+- `tests/solo_flow_test.lua` and `tests/lobby_display_squid_test.lua`: playing alone, and regressions from playtests.
 
 They prove the wiring, call shapes and rules. Only a playtest proves the game agrees with the stand-in.
 
@@ -201,6 +235,7 @@ damage, sphere checks and the kill only run where `IsServer` is true.
 | Leap | `BPI_Monster_CanSpecialAttack` (checks angle, 300 to 500 units, a clear `PredictJumpAttack` arc, then writes `LastSpecialAttackPlayerLocation`) -> `BPI_Monster_SetSpecialAttack(target)` | Write `LastSpecialAttackPlayerLocation` from the aim point (validated with `PredictJumpAttack`), then `SetSpecialAttack` |
 | Head grab | The leap's forward sphere check hits a grabbable player -> `GrabHeadAnim (Multi)` + `Timeline_GrabHead_Start` | Comes from the leap, or from a vent drop |
 | Enter vent | A navmesh smart link calls `MonsterUseVent` -> `BPI_Monster_JumpToVent(vent, true)` | Find the nearest `BP_Vent_Up` and call `JumpToVent` (smart links only fire for AI path following) |
+| Start in a vent | The AI walks the ducts to the spots beside each shaft (`BTTask_FindClosestVentpoint`, from `BPI_Vent_GetAllpointLocation`) | Read the same spots (`Point1Component` to `Point4Component`), `BPI_Monster_SetInVent(true)`, then `K2_TeleportTo` the spot |
 | Leave vent / drop attack | `BTService_CheckPlayerDownVent` -> `BPI_Monster_AttackFromVent(vent, player)` | Same call; `player` may be none |
 | Peek down | `BTTask_LookFromVent` -> `BPI_Monster_LookFromVent(vent, on, noise)` | Same call |
 | Speed | `BTTask_SetSpeedType` -> `GetSpeedByType(type)` -> `BPI_Monster_SetSpeed` (0 walk, 1 combat, 2 combat loose, 3 escape, 4 max, 5 escape from capture; `IsAngry` forces max) | Same calls |
@@ -220,8 +255,10 @@ Possession notes:
 
 - `CanMove` gates movement on `IsAttacking`, `IsLookingDownVent` and similar flags; the input handler should
   respect it.
-- The AI's own timers (`CheckTarget`, `Check If Stuck`) only start when the controller is a
-  `BP_Basic_AI_Controller`, so possessing at spawn skips them. Taking over a live squid needs them cleared.
+- The AI's own timers (`CheckTarget`, `Check If Stuck`) start when the controller is a `BP_Basic_AI_Controller`,
+  so a squid taken over after it spawned has them running. `Check If Stuck` respawns a monster that hasn't moved for
+  20 seconds through `BP_GameManager.InitMonster`, which destroys it, and a player lying in wait stands still that
+  long. The takeover sets the squid's `ShouldCheckIfStuck` to false, the flag that check reads first.
 - `BP_ParentMonster` can teleport a monster back onto the navmesh when it walks off it
   (`OutOfNavCheckEvent` -> `TeleportToNavigationPoint`). What triggers it is untraced.
 - Motion warping targets are set only on the host, so the leap and vent jumps may rubber-band on the squid
@@ -325,29 +362,47 @@ makes the next mission spawn the squid, through the game's own spawn path (`GetM
 
 UE4SS writes the mod's log lines, all starting `[ControllableEntity]`, to `Win64/ue4ss/UE4SS.log` on each machine.
 
-**Testing alone** works for steps 1 to 5 (volunteering, the takeover, moving, the moves and the HUD). There's nobody
-to lash, grab or hear, and the shuttle can't launch: as the only player you stay on the crew list (emptying it ends
-the mission), and the squid can't sit. Leave through the pause menu. Steps 6 to 10 need at least one friend.
+**Testing alone** works for steps 1 to 7 (volunteering, the takeover, moving, the view, the lair and the moves).
+There's nobody to lash, grab or hear, and the shuttle can't launch: as the only player you stay on the crew list
+(emptying it ends the mission), and the squid can't sit. Leave through the pause menu. Steps 8 to 15 need at least
+one friend.
 
-1. **Loads.** Every player launches with UE4SS, the pak and the Lua installed. The log shows
-   `Loaded. F8 in the lobby volunteers to be the entity.` and, once in the lobby, `Hooked ... BP_MyPlayerController`.
+1. **Loads.** Every player launches with UE4SS, the pak and the Lua installed. The log shows `Loaded. F8 in the lobby
+   volunteers to be the entity; the host's F9 turns entity mode on or off.` and, once in the lobby,
+   `Hooked ... BP_MyPlayerController`.
 2. **Volunteering is private.** In the lobby, one player presses F8. Only they see "You'll be the entity next
    mission". Pressing F8 again backs out; a second player pressing F8 while someone is signed up sees "Someone else
    already claimed the entity".
 3. **The squid is forced and taken.** Start a contract. The mission's specimen is the squid, the volunteer sees
    "You are the entity" and controls it, and the host's log shows `took control of the squid` then
-   `Kept the entity out of the crew`. The volunteer's crew body is gone. On Hawking the squid only spawns once a
+   `The squid starts in a vent at ...`. The volunteer's crew body is gone. On Hawking the squid only spawns once a
    crew member steps out of the shuttle, so until then the volunteer plays as crew; alone, walk out yourself (see
    [How the mission's monster is chosen](#how-the-missions-monster-is-chosen)).
-4. **Moving.** Walk, look, and check the crew see the squid move smoothly. Note any rubber-banding.
-5. **Lash, leap, vents.** Shoot next to a crew member: a lash with a cooldown on the HUD. Aim: a leap where you
-   look; a grab on landing breaks off with "Your hunger isn't ready". Interact by a vent: climb in; Crouch peeks;
-   Interact again drops out.
-6. **The kill.** Wait for the meter to fill (90 s, faster near noise), press Space facing a crew member: the leap's
+4. **Moving and looking.** The view jumps into the vents, behind the squid. Walk and look around. The log shows
+   `Move value X=...` and `Look value X=...` lines once each. If walking or looking still does nothing, send the log:
+   those lines say whether the input reaches the squid. Check the crew see the squid move smoothly, and note any
+   rubber-banding.
+5. **The view and the HUD.** The Flashlight key switches to first person and back. The crew HUD (health, stamina,
+   objectives, crosshair) is gone; the entity HUD is there.
+6. **The lair.** With the power still off, the hint "Lurk in the vents until the crew turns the power on" stays on
+   screen. Crawl away from the start: past about 12 m the squid snaps back, and Interact, Aim and Space answer "The
+   vents hold you until the power is on". When the crew turns the power on, the entity sees "The power is on. Hunt."
+   and roams freely. Alone, nobody can turn it on; a contract that starts with the power on shows the squid free
+   from the start.
+7. **Vents and peeking.** Once free: Interact over a vent opening drops out; Interact standing under a vent climbs
+   in; Crouch in a vent peeks through the grate. Crouch outside a vent says "Peek works from inside a vent".
+8. **Entity mode.** In a co-op lobby the host presses F9: only the host sees "Entity mode: OFF"; the next mission
+   rolls its own monster and nobody becomes it. F9 again turns it back on. A client's F9 shows "The host turns entity
+   mode on or off".
+9. **The random pick.** In co-op, with nobody volunteering, start a contract: the squid is the specimen, and when it
+   appears one random player becomes it (only they are told). The next mission picks again.
+10. **The lash and the leap.** Shoot next to a crew member: a lash with a cooldown on the HUD. Aim: a leap where you
+   look; a grab on landing breaks off with "Your hunger isn't ready".
+11. **The kill.** Wait for the meter to fill (90 s, faster near noise), press Space facing a crew member: the leap's
    grab kills. The meter empties.
-7. **Senses.** Have the crew shoot, walk and trigger doors and alarms out of sight. The entity sees fading markers
+12. **Senses.** Have the crew shoot, walk and trigger doors and alarms out of sight. The entity sees fading markers
    through walls, never the players themselves.
-8. **Frenzy.** On an extraction contract, pick up the black box: `FRENZY` appears and grabs kill without meter, each
+13. **Frenzy.** On an extraction contract, pick up the black box: `FRENZY` appears and grabs kill without meter, each
    re-arming after 7 s.
-9. **Launching.** The crew board the shuttle and launch without the entity; with the squid aboard, it doesn't launch.
-10. **Losing.** Kill the squid: the entity player sees "The crew got you" and watches a crew member.
+14. **Launching.** The crew board the shuttle and launch without the entity; with the squid aboard, it doesn't launch.
+15. **Losing.** Kill the squid: the entity player sees "The crew got you" and watches a crew member.

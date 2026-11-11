@@ -1,18 +1,24 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- Host side of becoming the entity: volunteering in the lobby, forcing the squid as the mission's specimen, taking
--- control of it when the mission starts, keeping the entity player out of the crew, and noticing when they lose.
+-- Host side of becoming the entity: entity mode, volunteering in the lobby (or a random pick), forcing the squid as
+-- the mission's specimen, taking control of it when it spawns, keeping the entity player out of the crew, and noticing
+-- when they lose.
 --
 -- Lua state outlives map travel, so the volunteer is remembered from the lobby into the mission and back.
 
 local game = require("entity.game")
+local lair = require("entity.lair")
 local links = require("entity.links")
 
 local takeover = {}
 
--- Who volunteered, by the game's own lobby player id (stable across travel, unlike the controller and player state
--- objects, which are rebuilt on every map).
+-- Entity mode, which the host turns on or off for the session. While it's on, every co-op mission has an entity.
+local entityModeOn = true
+-- Who will be the entity, by the game's own lobby player id (stable across travel, unlike the controller and player
+-- state objects, which are rebuilt on every map): a volunteer, or the player picked at random this mission.
 local volunteerKey = nil
+-- True when volunteerKey came from the random pick, which lasts one mission; a volunteer stays until they back out.
+local chosenAtRandom = false
 -- The entity in the current world: { key, controller, squid, playerState, parkedBody, worldKey }, or nil.
 local activeEntity = nil
 -- The world the volunteer was last told their status in, so each new world tells them once.
@@ -72,7 +78,34 @@ function takeover.activeEntity()
 end
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
--- Volunteering
+-- Where we are
+-- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
+
+local function exists(className)
+  local object = FindFirstOf(className)
+  return object ~= nil and object:IsValid()
+end
+
+-- The lobby's game mode (BP_LobbyGameMode) is a subclass of the mission's (BP_PlayableGameMode), so "a playable game
+-- mode exists" is true in the lobby too; the lobby has to be ruled out by name.
+local function isLobby()
+  return exists(game.classNames.lobbyGameMode)
+end
+
+local function isMission()
+  return not isLobby() and exists(game.classNames.missionGameMode)
+end
+
+local function isMainMenu()
+  return exists(game.classNames.mainMenuGameMode)
+end
+
+local function playerControllers()
+  return FindAllOf(game.classNames.playerController) or {}
+end
+
+-- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
+-- Entity mode and volunteering
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
 -- BP_MyGameInstance.spawnForceSessionMonster: when set (not 0 or 1), BP_GameManager spawns that monster instead of
@@ -86,18 +119,35 @@ local function forceSquid(enabled)
   gameInstance.spawnForceSessionMonster = enabled and game.squidMonsterType or 0
 end
 
+-- Decides the next mission's specimen, from the lobby. The mission rolls its monster seconds after it loads, before
+-- every player has even arrived, so the squid is forced whenever the mission will have an entity: a volunteer, or a
+-- random pick among two or more players. Playing alone, only a volunteer makes sense.
+local function syncForcedSquid()
+  forceSquid(entityModeOn and (volunteerKey ~= nil or #playerControllers() >= 2))
+end
+
+local function forgetVolunteer()
+  volunteerKey = nil
+  chosenAtRandom = false
+  announcedWorldKey = nil
+end
+
 -- Toggles the sender as the entity. Only the sender is told; the rest of the crew learns nothing until the mission.
 local function onVolunteer(_, controller)
+  if not entityModeOn then
+    links.sendEvent(controller, "Denied.EntityModeOff")
+    return
+  end
+
   local key = playerKey(controller.PlayerState)
   if not key then
     game.log("Volunteer command from a controller without a player state")
     return
   end
 
-  if volunteerKey == key then
-    volunteerKey = nil
-    announcedWorldKey = nil
-    forceSquid(false)
+  if volunteerKey == key and not chosenAtRandom then
+    forgetVolunteer()
+    syncForcedSquid()
     links.sendEvent(controller, "Unvolunteered")
     game.log("%s is no longer the entity", key)
     return
@@ -110,9 +160,53 @@ local function onVolunteer(_, controller)
 
   volunteerKey = key
   announcedWorldKey = currentWorldKey()
-  forceSquid(true)
+  syncForcedSquid()
   links.sendEvent(controller, "Volunteered")
   game.log("%s will be the entity next mission", key)
+end
+
+-- Turns entity mode on or off; only the host may. Turning it off releases the volunteer, so the next mission is the
+-- game's own. An entity already playing keeps playing until the mission ends.
+local function onToggleEntityMode(_, controller)
+  -- On the host, the host's own controller is the only local one
+  if not controller:IsLocalController() then
+    links.sendEvent(controller, "Denied.HostOnly")
+    return
+  end
+
+  entityModeOn = not entityModeOn
+  if not entityModeOn and volunteerKey then
+    local volunteer = controllerForKey(volunteerKey)
+    if volunteer then
+      links.sendEvent(volunteer, "Unvolunteered")
+    end
+    forgetVolunteer()
+  end
+  if isLobby() then
+    syncForcedSquid()
+  end
+
+  links.sendEvent(controller, entityModeOn and "EntityModeOn" or "EntityModeOff")
+  game.log("Entity mode is %s", entityModeOn and "on" or "off")
+end
+
+-- With no volunteer, a co-op mission's entity is a player picked at random once the squid is there to take.
+local function pickAtRandom()
+  local controllers = {}
+  for _, controller in ipairs(playerControllers()) do
+    if controller:IsValid() and playerKey(controller.PlayerState) then
+      table.insert(controllers, controller)
+    end
+  end
+  if #controllers < 2 then
+    return nil
+  end
+
+  local chosen = controllers[math.random(#controllers)]
+  volunteerKey = playerKey(chosen.PlayerState)
+  chosenAtRandom = true
+  game.log("%s was picked at random to be the entity", volunteerKey)
+  return chosen
 end
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
@@ -156,17 +250,6 @@ end
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 -- Taking control
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
-
--- The lobby's game mode (BP_LobbyGameMode) is a subclass of the mission's (BP_PlayableGameMode), so "a playable game
--- mode exists" is true in the lobby too; the lobby has to be ruled out by name.
-local function isMission()
-  local lobbyGameMode = FindFirstOf("BP_LobbyGameMode_C")
-  if lobbyGameMode and lobbyGameMode:IsValid() then
-    return false
-  end
-  local gameMode = FindFirstOf("BP_PlayableGameMode_C")
-  return gameMode ~= nil and gameMode:IsValid()
-end
 
 -- The mission's specimen, when it is the squid: the monster BP_GameManager spawned (its Monster property). Other
 -- squids exist too, like the specimen on display in the lobby, and must never be taken over.
@@ -212,7 +295,7 @@ local function releaseParkedBody(entity)
   game.log("Removed the entity's parked crew body")
 end
 
-local function takeControl(controller, squid)
+local function takeControl(controller, squid, worldKey)
   local crewBody = controller.Pawn
 
   -- The squid's AI controller would fight the player for it; it goes away for good
@@ -240,21 +323,29 @@ local function takeControl(controller, squid)
   squid:BPI_Monster_GetSpeedByType(1, speed)
   squid:BPI_Monster_SetSpeed(speed.Speed)
 
+  -- The AI's stuck check (BP_BaseMonster."Check If Stuck", every second) respawns a monster that hasn't moved for 20
+  -- seconds, through BP_GameManager.InitMonster, which destroys it. A player lying in wait stands still for longer
+  -- than that, and losing the squid would end their game
+  squid.ShouldCheckIfStuck = false
+
   activeEntity = {
     key = volunteerKey,
     controller = controller,
     squid = squid,
     playerState = controller.PlayerState,
     parkedBody = parkedBody,
+    worldKey = worldKey,
   }
   releaseParkedBody(activeEntity)
   links.sendEvent(controller, "BecameEntity")
   game.log("%s took control of the squid", volunteerKey)
+  lair.begin(squid, controller)
 end
 
 local function noticeLoss()
   local entity = activeEntity
   activeEntity = nil
+  lair.forget()
   if not entity.controller:IsValid() then
     return
   end
@@ -269,19 +360,6 @@ local function noticeLoss()
   end
 end
 
-local function isMainMenu()
-  local gameMode = FindFirstOf("BP_MainMenuGameMode_C")
-  return gameMode ~= nil and gameMode:IsValid()
-end
-
--- Back at the main menu the session is over: nobody is the entity any more, and the next session's mission must roll
--- its monster normally.
-local function forgetVolunteer()
-  game.log("%s is no longer the entity (back at the main menu)", volunteerKey)
-  volunteerKey = nil
-  announcedWorldKey = nil
-  forceSquid(false)
-end
 
 -- Tells the volunteer their status once per world, after their link has had time to reach them: in the lobby that
 -- they're signed up, in a mission that the squid is still to come.
@@ -301,11 +379,26 @@ function takeover.reconcile()
   -- a loss, so the entity is forgotten quietly
   if activeEntity and activeEntity.worldKey ~= worldKey then
     activeEntity = nil
+    lair.forget()
   end
 
-  if volunteerKey and isMainMenu() then
-    forgetVolunteer()
+  -- Back at the main menu the session is over: nobody is the entity any more, and the next session's mission must
+  -- roll its monster normally
+  if isMainMenu() then
+    if volunteerKey then
+      game.log("%s is no longer the entity (back at the main menu)", volunteerKey)
+      forgetVolunteer()
+    end
+    forceSquid(false)
     return
+  end
+
+  -- A random pick lasts one mission; back in the lobby, the next mission picks again
+  if chosenAtRandom and not isMission() then
+    forgetVolunteer()
+  end
+  if isLobby() then
+    syncForcedSquid()
   end
 
   if activeEntity then
@@ -321,7 +414,18 @@ function takeover.reconcile()
     return
   end
 
+  if not entityModeOn then
+    return
+  end
+
+  -- On Hawking the squid spawns only once a crew member leaves the shuttle
+  local squid = isMission() and missionSquid() or nil
+
   if not volunteerKey then
+    local chosen = squid and pickAtRandom() or nil
+    if chosen then
+      takeControl(chosen, squid, worldKey)
+    end
     return
   end
 
@@ -331,15 +435,9 @@ function takeover.reconcile()
     return
   end
   announceVolunteer(controller, worldKey)
-
-  -- On Hawking the squid spawns only once a crew member leaves the shuttle
-  local squid = isMission() and missionSquid() or nil
-  if not squid then
-    return
+  if squid then
+    takeControl(controller, squid, worldKey)
   end
-
-  takeControl(controller, squid)
-  activeEntity.worldKey = worldKey
 end
 
 -- The crew character adds its player to the crew list once it is possessed (BP_Character.ReceivePossessed). If that
@@ -357,6 +455,7 @@ end
 
 function takeover.register()
   links.onCommand("Volunteer", onVolunteer)
+  links.onCommand("ToggleEntityMode", onToggleEntityMode)
   game.hookWhenLoaded(game.paths.gameStateClass, "UpdateInGamePlayers", onCrewListChanged)
 end
 
