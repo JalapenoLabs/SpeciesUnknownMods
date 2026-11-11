@@ -162,6 +162,17 @@ namespace {
 		return Slot;
 	}
 
+	// A label inside a row, which places it
+	FModWidgetElement MakeLabel(const TCHAR* Name, const TCHAR* Text, int32 FontSize, FLinearColor Color) {
+		FModWidgetElement Label;
+		Label.Name = Name;
+		Label.Kind = EModWidgetKind::Text;
+		Label.Text = Text;
+		Label.FontSize = FontSize;
+		Label.Color = Color;
+		return Label;
+	}
+
 	// One key hint under the minimap: the key's glyph and what it does, as <Name>Key and <Name>Label inside <Name>.
 	FModWidgetElement MakeKeyHint(const TCHAR* Name, const TCHAR* Label, FLinearColor Color) {
 		FModWidgetElement Hint;
@@ -175,16 +186,6 @@ namespace {
 		return Hint;
 	}
 
-	// A label inside a row, which places it
-	FModWidgetElement MakeLabel(const TCHAR* Name, const TCHAR* Text, int32 FontSize, FLinearColor Color) {
-		FModWidgetElement Label;
-		Label.Name = Name;
-		Label.Kind = EModWidgetKind::Text;
-		Label.Text = Text;
-		Label.FontSize = FontSize;
-		Label.Color = Color;
-		return Label;
-	}
 
 	// WBP_EntityHUD: the entity player's HUD, laid out like the crew's own. Bottom left: the actions stacked
 	// vertically, with the health and stamina bars below them. Top right: the minimap (the game's own widget, which Lua

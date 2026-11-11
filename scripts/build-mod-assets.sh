@@ -22,6 +22,11 @@ rendered_art_root="$repository_root/unreal/SpeciesUnknown/Saved/ModArt"
 # The size each icon is rendered at; the HUD draws them at about a third of this, so they stay sharp on 4K screens.
 icon_pixels=128
 
+# The list of mods that built is cleared first, so a failure at any step (the compile included) leaves it empty rather
+# than naming the last run's mods, whose stale assets would then be packed
+mkdir -p "$(dirname "$built_list")"
+: >"$built_list"
+
 shopt -s nullglob
 for icon_source in "$repository_root"/mods/*/art/icons/*.svg; do
   mod_name="$(basename "$(dirname "$(dirname "$(dirname "$icon_source")")")")"
@@ -34,8 +39,7 @@ done
 "$engine_root/Engine/Build/BatchFiles/Linux/Build.sh" SpeciesUnknownEditor Linux Development \
   -project="$uproject" -WaitMutex
 
-mkdir -p "$(dirname "$log_file")" "$(dirname "$built_list")"
-: >"$built_list"
+mkdir -p "$(dirname "$log_file")"
 echo "Generating mod assets (log: ${log_file#"$repository_root"/})"
 # The pythonscript commandlet hands everything after the script's path to it as its arguments
 if ! "$engine_root/Engine/Binaries/Linux/UnrealEditor-Cmd" "$uproject" -run=pythonscript \
