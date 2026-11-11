@@ -63,7 +63,9 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
 - **The ship's power** is `BP_MyGameState.LightStatut` (`LightStatutEnum`, replicated): 0 on, 1 off, 2 evacuation
   (self destruct armed; `CanLightOff` is false), 3 limited (emergency power, dimmed). `BP_GameManager` sets it at
   mission start: off, unless the contract has `PowerAtStart` (then it stays on, or limited with `EmergencyPower`).
-  `OnRep_LightStatut` runs on every machine when it changes.
+  `OnRep_LightStatut` runs on every machine when it changes; on the host, `ChangeLightStatut` calls it after every
+  change. The switch-off comes `DesactivatePowerStartDelay` into the mission, so until then the power reads on even on
+  a contract without power at start, and a contract with power at start (without emergency power) never changes it.
 - **Vents** are `BP_Vent_Up` actors (`BP_Vent_Up_POLAR` on Polar): vertical shafts from a room's ceiling into the
   ducts, standing on the room's floor. Up to four billboard components (`Point1Component` to `Point4Component`) mark
   spots beside each shaft's top, inside the duct; `BPI_Vent_GetAllpointLocation` returns them. Crossing a shaft's
@@ -96,7 +98,24 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
   it counted. `UMG_MiniMap` dims the base map to 15% while an extra layer shows.
 - **Monsters respawn when stuck.** `BP_BaseMonster."Check If Stuck"` runs every second once an AI controller
   possesses the monster. After 20 seconds without moving it calls `BP_GameManager.InitMonster(false, ...)`, which
-  destroys the monster and spawns a new one. `ShouldCheckIfStuck` turns the check off.
+  destroys the game manager's *tracked* monster (`Monster`), not necessarily the stuck one, and spawns a new one.
+  `ShouldCheckIfStuck` turns the check off; nothing in the game writes it.
+- **The game manager spawns and tracks one monster.** `BP_GameManager.SpawnMonsterEvent` spawns the class at
+  `GetSpawnPoint` (after the first spawn, the map's `MonsterSpawnPoint`; the Terminator picks from its own
+  `PowerOnSpawnPoint` and `NoVentSpawnPoint` lists) with `BeginDeferredActorSpawnFromClass` (collision 2, adjust but
+  always spawn) and `FinishSpawningActor`, stores it in `Monster`, then `SetUpBaseMonsterState` sets up whatever
+  `Monster` names: damage multiplier, difficulty, `Respawn Data`, the far-away sound, combat music and, after the first
+  spawn, the escape route's nav modifiers. `GameTimeProgression` pushes the mission's rising aggression to `Monster`
+  once a second, and `BPI_GameState_ForceSound` (doors, alarms, canisters) reaches only `Monster`. Map load places
+  per-species content for `MonsterToSpawn` alone: the Zombie Master's zombie bodies, and the special weapon for its
+  weakness.
+- **Monsters only target the crew.** Every target check (sight in `BP_BaseMonster.CheckTarget`, hearing, damage and
+  touch) requires the `BPI_Human` interface, which no monster implements, and no monster makes an AI-audible noise
+  (`BP_ParentMonster.FootstepsNoiseReport` is false on every monster class). Melee attacks and grabs catch only
+  `BPI_Human` actors; the Terminator's gatling and grenades damage anything they hit.
+- **Any monster's death ends the mission.** `BP_BaseMonster.FinishDeath`, a few seconds after death (the Ghost 4 s,
+  the squid 15 s), calls `BPI_GameState_FinishGame` as a kill on kill, capture and extraction contracts, unless the
+  self destruct is armed. Every death also calls `BPI_GameState_SetMonsterOff`, which stops the monster music.
 - **The squid has two health pools** (`BP_Monster_Poulpi`; neither replicates). Hits drain `HealthTemporal`, its
   stagger pool; at zero the squid falls to the ground (`IsOnGround`) and `MaxHealthTemporal` grows by 10%. Only while
   it is down and burning (`HeatValue` above 0.15) do hits drain `Health`; at zero it breaks its eye and head and dies.
@@ -105,6 +124,20 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
   `AttackSimpleAnim (Clients)` multicast. Its damage is the montage's notify, a sphere check in front of the monster
   (`BP_ParentMonster.BasicSphereAttackDamage`) that runs only while the monster is attacking. `SetSimpleAttack` does
   nothing without a valid target.
+- **Contracts and their modifiers.** `ContractStruct` holds one fixed field per modifier (`PowerAtStart`,
+  `EmergencyPower`, `Turret`, ...). `BP_Mission_FunctionLibrairy.GenerateContracts` builds the lobby's list on the host
+  (balancing modifiers against bounty targets per tier, `ContractGenParams_DataTable`); `BP_ContractManagerTerminal`
+  stores it in its replicated `generatedContracts`, and the chosen one travels through `BP_MyGameInstance.Contract`
+  into the replicated `BP_MyGameState.Contract`. Every screen that lists modifiers (the contract card and details, the
+  shuttle's mission start page, the Tab brief, the score screen) walks the released rows of
+  `GlobalModifiersStatus_DT`, reads each through a switch over the game's names (`Contract Get Bool Modifier From
+  Player View`) and draws it from its `ContractModifier_Data` row (name, icon, description) and its
+  `Addiitonal_Bounty_DataTable` row (bounty), by row name. `Bonus`, `TimeLimit`, `TestModif` and `PirateInfasion` are
+  set to defaults and never read by gameplay; `PirateInfasion` is still summed into the bounty.
+- **Each player is paid on their own machine.** The score screen (`WBP_ScorePage.SetUpBaseMission`) adds the
+  objective's bounty and `BP_Mission_FunctionLibrairy.GetConditionalCombinedBounty` (what the modifiers pay) into the
+  mission bounty, adds the player's own score lines, and the seat pays the result into the local wallet
+  (`BPI_Player_AddMoney`, then `BP_MyGameInstance.AddAndSave_MoneyMonunt`). `MaxBounty` is only displayed.
 - **Default key bindings** (`IMC_Default`): Shift sprint, C crouch, LMB shoot, RMB aim, R reload, E interact,
   F flashlight, G drop weapon, Space hold tool, Tab show names, Left Ctrl radio. Each action's event handler on
   `BP_MyPlayerController` forwards to the possessed pawn. H, F8, F9 and the punctuation keys are free.
