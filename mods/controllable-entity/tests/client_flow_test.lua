@@ -68,6 +68,8 @@ fake.giveMovement(squid)
 local squidComponents = fake.acceptComponents(squid)
 -- The crew HUD the player's crew body created before the takeover
 local crewHud = fake.object("UI_HUD_Display_C")
+-- The bridge's wall map, which shows where the mission's items are
+local wallMap = fake.object("UMG_Map_C", nil, { GetVisibility = function() return 4 end })
 
 -- Regression (playtest 3): a module whose handler fails must not stop the others hearing the same event. Here a
 -- handler registered before everyone else's fails on the takeover; the HUD still learns the player is the entity
@@ -185,6 +187,9 @@ assert(createdWidgets == createdForMessage, "the HUD is created once")
 -- Regression (playtest 5): the respawn-capsule status set its own visibility again, so the crew HUD comes off the
 -- screen instead of being hidden
 assert(#fake.callsTo(crewHud, "RemoveFromParent") >= 1, "the crew HUD comes off the screen")
+-- Regression (playtest 6): the wall maps told the entity where the crew's special weapon was
+local wallMapVisibility = fake.callsTo(wallMap, "SetVisibility")
+assert(#wallMapVisibility >= 1 and wallMapVisibility[1].args[1] == 1, "the wall maps are blanked for the entity")
 assert(lastArgument(widget.UltimateBar, "SetPercent") == 0.5, "the bar shows the replicated meter")
 assert(lastArgument(widget.UltimateText, "SetText").text == "HEAD GRAB  50%")
 assert(lastArgument(widget.LashKeyText, "SetText").text == "LMB", "each ability shows its key")

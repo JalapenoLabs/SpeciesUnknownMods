@@ -108,7 +108,8 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
   member below. Crouch peeks down through the grate. All three use the squid's own vent moves (`JumpToVent`,
   `AttackFromVent`, `LookFromVent`).
 - **Seeing in the vents:** the ducts are unlit, and much of the network is invisible collision rather than modelled
-  walls. So the entity carries a soft light while in the vents (rooms have their own), and glowing light-blue discs
+  walls. So the entity carries a soft light (full in the ducts, faint in the rooms, which the game keeps dark on
+  purpose), and glowing light-blue discs
   mark the vent openings within 35 m: over the holes in the duct floor while inside, on the floor under each vent
   while in a room. Only the entity player's
   machine creates them, so nobody else sees either. They use the engine's own cylinder and the game's own unlit
@@ -166,7 +167,9 @@ The HUD runs along the top of the screen, in the game's own style for key prompt
   whatever it follows, so it follows an invisible actor that rides with the squid but never turns. Its item icons
   (the special weapons, the black box) are hidden: they stay on the map while a crew member carries them, which would
   show the entity where that player is.
-- The crew HUD (status bars, objectives, crosshair) is hidden while the player is the squid.
+- The crew HUD (status bars, objectives, crosshair) is hidden while the player is the squid, and so are the wall maps
+  on the bridge and in the planet's power room (`UMG_Map`, `UMG_Map_POLAR`, blank on the entity's screen only): they
+  show where the mission's items are, which the entity must find out by hunting, so the crew can mislead them.
 
 The keys shown are the game's default bindings; a player who rebinds an action sees the default. The icons are
 SVGs in [`art/icons/`](art/icons/).

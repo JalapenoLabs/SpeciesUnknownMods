@@ -1,7 +1,7 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- What only the entity player sees, on their own machine: a light around the squid while it is in the vents (the
--- rooms have their own lights), and glowing markers at the vent openings nearby. The ducts are unlit, and much of the network is invisible collision rather than modelled walls, so
+-- What only the entity player sees, on their own machine: a light around the squid (full in the unlit ducts, faint in
+-- the rooms), and glowing markers at the vent openings nearby. The ducts are unlit, and much of the network is invisible collision rather than modelled walls, so
 -- without these the entity can't tell where they are (playtest 4).
 --
 -- Everything here is created on the entity player's machine and never replicated, so no one else sees it. The
@@ -30,8 +30,8 @@ local IDENTITY_TRANSFORM = {
   Scale3D = { X = 1, Y = 1, Z = 1 },
 }
 
--- What this machine has built: { worldKey, squidAddress, lantern, lanternOn, markers = { actor, ... }, nextRefreshAt },
--- or nil.
+-- What this machine has built: { worldKey, squidAddress, lantern, lanternInVent, markers = { actor, ... },
+-- nextRefreshAt }, or nil.
 local built = nil
 
 -- Engine and game assets are in the game's asset registry, so LoadAsset finds them when nothing has loaded them yet.
@@ -62,8 +62,6 @@ local function giveLantern(squid)
   end
 
   lantern:SetIntensityUnits(CANDELAS)
-  lantern:SetIntensity(config.vision.lanternCandelas)
-  lantern:SetAttenuationRadius(config.vision.lanternRadius)
   lantern:SetLightColor(config.vision.lanternColor, true)
   lantern:SetCastShadows(false)
   return lantern
@@ -174,7 +172,7 @@ function vision.follow(controller, squid)
       worldKey = worldKey,
       squidAddress = squid:GetAddress(),
       lantern = giveLantern(squid),
-      lanternOn = nil,
+      lanternInVent = nil,
       markers = spawnMarkers(world),
       nextRefreshAt = 0,
     }
@@ -188,11 +186,13 @@ function vision.follow(controller, squid)
   built.nextRefreshAt = now + config.vision.markerRefreshSeconds
   placeMarkers(squid)
 
-  -- The light is for the unlit ducts only (playtest 6: glowing in a lit room isn't needed)
+  -- Full in the unlit ducts, faint in the rooms: the game keeps them dark on purpose, and the squid has no flashlight
+  -- (playtest 6: off in the rooms was too dark, full was more than needed)
   local inVent = squid.InVent == true
-  if built.lantern and built.lantern:IsValid() and built.lanternOn ~= inVent then
-    built.lanternOn = inVent
-    built.lantern:SetVisibility(inVent, false)
+  if built.lantern and built.lantern:IsValid() and built.lanternInVent ~= inVent then
+    built.lanternInVent = inVent
+    built.lantern:SetIntensity(inVent and config.vision.lanternCandelas or config.vision.roomLanternCandelas)
+    built.lantern:SetAttenuationRadius(inVent and config.vision.lanternRadius or config.vision.roomLanternRadius)
   end
 end
 

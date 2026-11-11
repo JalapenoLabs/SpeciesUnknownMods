@@ -71,9 +71,12 @@ return {
   },
 
   vision = {
-    -- The entity's own light, which only their machine renders: a soft, shadowless glow around the squid.
+    -- The entity's own light, which only their machine renders: a soft, shadowless glow around the squid, full in the
+    -- unlit ducts and faint in the rooms, which the game keeps dark on purpose (the crew are meant to need flashlights).
     lanternCandelas = 80,
     lanternRadius = 1500,
+    roomLanternCandelas = 20,
+    roomLanternRadius = 900,
     lanternColor = { R = 0.78, G = 0.88, B = 1.0, A = 1 },
     -- Glowing markers at the vent openings within this distance (only the entity sees them), at most this many.
     markerRange = 3500,

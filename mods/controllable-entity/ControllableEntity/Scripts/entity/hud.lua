@@ -13,6 +13,7 @@ local hud = {}
 
 local PING_MARKER_COUNT = 12
 -- ESlateVisibility
+local COLLAPSED = 1
 local HIDDEN = 2
 local VISIBLE_NO_INPUT = 3
 -- The crew character can rebuild its HUD (on respawn, after menus), so the entity's machine checks for it this often.
@@ -235,6 +236,10 @@ end
 -- The crew HUD belongs to the parked crew body, so it would stay on screen over the squid's view. It comes off the
 -- screen rather than being hidden: the respawn-capsule status sets its own visibility again, and isn't reported as
 -- in the viewport either, so the removal doesn't ask first (removing a widget that isn't shown does nothing).
+--
+-- The wall maps are blanked on the entity's screen too: they show where the mission's items are (where the crew's
+-- special weapon lies), which the entity must learn by hunting, so the crew can mislead them (playtest 6). They live on
+-- widget components in the world, so they're collapsed rather than lifted off a screen; for everyone else they stay.
 local function hideCrewHud(now)
   if now < state.nextCrewHudCheckAt then
     return
@@ -244,6 +249,13 @@ local function hideCrewHud(now)
     for _, crewWidget in ipairs(FindAllOf(className) or {}) do
       if crewWidget:IsValid() then
         crewWidget:RemoveFromParent()
+      end
+    end
+  end
+  for _, className in ipairs(game.classNames.wallMapWidgets) do
+    for _, wallMap in ipairs(FindAllOf(className) or {}) do
+      if wallMap:IsValid() and wallMap:GetVisibility() ~= COLLAPSED then
+        wallMap:SetVisibility(COLLAPSED)
       end
     end
   end

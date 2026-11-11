@@ -44,6 +44,9 @@ game.classNames = {
   -- The crew HUD, which the crew character creates (BP_Character): status bars, objectives, the crosshair and the
   -- respawn-capsule status.
   crewHudWidgets = { "UI_HUD_Display_C", "UMG_ObjectiveList_C", "UI_Crosshair_Simple_C", "HUD_Respawn_C" },
+  -- The ship's and the planet's wall maps (BP_MapMain, BP_MapMain_POLAR show these on a widget component): the whole
+  -- map with the mission's items on it, so where the crew's special weapon lies.
+  wallMapWidgets = { "UMG_Map_C", "UMG_Map_POLAR_C" },
 }
 
 -- MonsterList value for the squid (BP_Lobby_FunctionLibrairy.GetMonsterSoftClass).

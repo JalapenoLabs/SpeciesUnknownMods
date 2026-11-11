@@ -77,11 +77,11 @@ fake.runLoops(100)
 assert(#squidComponents == 1, "the squid gets a light")
 local lantern = squidComponents[1]
 assert(#fake.callsTo(lantern, "SetCastShadows") == 1, "a shadowless one")
-local function lanternShown()
-  local calls = fake.callsTo(lantern, "SetVisibility")
+local function lanternIntensity()
+  local calls = fake.callsTo(lantern, "SetIntensity")
   return calls[#calls] and calls[#calls].args[1]
 end
-assert(lanternShown() == true, "lit inside the ducts")
+assert(lanternIntensity() == config.vision.lanternCandelas, "fully lit inside the ducts")
 assert(#markers == config.vision.markerCount, "the marker pool is spawned once")
 assert(#fake.callsTo(markers[1].glow, "SetVectorParameterValue") == 1, "markers glow in the marker colour")
 
@@ -99,8 +99,8 @@ squid.InVent = false
 fake.now = 1
 fake.runLoops(100)
 assert(markers[1].location.Z == 0, "outside the ducts, markers sit on the floor under the vents")
--- Regression (playtest 6): the squid glowed in lit rooms too; the light is for the ducts
-assert(lanternShown() == false, "and the light goes out")
+-- Regression (playtest 6): full light in the rooms was too much and none too dark; the rooms get a faint glow
+assert(lanternIntensity() == config.vision.roomLanternCandelas, "and the light dims to a faint glow")
 fake.runLoops(100)
 assert(#markers == config.vision.markerCount, "the pool is reused, not respawned")
 
