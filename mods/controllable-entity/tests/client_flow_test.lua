@@ -81,7 +81,13 @@ local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false }, {
 })
 local squidComponents = fake.acceptComponents(squid)
 -- The crew HUD the player's crew body created before the takeover
-local crewHud = fake.object("UI_HUD_Display_C", nil, { GetVisibility = function() return 4 end })
+local crewHud = fake.object("UI_HUD_Display_C", { inViewport = true }, {
+  IsInViewport = function(self) return self.inViewport end,
+  RemoveFromParent = function(self)
+    table.insert(fake.calls, { object = self, method = "RemoveFromParent", args = {} })
+    self.inViewport = false
+  end,
+})
 
 -- Regression (playtest 3): a module whose handler fails must not stop the others hearing the same event. Here a
 -- handler registered before everyone else's fails on the takeover; the HUD still learns the player is the entity
@@ -196,8 +202,9 @@ fake.customEvents.EntityClientPing(fake.param(link), fake.param({ X = 100, Y = 0
   fake.param(fake.name("Gunshot")))
 fake.runLoops(33)
 assert(createdWidgets == createdForMessage, "the HUD is created once")
-local crewHudVisibility = fake.callsTo(crewHud, "SetVisibility")
-assert(#crewHudVisibility == 1 and crewHudVisibility[1].args[1] == 1, "the crew HUD is collapsed")
+-- Regression (playtest 5): the respawn-capsule status set its own visibility again, so the crew HUD comes off the
+-- screen instead of being hidden
+assert(#fake.callsTo(crewHud, "RemoveFromParent") == 1, "the crew HUD comes off the screen")
 assert(lastArgument(widget.UltimateBar, "SetPercent") == 0.5, "the bar shows the replicated meter")
 assert(lastArgument(widget.UltimateText, "SetText").text == "HEAD GRAB  50%")
 assert(lastArgument(widget.LashKeyText, "SetText").text == "LMB", "each ability shows its key")

@@ -109,6 +109,10 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
   the holes in the duct floor while inside, on the floor under each vent while in a room. Only the entity player's
   machine creates them, so nobody else sees either. They use the engine's own cylinder and the game's own unlit
   material (the in-game map's), because a mod can't ship new material shaders for the game's renderer.
+- **Map sections:** the game shows each part of the ship only while the local player stands in its streaming
+  volumes, and the squid's collision never triggers them. The entity's machine tells each volume when the squid is
+  inside it, through the game's own `BPI_Streaming_AddActorToTrigger`, so walls and floors appear around the squid
+  as they do around crew ([docs/game-internals.md](../../docs/game-internals.md#gameplay-state-worth-knowing)).
 - On the roadmap: a glowing path along the ducts to the nearest opening (needs the host's navigation data sent to
   the entity), and an overlay of the duct network while inside.
 
@@ -185,6 +189,7 @@ create: network events and a widget layout.
   | `control.lua` | entity player | Input to movement and commands; the mod's keys |
   | `camera.lua` | entity player | Third and first person |
   | `vision.lua` | entity player | The entity's own light and the vent-opening markers |
+  | `streaming.lua` | entity player | Shows the map sections around the squid, which the game only shows around crew |
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
   | `game.lua`, `config.lua` | both | Game paths and helpers; every tunable |
 
@@ -241,6 +246,7 @@ kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack 
 - `tests/entity_mode_test.lua`: F9, forcing the squid from the lobby, and the random pick.
 - `tests/lair_test.lua`: the start in a vent, the leash and the power.
 - `tests/vision_test.lua`: the entity's light and the vent markers.
+- `tests/streaming_test.lua`: showing the map sections around the squid.
 - `tests/solo_flow_test.lua` and `tests/lobby_display_squid_test.lua`: playing alone, and regressions from playtests.
 
 They prove the wiring, call shapes and rules. Only a playtest proves the game agrees with the stand-in.

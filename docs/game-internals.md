@@ -75,6 +75,10 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
   caches the pawn only if it is a `BP_Character`, so passing any other pawn clears the cache and the engine's normal
   view of that pawn takes over. Changing `CameraStyle` from UE4SS does nothing (neither the property nor
   `ClientSetCameraMode` moved the camera in playtest 4).
+- **The ship streams in sections.** Each `BP_StreamingVolume_Manager` shows its sublevels while the local player's
+  pawn overlaps one of its `TriggerVolumeList` volumes (`BP_FunctionLibrairy.GetOnlyVisualOverlap`: the pawn must be
+  the local player controller's, a spectator or a death pawn). `BPI_Streaming_AddActorToTrigger(trigger, pawn, on)`
+  enters or leaves a volume by hand, through the same check. Vent shafts (`BP_Vent_Up`) hide with their section.
 - **Monsters respawn when stuck.** `BP_BaseMonster."Check If Stuck"` runs every second once an AI controller
   possesses the monster. After 20 seconds without moving it calls `BP_GameManager.InitMonster(false, ...)`, which
   destroys the monster and spawns a new one. `ShouldCheckIfStuck` turns the check off.

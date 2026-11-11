@@ -10,6 +10,7 @@
 
 local camera = require("entity.camera")
 local config = require("entity.config")
+local streaming = require("entity.streaming")
 local vision = require("entity.vision")
 local game = require("entity.game")
 local links = require("entity.links")
@@ -201,6 +202,21 @@ function control.register()
     local squid = controller and drivenSquid(controller)
     if squid then
       camera.follow(controller, squid)
+    end
+  end)
+  -- The squid this machine last drove, so the map sections it was showing can be handed back once it stops
+  local lastSquid = nil
+  LoopInGameThreadWithDelay(250, function()
+    local controller = game.localController()
+    local squid = controller and drivenSquid(controller)
+    if squid then
+      lastSquid = squid
+      streaming.follow(squid)
+      return
+    end
+    if lastSquid then
+      streaming.forget(lastSquid)
+      lastSquid = nil
     end
   end)
   LoopInGameThreadWithDelay(100, function()

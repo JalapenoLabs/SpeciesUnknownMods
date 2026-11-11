@@ -13,7 +13,6 @@ local hud = {}
 
 local PING_MARKER_COUNT = 12
 -- ESlateVisibility
-local COLLAPSED = 1
 local HIDDEN = 2
 local VISIBLE_NO_INPUT = 3
 -- The crew character can rebuild its HUD (on respawn, after menus), so the entity's machine checks for it this often.
@@ -205,7 +204,8 @@ local function drawPings(widget, controller, now)
   end
 end
 
--- The crew HUD belongs to the parked crew body, so it would stay on screen over the squid's view.
+-- The crew HUD belongs to the parked crew body, so it would stay on screen over the squid's view. It comes off the
+-- screen rather than being hidden: the respawn-capsule status sets its own visibility again (playtest 5).
 local function hideCrewHud(now)
   if now < state.nextCrewHudCheckAt then
     return
@@ -213,8 +213,8 @@ local function hideCrewHud(now)
   state.nextCrewHudCheckAt = now + CREW_HUD_CHECK_SECONDS
   for _, className in ipairs(game.classNames.crewHudWidgets) do
     for _, crewWidget in ipairs(FindAllOf(className) or {}) do
-      if crewWidget:IsValid() and crewWidget:GetVisibility() ~= COLLAPSED then
-        crewWidget:SetVisibility(COLLAPSED)
+      if crewWidget:IsValid() and crewWidget:IsInViewport() then
+        crewWidget:RemoveFromParent()
       end
     end
   end
