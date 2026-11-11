@@ -433,6 +433,13 @@ makes the next mission spawn the squid, through the game's own spawn path (`GetM
 - Capture: losing on death is handled; whether a captured squid also counts as a loss is untested.
 - To confirm live with UE4SS: the AI hearing range (4000), weapon `HearingLoudness`/`HearingRange`, the special
   guns' `IsUnique` flag, and whether the host's own gunshots make noise.
+- Balance against a human entity (playtest 6), each awaiting a decision: camping in the vents once the crew holds the
+  weapon that can kill it; guarding the shuttle or its approach in destroy and extract contracts; the crew waiting on
+  the shuttle in capture contracts; hiding the contract type from a player who knows in advance they're the entity;
+  keeping the entity off the crew's radio while still hearing nearby voices; and, for the ghost later, haunting one
+  player all game.
+- The floor-level openings the crew crawl through don't fit the standing squid (only a shaft puts it in its crouched
+  vent state); how it gets in is undecided.
 
 ## Test plan
 
