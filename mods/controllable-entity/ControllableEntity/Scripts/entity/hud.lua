@@ -267,11 +267,11 @@ end
 
 -- The peek hint shows while C would work, the way the game shows "press E" only while there is something to use
 -- (playtest 6): inside a vent, over a grate (the host's own rule, abilities.lua), with peek recharged.
-local function drawPeekHint(widget, squid, now)
+local function drawPeekHint(widget, monster, now)
   if now >= state.nextPeekCheckAt then
     state.nextPeekCheckAt = now + PEEK_CHECK_SECONDS
-    state.isOverGrate = squid.InVent == true
-      and vents.nearest(squid:K2_GetActorLocation(), config.vents.exitReach) ~= nil
+    state.isOverGrate = monster.InVent == true
+      and vents.nearest(monster:K2_GetActorLocation(), config.vents.exitReach) ~= nil
   end
   local isRecharged = now >= (state.cooldownEndsAt.Peek or 0)
   setShown(widget.PeekHint, state.isOverGrate and isRecharged)
@@ -386,8 +386,8 @@ local function render()
   -- Only the entity drives the squid, so driving it is proof enough: the host's BecameEntity may never arrive in this
   -- run of the mod (a hot reload on either machine forgets it, playtest 6)
   local pawn = controller.Pawn
-  local drivesSquid = game.squidDrivenBy(controller) ~= nil
-  if drivesSquid then
+  local drivesMonster = game.monsterDrivenBy(controller) ~= nil
+  if drivesMonster then
     state.isEntity = true
   end
   local now = game.timeSeconds(controller)
@@ -409,7 +409,7 @@ local function render()
   widget:SetVisibility(VISIBLE_NO_INPUT)
   setText(widget.StatusText, hasMessage and state.message or state.persistentStatus or "")
 
-  local link = drivesSquid and links.own() or nil
+  local link = drivesMonster and links.own() or nil
   if not link then
     for _, part in ipairs(ENTITY_PARTS) do
       setShown(widget[part], false)

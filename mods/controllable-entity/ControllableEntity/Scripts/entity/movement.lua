@@ -23,11 +23,11 @@ local COMBAT_SPEED = 1
 local TOP_SPEED = 4
 
 -- Applies the squid's speed on this machine.
-function movement.apply(squid, sprinting)
+function movement.apply(monster, sprinting)
   local speed = {}
-  squid:BPI_Monster_GetSpeedByType(sprinting and TOP_SPEED or COMBAT_SPEED, speed)
-  squid:BPI_Monster_SetSpeed(speed.Speed)
-  local characterMovement = squid.CharacterMovement
+  monster:BPI_Monster_GetSpeedByType(sprinting and TOP_SPEED or COMBAT_SPEED, speed)
+  monster:BPI_Monster_SetSpeed(speed.Speed)
+  local characterMovement = monster.CharacterMovement
   characterMovement.MaxWalkSpeedCrouched = characterMovement.MaxWalkSpeedCrouched * config.movement.ventSpeedMultiplier
 end
 
@@ -48,7 +48,7 @@ function movement.tickHost(entity, now)
   host.lastTickAt = now
 
   -- No sprinting near the crew's shuttle (zones.lua), so they can get to it and away from it
-  local isNearShuttle = zones.isNearShuttle(entity.squid:K2_GetActorLocation())
+  local isNearShuttle = zones.isNearShuttle(entity.monster:K2_GetActorLocation())
   local sprinting = host.wantsToSprint and not host.isTired and not isNearShuttle
   if sprinting then
     host.stamina = math.max(0, host.stamina - elapsed / config.movement.sprintSeconds)
@@ -65,7 +65,7 @@ function movement.tickHost(entity, now)
     end
   end
 
-  movement.apply(entity.squid, sprinting)
+  movement.apply(entity.monster, sprinting)
 end
 
 -- A new entity starts rested.
@@ -81,7 +81,7 @@ end
 local player = { holdsSprint = false, isTired = false }
 
 -- Runs about ten times a second on the entity player's machine while they drive the squid.
-function movement.followPlayer(controller, squid)
+function movement.followPlayer(controller, monster)
   -- An FKey is its name to Lua; UE4SS builds the struct from the table
   local holdsSprint = controller:IsInputKeyDown({ KeyName = FName(config.keys.sprint) }) == true
   if holdsSprint ~= player.holdsSprint then
@@ -90,8 +90,8 @@ function movement.followPlayer(controller, squid)
   end
   -- The host applies the speed itself; a separate client applies the same speed for its own prediction
   if not game.isHost() then
-    local isNearShuttle = zones.isNearShuttle(squid:K2_GetActorLocation())
-    movement.apply(squid, holdsSprint and not player.isTired and not isNearShuttle)
+    local isNearShuttle = zones.isNearShuttle(monster:K2_GetActorLocation())
+    movement.apply(monster, holdsSprint and not player.isTired and not isNearShuttle)
   end
 end
 

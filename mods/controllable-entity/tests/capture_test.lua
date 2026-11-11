@@ -10,6 +10,8 @@ package.path = "mods/controllable-entity/ControllableEntity/Scripts/?.lua;mods/c
 local fake = require("fake_ue4ss")
 fake.install()
 
+local kits = require("entity.kits")
+
 local game = require("entity.game")
 local capture = require("entity.capture")
 
@@ -20,7 +22,7 @@ local gameState = fake.object("BP_MyGameState_C", {
 })
 local squid = fake.object("BP_Monster_Poulpi_C", { IsDead = true })
 local aiSquid = fake.object("BP_Monster_Poulpi_C", { IsDead = true })
-local entity = { squid = squid }
+local entity = { monster = squid, kit = kits.byId.Squid }
 local takeover = { activeEntity = function() return entity end }
 
 capture.register(takeover)

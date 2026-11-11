@@ -66,18 +66,18 @@ local function chooseStartSpot(spawnLocation)
 end
 
 -- Starts the entity in its lair, right after the takeover.
-function lair.begin(squid, controller)
-  local spot = chooseStartSpot(squid:K2_GetActorLocation())
+function lair.begin(monster, controller)
+  local spot = chooseStartSpot(monster:K2_GetActorLocation())
   if not spot then
     game.log("No vent on this map; the squid starts where the game spawned it")
     current = nil
     return
   end
 
-  vents.moveInto(squid, spot)
+  vents.moveInto(monster, spot)
   local leashed = isPowerOff()
   current = {
-    squid = squid,
+    monster = monster,
     controller = controller,
     lastInside = spot,
     leashed = leashed,
@@ -106,9 +106,9 @@ function lair.forget()
 end
 
 -- Whether the squid is still held in its lair: the power hasn't come on yet.
-function lair.isLeashed(squid)
-  return current ~= nil and current.leashed and current.squid:IsValid()
-    and current.squid:GetAddress() == squid:GetAddress()
+function lair.isLeashed(monster)
+  return current ~= nil and current.leashed and current.monster:IsValid()
+    and current.monster:GetAddress() == monster:GetAddress()
 end
 
 -- Runs about five times a second on the host. While the power is off, a squid that leaves the ducts or strays past
@@ -118,8 +118,8 @@ function lair.tick()
   if not current or not current.leashed then
     return
   end
-  local squid = current.squid
-  if not squid:IsValid() then
+  local monster = current.monster
+  if not monster:IsValid() then
     current = nil
     return
   end
@@ -131,14 +131,14 @@ function lair.tick()
     return
   end
 
-  local location = squid:K2_GetActorLocation()
-  if squid.InVent then
+  local location = monster:K2_GetActorLocation()
+  if monster.InVent then
     current.lastInside = { X = location.X, Y = location.Y, Z = location.Z }
     return
   end
 
-  vents.moveInto(squid, current.lastInside)
-  local now = game.timeSeconds(squid)
+  vents.moveInto(monster, current.lastInside)
+  local now = game.timeSeconds(monster)
   if now - current.lastWarnedAt >= config.lair.warningInterval then
     current.lastWarnedAt = now
     links.sendEvent(current.controller, "Denied.PowerOff")

@@ -3,6 +3,8 @@
 -- Shared knowledge of the game: object paths, class names, and the few lookups every module needs.
 -- Paths are confirmed against the shipped game's manifest and Blueprint bytecode (see the mod README).
 
+local kits = require("entity.kits")
+
 local game = {}
 
 -- The mod's own classes, from ControllableEntity_P.pak: { package, class }.
@@ -13,26 +15,12 @@ game.modClasses = {
 
 game.paths = {
   assetRegistryHelpers = "/Script/AssetRegistry.Default__AssetRegistryHelpers",
-  squidClass = "/Game/Blueprints/Monsters/BP_Monster_Poulpi.BP_Monster_Poulpi_C",
   controllerClass = "/Game/Blueprints/Player/BP_MyPlayerController.BP_MyPlayerController_C",
   gameStateClass = "/Game/Blueprints/Core/BP_MyGameState.BP_MyGameState_C",
   weaponClass = "/Game/Weapon/Weapon_Base.Weapon_Base_C",
   characterClass = "/Game/Blueprints/Player/BP_ParentCharacter.BP_ParentCharacter_C",
   engineClass = "/Game/Blueprints/Engine/BP_Engine.BP_Engine_C",
   capsuleScreenClass = "/Game/Blueprints/Interact/UMG_ScreenCapsule.UMG_ScreenCapsule_C",
-  -- The squid's cries (cries.lua), among the cues its Blueprint brings with it, by the name the mod gives each.
-  squidCries = {
-    Roar = "/Game/Monster_SoundFX_Pack1/Wav/Monsters/Monster06/Roar/Monster6_Chase_Wav_Cue.Monster6_Chase_Wav_Cue",
-    Curious =
-      "/Game/Monster_SoundFX_Pack1/Wav/Monsters/Monster06/Calls/Monster6_Sound_Wav_Cue1.Monster6_Sound_Wav_Cue1",
-    Call = "/Game/Monster_SoundFX_Pack1/Wav/Monsters/Monster05/Calls/Monster5_Call8_Wav_Cue.Monster5_Call8_Wav_Cue",
-    Seen = "/Game/Monster_SoundFX_Pack1/Wav/Monsters/Monster06/Calls/Monster6_See_Wav_Cue.Monster6_See_Wav_Cue",
-    Escape = "/Game/Monster_SoundFX_Pack1/Wav/Monsters/Monster06/Roar/Monster6_Escape_Wav_Cue.Monster6_Escape_Wav_Cue",
-  },
-  -- The squid's basic attack (BP_Monster_Poulpi.GetAttackSimpleAnim always picks it).
-  swingMontage = "/Game/Blueprints/Monsters/Poulpi/Anim/Poulpi_Attack_Small1_Montage.Poulpi_Attack_Small1_Montage",
-  grabInterruptedMontage =
-    "/Game/Blueprints/Monsters/Poulpi/Anim/Hit/Poulpi_Hit_DuringGrab_Front_Montage.Poulpi_Hit_DuringGrab_Front_Montage",
   inputLibrary = "/Script/EnhancedInput.Default__EnhancedInputLibrary",
   widgetLibrary = "/Script/UMG.Default__WidgetBlueprintLibrary",
   widgetLayoutLibrary = "/Script/UMG.Default__WidgetLayoutLibrary",
@@ -40,7 +28,6 @@ game.paths = {
 }
 
 game.classNames = {
-  squid = "BP_Monster_Poulpi_C",
   crewCharacter = "BP_Character_C",
   link = "BP_EntityLink_C",
   gameInstance = "BP_MyGameInstance_C",
@@ -63,20 +50,6 @@ game.classNames = {
   capsuleScreenWidget = "UMG_ScreenCapsule_C",
 }
 
--- The squid's two health pools (BP_Monster_Poulpi's own fields, not BP_BaseMonster's, so another monster kit needs its
--- own). Hits drain the stagger pool, and at zero the squid falls to the ground (IsOnGround); only while it is down and
--- burning (HeatValue) do hits drain its real health, and at zero health it dies. Neither replicates.
-game.squidHealthFields = {
-  health = "Health",
-  maxHealth = "MaxHealth",
-  stagger = "HealthTemporal",
-  maxStagger = "MaxHealthTemporal",
-  downed = "IsOnGround",
-}
-
--- MonsterList value for the squid (BP_Lobby_FunctionLibrairy.GetMonsterSoftClass).
-game.squidMonsterType = 2
-
 -- BP_MyGameState.LightStatut (LightStatutEnum), the ship's power. Missions start with it off unless the contract
 -- has power at start; the crew is safe from the monster until they turn it on.
 game.lightStatus = {
@@ -96,13 +69,14 @@ game.contractTypes = {
   Extraction = 3,
 }
 
--- The squid a local player controller drives, or nil while it drives anything else (or isn't this machine's).
-function game.squidDrivenBy(controller)
+-- The monster a local player controller drives as the entity (one a kit plays), or nil while it drives anything else
+-- or isn't this machine's.
+function game.monsterDrivenBy(controller)
   if not controller:IsLocalController() then
     return nil
   end
   local pawn = controller.Pawn
-  if not pawn:IsValid() or pawn:GetClass():GetFName():ToString() ~= game.classNames.squid then
+  if not kits.forMonster(pawn) then
     return nil
   end
   return pawn

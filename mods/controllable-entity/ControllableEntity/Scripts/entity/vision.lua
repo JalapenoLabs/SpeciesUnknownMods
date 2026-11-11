@@ -38,11 +38,11 @@ local IDENTITY_TRANSFORM = {
 local built = nil
 
 -- The squid's light, reusing one it already has (after a hot reload of the mod) rather than stacking a second.
-local function giveLantern(squid)
+local function giveLantern(monster)
   local lightClass = StaticFindObject(POINT_LIGHT_CLASS)
-  local lantern = squid:GetComponentByClass(lightClass)
+  local lantern = monster:GetComponentByClass(lightClass)
   if not lantern or not lantern:IsValid() then
-    lantern = squid:AddComponentByClass(lightClass, false, IDENTITY_TRANSFORM, false)
+    lantern = monster:AddComponentByClass(lightClass, false, IDENTITY_TRANSFORM, false)
   end
   if not lantern or not lantern:IsValid() then
     game.log("Could not give the squid a light")
@@ -204,9 +204,9 @@ end
 
 -- The vent openings nearest the squid, closest first: the holes in the duct floor while it's in the vents, the floor
 -- under each vent while it's in a room.
-local function nearestOpenings(squid)
-  local location = squid:K2_GetActorLocation()
-  local fromInside = squid.InVent == true
+local function nearestOpenings(monster)
+  local location = monster:K2_GetActorLocation()
+  local fromInside = monster.InVent == true
   local openings = {}
   for _, vent in ipairs(vents.all()) do
     local opening = vents.openingOf(vent, fromInside)
@@ -219,8 +219,8 @@ local function nearestOpenings(squid)
   return openings
 end
 
-local function placeMarkers(squid)
-  local openings = nearestOpenings(squid)
+local function placeMarkers(monster)
+  local openings = nearestOpenings(monster)
   for index, marker in ipairs(built.markers) do
     local opening = openings[index]
     if opening then
@@ -248,17 +248,17 @@ end
 
 -- Runs about ten times a second on the entity player's machine while they drive the squid: builds the light and the
 -- markers once per squid and world, and keeps the markers on the openings around it.
-function vision.follow(controller, squid)
+function vision.follow(controller, monster)
   local world = controller:GetWorld()
   local worldKey = world:GetAddress()
-  if built and (built.worldKey ~= worldKey or built.squidAddress ~= squid:GetAddress()) then
+  if built and (built.worldKey ~= worldKey or built.monsterAddress ~= monster:GetAddress()) then
     forget()
   end
   if not built then
     built = {
       worldKey = worldKey,
-      squidAddress = squid:GetAddress(),
-      lantern = giveLantern(squid),
+      monsterAddress = monster:GetAddress(),
+      lantern = giveLantern(monster),
       lanternInVent = nil,
       markers = spawnMarkers(world),
       nextRefreshAt = 0,
@@ -278,11 +278,11 @@ function vision.follow(controller, squid)
     return
   end
   built.nextRefreshAt = now + config.vision.markerRefreshSeconds
-  placeMarkers(squid)
+  placeMarkers(monster)
 
   -- Full in the unlit ducts, faint in the rooms: the game keeps them dark on purpose, and the squid has no flashlight
   -- (playtest 6: off in the rooms was too dark, full was more than needed)
-  local inVent = squid.InVent == true
+  local inVent = monster.InVent == true
   if built.lantern and built.lantern:IsValid() and built.lanternInVent ~= inVent then
     built.lanternInVent = inVent
     built.lantern:SetIntensity(inVent and config.vision.lanternCandelas or config.vision.roomLanternCandelas)

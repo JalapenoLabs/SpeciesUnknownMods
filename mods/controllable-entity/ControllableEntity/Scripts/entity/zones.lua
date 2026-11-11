@@ -31,9 +31,9 @@ local FLOOR_PROBE_EXTENT = { X = 60, Y = 60, Z = 250 }
 
 -- On the host, per squid: where it last stood outside every forbidden place and whether that was in the vents, when
 -- it was last told to keep out, and whether it was near the shuttle at the last check.
-local function freshHold(squidAddress)
+local function freshHold(monsterAddress)
   return {
-    squidAddress = squidAddress,
+    monsterAddress = monsterAddress,
     lastAllowed = nil,
     lastAllowedInVent = false,
     lastWarnedAt = -math.huge,
@@ -126,26 +126,26 @@ end
 
 -- Whether the squid stands on forbidden floor: on the navmesh, but not where the forbidden-area filter allows. In the
 -- air (mid-leap) it stands on no floor, so it isn't.
-local function isOnForbiddenFloor(squid, location)
+local function isOnForbiddenFloor(monster, location)
   local navigation = StaticFindObject(NAVIGATION)
   local filter = game.loadGameAsset(FORBIDDEN_FILTER)
   if not filter then
     return false
   end
   local allowedFloor, anyFloor = {}, {}
-  if navigation:K2_ProjectPointToNavigation(squid, location, allowedFloor, nil, filter, FLOOR_PROBE_EXTENT) then
+  if navigation:K2_ProjectPointToNavigation(monster, location, allowedFloor, nil, filter, FLOOR_PROBE_EXTENT) then
     return false
   end
-  return navigation:K2_ProjectPointToNavigation(squid, location, anyFloor, nil, nil, FLOOR_PROBE_EXTENT) == true
+  return navigation:K2_ProjectPointToNavigation(monster, location, anyFloor, nil, nil, FLOOR_PROBE_EXTENT) == true
 end
 
 local function putBack(entity, now, reason)
-  local squid = entity.squid
+  local monster = entity.monster
   if held.lastAllowed then
-    if (squid.InVent == true) ~= held.lastAllowedInVent then
-      squid:BPI_Monster_SetInVent(held.lastAllowedInVent)
+    if (monster.InVent == true) ~= held.lastAllowedInVent then
+      monster:BPI_Monster_SetInVent(held.lastAllowedInVent)
     end
-    squid:K2_TeleportTo(held.lastAllowed, squid:K2_GetActorRotation())
+    monster:K2_TeleportTo(held.lastAllowed, monster:K2_GetActorRotation())
   end
   if now - held.lastWarnedAt >= config.zones.warningInterval then
     held.lastWarnedAt = now
@@ -156,23 +156,23 @@ end
 
 -- Runs five times a second on the host while there is an entity.
 function zones.tickHost(entity, now)
-  local squid = entity.squid
-  if held.squidAddress ~= squid:GetAddress() then
-    held = freshHold(squid:GetAddress())
+  local monster = entity.monster
+  if held.monsterAddress ~= monster:GetAddress() then
+    held = freshHold(monster:GetAddress())
   end
 
-  local location = squid:K2_GetActorLocation()
+  local location = monster:K2_GetActorLocation()
   local shuttle = zones.shuttleBox()
   local isAboard = shuttle ~= nil and zones.isInside(shuttle, location)
   -- Only capture contracts let the entity aboard (capture.lua)
   if isAboard and game.contractType() ~= game.contractTypes.Capture then
     putBack(entity, now, "Denied.Shuttle")
   -- The shuttle is never a forbidden area, but its closed doors lay an obstacle area the forbidden filter also excludes
-  elseif not isAboard and isOnForbiddenFloor(squid, location) then
+  elseif not isAboard and isOnForbiddenFloor(monster, location) then
     putBack(entity, now, "Denied.Forbidden")
   else
     held.lastAllowed = { X = location.X, Y = location.Y, Z = location.Z }
-    held.lastAllowedInVent = squid.InVent == true
+    held.lastAllowedInVent = monster.InVent == true
   end
 
   local isNearShuttle = shuttle ~= nil and zones.isInside(shuttle, location, config.zones.shuttleApproach)

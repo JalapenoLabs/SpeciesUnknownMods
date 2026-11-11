@@ -36,15 +36,15 @@ local current = nil
 -- The squid's way out when its vent time is up: down the shaft within reach, or, deeper in the ducts, to a spot
 -- beside the nearest shaft on its floor first, then down that one.
 local function forceOut(entity, now)
-  local squid = entity.squid
+  local monster = entity.monster
   current.isShut = true
   current.forcedOutAt = now
   links.sendEvent(entity.controller, "ForcedOut")
 
-  local location = squid:K2_GetActorLocation()
+  local location = monster:K2_GetActorLocation()
   local shaft = vents.nearest(location, config.vents.exitReach)
   if shaft then
-    squid:BPI_Monster_AttackFromVent(shaft, nil)
+    monster:BPI_Monster_AttackFromVent(shaft, nil)
     game.log("Vent time is up: the squid drops out of the shaft beside it")
     return
   end
@@ -55,8 +55,8 @@ local function forceOut(entity, now)
     game.log("Vent time is up, but no shaft opens near the squid's floor; it goes to the power room if it stays")
     return
   end
-  vents.moveInto(squid, spot, function()
-    squid:BPI_Monster_AttackFromVent(shaft, nil)
+  vents.moveInto(monster, spot, function()
+    monster:BPI_Monster_AttackFromVent(shaft, nil)
   end)
   game.log("Vent time is up: the squid is taken to the nearest shaft (%.0f, %.0f, %.0f) and drops out", spot.X,
     spot.Y, spot.Z)
@@ -65,7 +65,7 @@ end
 -- The last resort for a squid the drop couldn't get out of the vents: the floor in front of the screen that restores
 -- the power (BP_Screen_RestorePower, one per map), as the navigation finds it.
 local function moveToPowerRoom(entity)
-  local squid = entity.squid
+  local monster = entity.monster
   current.forcedOutAt = nil
   local screen = FindFirstOf(POWER_SCREEN_CLASS_NAME)
   if not screen or not screen:IsValid() then
@@ -81,21 +81,21 @@ local function moveToPowerRoom(entity)
   }
   local floor = {}
   local navigation = StaticFindObject(NAVIGATION)
-  if navigation:K2_ProjectPointToNavigation(squid, spot, floor, nil, nil, FLOOR_SEARCH_EXTENT) and floor.Z then
-    spot = { X = floor.X, Y = floor.Y, Z = floor.Z + squid.CapsuleComponent:GetScaledCapsuleHalfHeight() }
+  if navigation:K2_ProjectPointToNavigation(monster, spot, floor, nil, nil, FLOOR_SEARCH_EXTENT) and floor.Z then
+    spot = { X = floor.X, Y = floor.Y, Z = floor.Z + monster.CapsuleComponent:GetScaledCapsuleHalfHeight() }
   else
     game.log("No floor found in front of the power screen; the squid is placed beside the screen instead")
   end
-  squid:BPI_Monster_SetInVent(false)
-  squid:K2_TeleportTo(spot, squid:K2_GetActorRotation())
+  monster:BPI_Monster_SetInVent(false)
+  monster:K2_TeleportTo(spot, monster:K2_GetActorRotation())
   game.log("The squid was still in the vents after being forced out: moved to the power room (%.0f, %.0f, %.0f)",
     spot.X, spot.Y, spot.Z)
 end
 
 -- The hunted squid's cry: its roar near it, and its far call for everyone well away from it.
-local function cry(squid)
-  cries.play(squid, "Roar", false)
-  squid["PlayVoiceFar(Multi)"](squid)
+local function cry(monster)
+  cries.play(monster, "Roar", false)
+  monster["PlayVoiceFar(Multi)"](monster)
 end
 
 -- Starts the hunt in the current world. The game runs the grab again on every re-grab; the hunt starts once.
@@ -142,10 +142,10 @@ function hunt.tick(entity, now)
     return
   end
 
-  local squid = entity.squid
+  local monster = entity.monster
   local elapsed = current.lastTickAt and now - current.lastTickAt or 0
   current.lastTickAt = now
-  local isInVent = squid.InVent == true
+  local isInVent = monster.InVent == true
   local budget = config.hunt.ventSeconds
   if isInVent then
     current.ventSecondsLeft = math.max(0, current.ventSecondsLeft - elapsed)
@@ -162,7 +162,7 @@ function hunt.tick(entity, now)
 
   if now >= current.nextCryAt then
     current.nextCryAt = now + config.hunt.crySeconds
-    cry(squid)
+    cry(monster)
   end
 
   if not isInVent then

@@ -12,6 +12,7 @@ fake.install()
 math.randomseed(1)
 
 local game = require("entity.game")
+local kits = require("entity.kits")
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 -- The lobby
@@ -21,7 +22,7 @@ fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
 })
 fake.installModPak(game.modClasses)
-fake.objects[game.paths.grabInterruptedMontage] = fake.object("AnimMontage")
+fake.objects[kits.byId.Squid.killGrab.breakMontage] = fake.object("AnimMontage")
 
 local gameInstance = fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })
 
@@ -99,7 +100,7 @@ fake.runLoops()
 assert(#spawnedLinks == 2, "links are spawned once")
 
 command(crewController, "Volunteer")
-assert(gameInstance.spawnForceSessionMonster == game.squidMonsterType, "volunteering forces the squid")
+assert(gameInstance.spawnForceSessionMonster == kits.byId.Squid.monsterType, "volunteering forces the squid")
 assert(lastEvent(crewController) == "Volunteered")
 assert(#fake.callsTo(linkOf(hostController), "EntityClientEvent") == 0, "nobody else hears about it")
 
@@ -134,7 +135,7 @@ fake.object("OnsetVoipWorldSubsystem", nil, {
   GetVoipTalker = function(_, playerState) return playerState == crewState and entityTalker or hostTalker end,
 })
 
-for _, classPath in ipairs({ game.paths.squidClass, game.paths.gameStateClass, game.paths.weaponClass }) do
+for _, classPath in ipairs({ kits.byId.Squid.classPath, game.paths.gameStateClass, game.paths.weaponClass }) do
   fake.loadClass(classPath)
 end
 
@@ -183,7 +184,7 @@ assert(#fake.callsTo(squid, "BPI_BasicMonster_SetSimpleAttack") == 1, "only the 
 
 -- Playtest 7: the 1, 2 and 3 keys cry out, on every machine, each with its own cooldown
 local roarCue = fake.object("SoundCue")
-fake.objects[game.paths.squidCries.Roar] = roarCue
+fake.objects[kits.byId.Squid.cries.Roar] = roarCue
 command(crewController, "Roar")
 local roars = fake.callsTo(squid, "BPI_Monster_PlayVoiceAudio")
 assert(#roars == 1 and roars[1].args[1] == roarCue and roars[1].args[6] == true, "the roar plays for everyone")
@@ -193,7 +194,7 @@ assert(lastEvent(crewController) == "Denied.Cooldown", "and waits its cooldown")
 
 -- Regression (playtest 6): with nobody in reach the lash was refused; the squid swings at the air instead
 local swingMontage = fake.object("AnimMontage")
-fake.objects[game.paths.swingMontage] = swingMontage
+fake.objects[kits.byId.Squid.swingMontage] = swingMontage
 fake.now = 5
 command(crewController, "Attack", { X = -1, Y = 0, Z = 0 })
 local swings = fake.callsTo(squid, "AttackSimpleAnim (Clients)")
@@ -205,13 +206,13 @@ command(crewController, "Ultimate")
 assert(lastEvent(crewController) == "Denied.UltimateNotReady", "the ultimate needs a full meter")
 
 -- A grab without the ultimate is broken off
-local grabHook = fake.hooks[game.paths.squidClass .. ":GrabHeadPlayer"]
+local grabHook = fake.hooks[kits.byId.Squid.classPath .. ":GrabHeadPlayer"]
 grabHook(fake.param(squid), fake.param(crewBody))
 assert(lastEvent(crewController) == "Denied.UltimateNotReady")
 assert(#fake.callsTo(squid, "KnockBack (Clients)") == 0, "the knockback waits a frame for the grab to finish")
 fake.runFrames()
 local knockbacks = fake.callsTo(squid, "KnockBack (Clients)")
-assert(#knockbacks == 1 and knockbacks[1].args[1] == fake.objects[game.paths.grabInterruptedMontage],
+assert(#knockbacks == 1 and knockbacks[1].args[1] == fake.objects[kits.byId.Squid.killGrab.breakMontage],
   "an unarmed grab is broken off with the grab-interrupted knockback")
 
 -- A full meter arms the ultimate, which leaps and lets the grab kill

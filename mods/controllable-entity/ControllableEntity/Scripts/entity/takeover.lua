@@ -7,6 +7,7 @@
 -- Lua state outlives map travel, so the volunteer is remembered from the lobby into the mission and back.
 
 local game = require("entity.game")
+local kits = require("entity.kits")
 local lair = require("entity.lair")
 local links = require("entity.links")
 local movement = require("entity.movement")
@@ -20,7 +21,7 @@ local entityModeOn = true
 local volunteerKey = nil
 -- True when volunteerKey came from the random pick, which lasts one mission; a volunteer stays until they back out.
 local chosenAtRandom = false
--- The entity in the current world: { key, controller, squid, playerState, parkedBody, worldKey }, or nil.
+-- The entity in the current world: { key, controller, monster, kit, playerState, parkedBody, worldKey }, or nil.
 local activeEntity = nil
 -- The world the volunteer was last told their status in, so each new world tells them once.
 local announcedWorldKey = nil
@@ -59,7 +60,7 @@ local function controllerForKey(key)
 end
 
 function takeover.activeEntity()
-  if not activeEntity or not activeEntity.squid:IsValid() then
+  if not activeEntity or not activeEntity.monster:IsValid() then
     return nil
   end
   return activeEntity
@@ -98,20 +99,20 @@ end
 
 -- BP_MyGameInstance.spawnForceSessionMonster: when set (not 0 or 1), BP_GameManager spawns that monster instead of
 -- a random one. The game never sets it itself.
-local function forceSquid(enabled)
+local function forceMonster(enabled)
   local gameInstance = FindFirstOf(game.classNames.gameInstance)
   if not gameInstance or not gameInstance:IsValid() then
     game.log("No game instance; can't force the squid")
     return
   end
-  gameInstance.spawnForceSessionMonster = enabled and game.squidMonsterType or 0
+  gameInstance.spawnForceSessionMonster = enabled and kits.byId.Squid.monsterType or 0
 end
 
 -- Decides the next mission's specimen, from the lobby. The mission rolls its monster seconds after it loads, before
 -- every player has even arrived, so the squid is forced whenever the mission will have an entity: a volunteer, or a
 -- random pick among two or more players. Playing alone, only a volunteer makes sense.
-local function syncForcedSquid()
-  forceSquid(entityModeOn and (volunteerKey ~= nil or #playerControllers() >= 2))
+local function syncForcedMonster()
+  forceMonster(entityModeOn and (volunteerKey ~= nil or #playerControllers() >= 2))
 end
 
 local function forgetVolunteer()
@@ -139,7 +140,7 @@ local function onVolunteer(_, controller)
 
   if volunteerKey == key and not chosenAtRandom then
     forgetVolunteer()
-    syncForcedSquid()
+    syncForcedMonster()
     links.sendEvent(controller, "Unvolunteered")
     game.log("%s is no longer the entity", key)
     return
@@ -152,7 +153,7 @@ local function onVolunteer(_, controller)
 
   volunteerKey = key
   announcedWorldKey = game.currentWorldKey()
-  syncForcedSquid()
+  syncForcedMonster()
   links.sendEvent(controller, "Volunteered")
   game.log("%s will be the entity next mission", key)
 end
@@ -175,7 +176,7 @@ local function onToggleEntityMode(_, controller)
     forgetVolunteer()
   end
   if isLobby() then
-    syncForcedSquid()
+    syncForcedMonster()
   end
 
   links.sendEvent(controller, entityModeOn and "EntityModeOn" or "EntityModeOff")
@@ -245,13 +246,13 @@ end
 
 -- The mission's specimen, when it is the squid: the monster BP_GameManager spawned (its Monster property). Other
 -- squids exist too, like the specimen on display in the lobby, and must never be taken over.
-local function missionSquid()
+local function missionMonster()
   local gameManager = FindFirstOf(game.classNames.gameManager)
   if not gameManager or not gameManager:IsValid() then
     return nil
   end
   local monster = gameManager.Monster
-  if not monster:IsValid() or monster:GetClass():GetFName():ToString() ~= game.classNames.squid then
+  if not kits.forMonster(monster) then
     return nil
   end
   return monster
@@ -287,41 +288,42 @@ local function releaseParkedBody(entity)
   game.log("Removed the entity's parked crew body")
 end
 
-local function takeControl(controller, squid, worldKey)
+local function takeControl(controller, monster, worldKey)
   local crewBody = controller.Pawn
 
   -- The squid's AI controller would fight the player for it; it goes away for good
-  local aiController = squid.Controller
+  local aiController = monster.Controller
   if aiController:IsValid() and not aiController:IsPlayerController() then
     aiController:UnPossess()
     aiController:K2_DestroyActor()
   end
 
-  controller:Possess(squid)
+  controller:Possess(monster)
   -- Possession moves the camera only when the camera manager follows the pawn on its own, which this game's doesn't:
   -- in the first playtest the view stayed in the hidden crew body. Set on the host, the view target replicates to
   -- the player's machine
-  controller:SetViewTargetWithBlend(squid, 0, 0, 0, false)
+  controller:SetViewTargetWithBlend(monster, 0, 0, 0, false)
 
   local parkedBody = nil
-  if crewBody:IsValid() and crewBody:GetAddress() ~= squid:GetAddress() then
+  if crewBody:IsValid() and crewBody:GetAddress() ~= monster:GetAddress() then
     parkBody(crewBody)
     parkedBody = crewBody
   end
 
   -- Combat speed suits a player better than the AI's patrol walk (movement.lua keeps it up to date from here on)
   movement.resetHost()
-  movement.apply(squid, false)
+  movement.apply(monster, false)
 
   -- The AI's stuck check (BP_BaseMonster."Check If Stuck", every second) respawns a monster that hasn't moved for 20
   -- seconds, through BP_GameManager.InitMonster, which destroys it. A player lying in wait stands still for longer
   -- than that, and losing the squid would end their game
-  squid.ShouldCheckIfStuck = false
+  monster.ShouldCheckIfStuck = false
 
   activeEntity = {
     key = volunteerKey,
     controller = controller,
-    squid = squid,
+    monster = monster,
+    kit = kits.forMonster(monster),
     playerState = controller.PlayerState,
     parkedBody = parkedBody,
     worldKey = worldKey,
@@ -329,14 +331,14 @@ local function takeControl(controller, squid, worldKey)
   releaseParkedBody(activeEntity)
   links.sendEvent(controller, "BecameEntity")
   game.log("%s took control of the squid", volunteerKey)
-  lair.begin(squid, controller)
+  lair.begin(monster, controller)
 end
 
 -- A hot reload of the mod (UE4SS's Ctrl+R) forgets who the entity is, while the player still drives the squid. Their
 -- controller is the proof: the squid's AI was destroyed at the takeover, so only the entity player can be driving it.
 -- They're taken back as the entity where they are; the lair isn't rebuilt, so the leash is gone until the next mission.
-local function adoptAfterReload(squid, worldKey)
-  local controller = game.playerControllerOf(squid)
+local function adoptAfterReload(monster, worldKey)
+  local controller = game.playerControllerOf(monster)
   if not controller then
     return false
   end
@@ -344,12 +346,13 @@ local function adoptAfterReload(squid, worldKey)
   activeEntity = {
     key = volunteerKey,
     controller = controller,
-    squid = squid,
+    monster = monster,
+    kit = kits.forMonster(monster),
     playerState = controller.PlayerState,
     parkedBody = nil,
     worldKey = worldKey,
   }
-  squid.ShouldCheckIfStuck = false
+  monster.ShouldCheckIfStuck = false
   movement.resetHost()
   game.log("%s is driving the squid; taken back as the entity after a reload", volunteerKey)
   return true
@@ -360,10 +363,10 @@ end
 -- (playtest 6), and Shift only sends a command when it changes.
 function takeover.isEntityController(controller)
   if not activeEntity and controller and controller:IsValid() and isMission() then
-    local squid = missionSquid()
-    local driver = squid and game.playerControllerOf(squid)
+    local monster = missionMonster()
+    local driver = monster and game.playerControllerOf(monster)
     if driver and driver:GetAddress() == controller:GetAddress() then
-      adoptAfterReload(squid, game.currentWorldKey())
+      adoptAfterReload(monster, game.currentWorldKey())
     end
   end
   return activeEntity ~= nil and controller ~= nil and controller:IsValid()
@@ -417,7 +420,7 @@ function takeover.reconcile()
       game.log("%s is no longer the entity (back at the main menu)", volunteerKey)
       forgetVolunteer()
     end
-    forceSquid(false)
+    forceMonster(false)
     return
   end
 
@@ -426,14 +429,14 @@ function takeover.reconcile()
     forgetVolunteer()
   end
   if isLobby() then
-    syncForcedSquid()
+    syncForcedMonster()
   end
 
   if activeEntity then
-    local squidAlive = activeEntity.squid:IsValid() and activeEntity.controller:IsValid()
+    local monsterAlive = activeEntity.monster:IsValid() and activeEntity.controller:IsValid()
       and activeEntity.controller.Pawn:IsValid()
-      and activeEntity.controller.Pawn:GetAddress() == activeEntity.squid:GetAddress()
-    if not squidAlive then
+      and activeEntity.controller.Pawn:GetAddress() == activeEntity.monster:GetAddress()
+    if not monsterAlive then
       noticeLoss()
       return
     end
@@ -447,15 +450,15 @@ function takeover.reconcile()
   end
 
   -- On Hawking the squid spawns only once a crew member leaves the shuttle
-  local squid = isMission() and missionSquid() or nil
-  if squid and adoptAfterReload(squid, worldKey) then
+  local monster = isMission() and missionMonster() or nil
+  if monster and adoptAfterReload(monster, worldKey) then
     return
   end
 
   if not volunteerKey then
-    local chosen = squid and pickAtRandom() or nil
+    local chosen = monster and pickAtRandom() or nil
     if chosen then
-      takeControl(chosen, squid, worldKey)
+      takeControl(chosen, monster, worldKey)
     end
     return
   end
@@ -466,8 +469,8 @@ function takeover.reconcile()
     return
   end
   announceVolunteer(controller, worldKey)
-  if squid then
-    takeControl(controller, squid, worldKey)
+  if monster then
+    takeControl(controller, monster, worldKey)
   end
 end
 

@@ -36,15 +36,15 @@ local built = nil
 local zoom = config.minimap.minimumZoom
 
 -- An invisible actor that rides along with the squid but keeps a world rotation of zero, so the map stays north up.
-local function spawnFollower(world, squid)
-  local follower = world:SpawnActor(StaticFindObject(FOLLOWER_CLASS), squid:K2_GetActorLocation(), {})
+local function spawnFollower(world, monster)
+  local follower = world:SpawnActor(StaticFindObject(FOLLOWER_CLASS), monster:K2_GetActorLocation(), {})
   if not follower or not follower:IsValid() then
     game.log("Could not spawn the minimap's follower")
     return nil
   end
   local root = follower.StaticMeshComponent
   root:SetMobility(MOVABLE)
-  follower:K2_AttachToActor(squid, FName("None"), SNAP_TO_TARGET, KEEP_WORLD, KEEP_WORLD, false)
+  follower:K2_AttachToActor(monster, FName("None"), SNAP_TO_TARGET, KEEP_WORLD, KEEP_WORLD, false)
   root:SetAbsolute(false, true, true)
   root:K2_SetWorldRotation({ Pitch = 0, Yaw = 0, Roll = 0 }, false, {}, true)
   return follower
@@ -64,13 +64,13 @@ local function removeLeftovers()
   end
 end
 
-local function build(controller, squid)
+local function build(controller, monster)
   removeLeftovers()
   local widgetClass = game.loadGameAsset(WIDGET_CLASS)
   if not widgetClass then
     return nil
   end
-  local follower = spawnFollower(controller:GetWorld(), squid)
+  local follower = spawnFollower(controller:GetWorld(), monster)
   if not follower then
     return nil
   end
@@ -90,7 +90,7 @@ local function build(controller, squid)
   game.log("The minimap is up")
   return {
     worldKey = controller:GetWorld():GetAddress(),
-    squidAddress = squid:GetAddress(),
+    monsterAddress = monster:GetAddress(),
     widget = widget,
     follower = follower,
     placedForWidth = nil,
@@ -124,13 +124,13 @@ function minimap.forget()
 end
 
 -- Runs about thirty times a second on the entity player's machine while they drive the squid.
-function minimap.follow(controller, squid)
+function minimap.follow(controller, monster)
   local worldKey = controller:GetWorld():GetAddress()
-  if built and (built.worldKey ~= worldKey or built.squidAddress ~= squid:GetAddress()) then
+  if built and (built.worldKey ~= worldKey or built.monsterAddress ~= monster:GetAddress()) then
     minimap.forget()
   end
   if not built then
-    built = build(controller, squid)
+    built = build(controller, monster)
     if not built then
       return
     end
@@ -142,7 +142,7 @@ function minimap.follow(controller, squid)
   widget.CanvasPanel_DynamicIcone:SetVisibility(COLLAPSED)
   -- The icon turns with the squid. The map draws world +Y up and +X to the left (MapUtils.WorldToWidgetLocation
   -- negates both), so a heading of yaw points the icon yaw - 90 degrees clockwise from up
-  widget.UMG_Icone_player_C_0:SetRenderTransformAngle(squid:K2_GetActorRotation().Yaw + config.minimap.iconAngleOffset)
+  widget.UMG_Icone_player_C_0:SetRenderTransformAngle(monster:K2_GetActorRotation().Yaw + config.minimap.iconAngleOffset)
 end
 
 -- One step in (+1) or out (-1).

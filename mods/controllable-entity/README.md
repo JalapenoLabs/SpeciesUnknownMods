@@ -327,6 +327,7 @@ create: network events and a widget layout.
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
   | `objectives.lua` | entity player | The entity's objectives, in the crew's objectives overlay |
   | `voice.lua` | both | The entity's silence, and the crew's radio heard by the entity only nearby |
+  | `kits.lua`, `kits/<monster>.lua` | both | The playable entities: each monster's class, MonsterList value, health pools, cries and moves' assets, and the lookups by class and value |
   | `game.lua`, `config.lua` | both | Game paths and helpers; every tunable |
 
 - **Blueprint pak** (`ControllableEntity_P`, in `Content/Paks/~mods/`), generated from code by the asset builder

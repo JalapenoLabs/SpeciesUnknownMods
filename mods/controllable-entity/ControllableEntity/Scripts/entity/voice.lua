@@ -37,7 +37,7 @@ local wasLocalEntity = false
 
 local function isLocalEntity()
   local controller = game.localController()
-  return controller ~= nil and game.squidDrivenBy(controller) ~= nil
+  return controller ~= nil and game.monsterDrivenBy(controller) ~= nil
 end
 
 local function isEntityTalker(talker)
@@ -70,7 +70,7 @@ end
 -- picks the mic's channels again, through the switches above.
 local function follow()
   local controller = game.localController()
-  local isEntity = controller ~= nil and game.squidDrivenBy(controller) ~= nil
+  local isEntity = controller ~= nil and game.monsterDrivenBy(controller) ~= nil
   if isEntity == wasLocalEntity or not controller then
     return
   end

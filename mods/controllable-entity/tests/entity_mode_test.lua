@@ -12,6 +12,7 @@ fake.install()
 math.randomseed(7)
 
 local game = require("entity.game")
+local kits = require("entity.kits")
 
 fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
@@ -76,12 +77,12 @@ end
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
 fake.runLoops(1000)
-assert(gameInstance.spawnForceSessionMonster == game.squidMonsterType,
+assert(gameInstance.spawnForceSessionMonster == kits.byId.Squid.monsterType,
   "entity mode starts on, so a co-op lobby forces the squid even with no volunteer")
 
 command(crewController, "ToggleEntityMode")
 assert(lastEvent(crewController) == "Denied.HostOnly", "only the host turns entity mode on or off")
-assert(gameInstance.spawnForceSessionMonster == game.squidMonsterType, "a client's press changes nothing")
+assert(gameInstance.spawnForceSessionMonster == kits.byId.Squid.monsterType, "a client's press changes nothing")
 
 command(hostController, "ToggleEntityMode")
 assert(lastEvent(hostController) == "EntityModeOff", "the host sees the new mode")
@@ -94,7 +95,7 @@ assert(lastEvent(crewController) == "Denied.EntityModeOff", "nobody can voluntee
 
 command(hostController, "ToggleEntityMode")
 assert(lastEvent(hostController) == "EntityModeOn")
-assert(gameInstance.spawnForceSessionMonster == game.squidMonsterType)
+assert(gameInstance.spawnForceSessionMonster == kits.byId.Squid.monsterType)
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 -- A mission with no volunteer
@@ -146,6 +147,6 @@ crewController.destroyed = true
 fake.runLoops(1000)
 assert(gameInstance.spawnForceSessionMonster == 0, "a solo lobby doesn't force the squid")
 command(hostController, "Volunteer")
-assert(gameInstance.spawnForceSessionMonster == game.squidMonsterType, "a solo volunteer still gets the squid")
+assert(gameInstance.spawnForceSessionMonster == kits.byId.Squid.monsterType, "a solo volunteer still gets the squid")
 
 print("entity mode test passed")

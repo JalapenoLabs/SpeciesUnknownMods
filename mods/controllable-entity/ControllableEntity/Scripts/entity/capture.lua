@@ -21,7 +21,7 @@ local CAPTURED = 1
 local function onMonsterDied(takeover, monster)
   local entity = takeover.activeEntity()
   local isEntityDeath = entity and monster:HasAuthority() and monster.IsDead
-    and entity.squid:GetAddress() == monster:GetAddress()
+    and entity.monster:GetAddress() == monster:GetAddress()
   if not isEntityDeath or game.contractType() ~= game.contractTypes.Capture then
     return
   end

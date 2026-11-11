@@ -10,6 +10,8 @@ package.path = "mods/controllable-entity/ControllableEntity/Scripts/?.lua;mods/c
 local fake = require("fake_ue4ss")
 fake.install()
 
+local kits = require("entity.kits")
+
 local config = require("entity.config")
 local game = require("entity.game")
 local links = require("entity.links")
@@ -66,7 +68,7 @@ local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false, location = lo
   end,
   BPI_Monster_SetInVent = function(self, inVent) self.InVent = inVent end,
 })
-local entity = { squid = squid, controller = fake.object("BP_MyPlayerController_C") }
+local entity = { monster = squid, kit = kits.byId.Squid, controller = fake.object("BP_MyPlayerController_C") }
 
 local function tick(now, where)
   squid.location = where

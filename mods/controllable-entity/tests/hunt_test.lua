@@ -13,6 +13,7 @@ fake.install()
 
 local config = require("entity.config")
 local game = require("entity.game")
+local kits = require("entity.kits")
 
 fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
@@ -124,10 +125,10 @@ fake.objects["/Script/NavigationSystem.Default__NavigationSystemV1"] = fake.obje
 local gameManager = fake.object("BP_GameManager_C", { Monster = fake.invalid() })
 local weapon = fake.object("BP_LaserGun_C", { IsObjectiveWeapon = true, IsGrabbed = true })
 local roarCue = fake.object("SoundCue")
-fake.objects[game.paths.squidCries.Roar] = roarCue
+fake.objects[kits.byId.Squid.cries.Roar] = roarCue
 
 dofile("mods/controllable-entity/ControllableEntity/Scripts/main.lua")
-for _, classPath in ipairs({ game.paths.squidClass, game.paths.gameStateClass, game.paths.weaponClass }) do
+for _, classPath in ipairs({ kits.byId.Squid.classPath, game.paths.gameStateClass, game.paths.weaponClass }) do
   fake.loadClass(classPath)
 end
 

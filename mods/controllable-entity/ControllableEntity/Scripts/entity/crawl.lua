@@ -19,25 +19,25 @@ local TRIGGER_CLASS_NAME = "BP_Trigger_Crouch_C"
 
 -- Whether the squid is heading into an opening: its trigger's forward points into the duct, so the squid moves along
 -- it, faster than a drift.
-local function isHeadingIn(squid, trigger)
-  local velocity = squid:GetVelocity()
+local function isHeadingIn(monster, trigger)
+  local velocity = monster:GetVelocity()
   local forward = trigger:GetActorForwardVector()
   return velocity.X * forward.X + velocity.Y * forward.Y > config.vents.crawlEntrySpeed
 end
 
 -- Runs five times a second on the host while there is an entity.
 function crawl.tickHost(entity)
-  local squid = entity.squid
+  local monster = entity.monster
   -- Already crouched in the ducts, or shut out of them by the hunt (hunt.lua)
-  if squid.InVent == true or hunt.areVentsShut() then
+  if monster.InVent == true or hunt.areVentsShut() then
     return
   end
-  local location = squid:K2_GetActorLocation()
+  local location = monster:K2_GetActorLocation()
   for _, trigger in ipairs(FindAllOf(TRIGGER_CLASS_NAME) or {}) do
     local isEntrance = trigger:IsValid() and trigger.VentEnter
     local box = isEntrance and zones.componentBox(trigger.CollisionComponent)
-    if box and zones.isInside(box, location, config.vents.crawlReach) and isHeadingIn(squid, trigger) then
-      squid:BPI_Monster_SetInVent(true)
+    if box and zones.isInside(box, location, config.vents.crawlReach) and isHeadingIn(monster, trigger) then
+      monster:BPI_Monster_SetInVent(true)
       game.log("The squid crouches into a crawl opening at %.0f, %.0f, %.0f", location.X, location.Y, location.Z)
       return
     end

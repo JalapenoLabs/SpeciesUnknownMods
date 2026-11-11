@@ -10,6 +10,8 @@ package.path = "mods/controllable-entity/ControllableEntity/Scripts/?.lua;mods/c
 local fake = require("fake_ue4ss")
 fake.install()
 
+local kits = require("entity.kits")
+
 local game = require("entity.game")
 local cries = require("entity.cries")
 
@@ -18,8 +20,8 @@ local function location(x, y, z)
 end
 
 local seenCue, escapeCue = fake.object("SoundCue"), fake.object("SoundCue")
-fake.objects[game.paths.squidCries.Seen] = seenCue
-fake.objects[game.paths.squidCries.Escape] = escapeCue
+fake.objects[kits.byId.Squid.cries.Seen] = seenCue
+fake.objects[kits.byId.Squid.cries.Escape] = escapeCue
 
 -- The entity looks along +X; a crew member stands ahead, in its line of sight unless a wall is in the way
 local hasLineOfSight = true
@@ -33,7 +35,7 @@ local squid = fake.object("BP_Monster_Poulpi_C", { IsOnGround = false }, {
 local crewMember = fake.object("BP_Character_C", { bHidden = false, location = location(1500, 0, 0) }, {
   K2_GetActorLocation = function(self) return self.location end,
 })
-local entity = { squid = squid, controller = controller }
+local entity = { monster = squid, kit = kits.byId.Squid, controller = controller }
 
 local function cuesPlayed(cue)
   local count = 0

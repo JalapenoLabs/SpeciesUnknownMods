@@ -51,32 +51,32 @@ end
 
 -- Mirrors BP_Character.BPI_PlayerInput_Move: forward and right along the camera's yaw.
 local function move(controller, actionValueParameter)
-  local squid = game.squidDrivenBy(controller)
-  if not squid then
+  local monster = game.monsterDrivenBy(controller)
+  if not monster then
     return
   end
   local value = axisValue(actionValueParameter)
   reportValue("Move", controller, value)
   local yaw = math.rad(controller:GetControlRotation().Yaw)
-  squid:AddMovementInput({ X = math.cos(yaw), Y = math.sin(yaw), Z = 0 }, value.Y, false)
-  squid:AddMovementInput({ X = -math.sin(yaw), Y = math.cos(yaw), Z = 0 }, value.X, false)
+  monster:AddMovementInput({ X = math.cos(yaw), Y = math.sin(yaw), Z = 0 }, value.Y, false)
+  monster:AddMovementInput({ X = -math.sin(yaw), Y = math.cos(yaw), Z = 0 }, value.X, false)
 end
 
 -- Mirrors BP_Character.BPI_PlayerInput_Look.
 local function look(controller, actionValueParameter)
-  local squid = game.squidDrivenBy(controller)
-  if not squid then
+  local monster = game.monsterDrivenBy(controller)
+  if not monster then
     return
   end
   local value = axisValue(actionValueParameter)
   reportValue("Look", controller, value)
-  squid:AddControllerYawInput(value.X * config.look.sensitivity)
-  squid:AddControllerPitchInput(value.Y * config.look.sensitivity)
+  monster:AddControllerYawInput(value.X * config.look.sensitivity)
+  monster:AddControllerPitchInput(value.Y * config.look.sensitivity)
 end
 
 local function button(command)
   return function(controller, actionValueParameter)
-    if not game.squidDrivenBy(controller) or not buttonPressed(actionValueParameter) then
+    if not game.monsterDrivenBy(controller) or not buttonPressed(actionValueParameter) then
       return
     end
     links.sendCommand(command, aimOf(controller), nil)
@@ -84,7 +84,7 @@ local function button(command)
 end
 
 local function toggleView(controller, actionValueParameter)
-  if not game.squidDrivenBy(controller) or not buttonPressed(actionValueParameter) then
+  if not game.monsterDrivenBy(controller) or not buttonPressed(actionValueParameter) then
     return
   end
   camera.toggle()
@@ -93,7 +93,7 @@ end
 -- The game's objectives key (Tab by default): shows the entity's objectives while held. The game's own handler asks
 -- the pawn to show the crew's (and the crew's name tags), which the squid ignores.
 local function viewObjectives(controller, actionValueParameter)
-  if not game.squidDrivenBy(controller) then
+  if not game.monsterDrivenBy(controller) then
     return
   end
   if buttonPressed(actionValueParameter) then
@@ -108,7 +108,7 @@ end
 -- states). The game's own handler has already run when this post-hook does, so when it refused, pausing goes back on
 -- through the game's own setter and the menu opens.
 local function openPauseMenu(controller, actionValueParameter)
-  if not game.squidDrivenBy(controller) or not buttonPressed(actionValueParameter) or controller.canPause then
+  if not game.monsterDrivenBy(controller) or not buttonPressed(actionValueParameter) or controller.canPause then
     return
   end
   game.log("Pausing was off for the entity; turning it back on")
@@ -144,7 +144,7 @@ local function registerKeys()
   RegisterKeyBind(Key[config.keys.hints], function()
     ExecuteInGameThread(function()
       local controller = game.localController()
-      if controller and game.squidDrivenBy(controller) then
+      if controller and game.monsterDrivenBy(controller) then
         hud.toggleHints()
       end
     end)
@@ -154,7 +154,7 @@ local function registerKeys()
   RegisterKeyBind(Key[config.keys.volunteer], function()
     ExecuteInGameThread(function()
       local controller = game.localController()
-      local isEntity = controller and game.squidDrivenBy(controller)
+      local isEntity = controller and game.monsterDrivenBy(controller)
       links.sendCommand(isEntity and "SoloPowerOn" or "Volunteer", nil, nil)
     end)
   end)
@@ -178,15 +178,15 @@ end
 -- drives the squid, so a playtest log shows exactly where input stops.
 local reportedArrivals = {}
 local function reportArrival(actionName, controller)
-  local drivingSquid = game.squidDrivenBy(controller) ~= nil
-  local key = actionName .. (drivingSquid and ":squid" or ":crew")
+  local drivingMonster = game.monsterDrivenBy(controller) ~= nil
+  local key = actionName .. (drivingMonster and ":squid" or ":crew")
   if reportedArrivals[key] then
     return
   end
   reportedArrivals[key] = true
   local pawn = controller.Pawn
   local pawnClass = pawn:IsValid() and pawn:GetClass():GetFName():ToString() or "no pawn"
-  game.log("Input %s arrived (pawn: %s%s)", actionName, pawnClass, drivingSquid and ", driving the squid" or "")
+  game.log("Input %s arrived (pawn: %s%s)", actionName, pawnClass, drivingMonster and ", driving the squid" or "")
 end
 
 -- On the player's own machine, as they become the entity: the camera goes to the squid (see camera.lua), and any input
@@ -196,9 +196,9 @@ local function onBecameEntity()
   if not controller then
     return
   end
-  local squid = game.squidDrivenBy(controller)
-  if squid then
-    camera.follow(controller, squid)
+  local monster = game.monsterDrivenBy(controller)
+  if monster then
+    camera.follow(controller, monster)
   end
   game.log("Became the entity; move input ignored: %s, look input ignored: %s",
     tostring(controller:IsMoveInputIgnored()), tostring(controller:IsLookInputIgnored()))
@@ -222,41 +222,41 @@ function control.register()
   registerKeys()
   LoopInGameThreadWithDelay(1000, function()
     local controller = game.localController()
-    local squid = controller and game.squidDrivenBy(controller)
-    if squid then
-      camera.follow(controller, squid)
+    local monster = controller and game.monsterDrivenBy(controller)
+    if monster then
+      camera.follow(controller, monster)
     end
   end)
   LoopInGameThreadWithDelay(33, function()
     local controller = game.localController()
-    local squid = controller and game.squidDrivenBy(controller)
-    if squid then
-      minimap.follow(controller, squid)
+    local monster = controller and game.monsterDrivenBy(controller)
+    if monster then
+      minimap.follow(controller, monster)
       return
     end
     minimap.forget()
   end)
   -- The squid this machine last drove, so the areas it stood in can be handed back once it stops
-  local lastSquid = nil
+  local lastMonster = nil
   LoopInGameThreadWithDelay(250, function()
     local controller = game.localController()
-    local squid = controller and game.squidDrivenBy(controller)
-    if squid then
-      lastSquid = squid
-      areas.follow(squid)
+    local monster = controller and game.monsterDrivenBy(controller)
+    if monster then
+      lastMonster = monster
+      areas.follow(monster)
       return
     end
-    if lastSquid then
-      areas.forget(lastSquid)
-      lastSquid = nil
+    if lastMonster then
+      areas.forget(lastMonster)
+      lastMonster = nil
     end
   end)
   LoopInGameThreadWithDelay(100, function()
     local controller = game.localController()
-    local squid = controller and game.squidDrivenBy(controller)
-    if squid then
-      vision.follow(controller, squid)
-      movement.followPlayer(controller, squid)
+    local monster = controller and game.monsterDrivenBy(controller)
+    if monster then
+      vision.follow(controller, monster)
+      movement.followPlayer(controller, monster)
       return
     end
     vision.forget()

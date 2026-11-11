@@ -52,8 +52,8 @@ local managerKinds = {
   BP_StreamingVolume_Manager_C = {
     leavesStaleVolumes = false,
     volumesOf = listedVolumes,
-    setInside = function(manager, volume, squid, isInside)
-      manager:BPI_Streaming_AddActorToTrigger(volume, squid, isInside)
+    setInside = function(manager, volume, monster, isInside)
+      manager:BPI_Streaming_AddActorToTrigger(volume, monster, isInside)
     end,
   },
   -- Of the triggers the pawn stands in, the highest priority picks the layer (BP_MapManagerExtended.CheckBestTrigger),
@@ -61,12 +61,12 @@ local managerKinds = {
   BP_MapManagerExtended_C = {
     leavesStaleVolumes = true,
     volumesOf = mapTriggers,
-    setInside = function(manager, volume, squid, isInside)
+    setInside = function(manager, volume, monster, isInside)
       if isInside then
-        manager:BeginOverlap(volume, squid)
+        manager:BeginOverlap(volume, monster)
         return
       end
-      manager:EndOverlap(volume, squid)
+      manager:EndOverlap(volume, monster)
     end,
   },
 }
@@ -74,7 +74,7 @@ local managerKinds = {
 -- The volumes the squid is inside, by "<manager address>:<volume address>": { manager, kind, volume }.
 local enteredVolumes = {}
 -- The squid being followed, by address, so a new one starts by leaving the volumes it isn't in.
-local followedSquidAddress = nil
+local followedMonsterAddress = nil
 -- Each volume's bounding box, by address: volumes never move, so it is read once. { origin, extent }
 local boundsByVolume = {}
 
@@ -106,10 +106,10 @@ local function isInside(volume, location)
 end
 
 -- Runs a few times a second on the entity player's machine while they drive the squid.
-function areas.follow(squid)
-  local location = squid:K2_GetActorLocation()
-  local isNewSquid = squid:GetAddress() ~= followedSquidAddress
-  followedSquidAddress = squid:GetAddress()
+function areas.follow(monster)
+  local location = monster:K2_GetActorLocation()
+  local isNewMonster = monster:GetAddress() ~= followedMonsterAddress
+  followedMonsterAddress = monster:GetAddress()
   local stillInside = {}
 
   for className, kind in pairs(managerKinds) do
@@ -120,10 +120,10 @@ function areas.follow(squid)
           if isInside(volume, location) then
             stillInside[key] = { manager = manager, kind = kind, volume = volume }
             if not enteredVolumes[key] then
-              kind.setInside(manager, volume, squid, true)
+              kind.setInside(manager, volume, monster, true)
             end
-          elseif isNewSquid and kind.leavesStaleVolumes then
-            kind.setInside(manager, volume, squid, false)
+          elseif isNewMonster and kind.leavesStaleVolumes then
+            kind.setInside(manager, volume, monster, false)
           end
         end
       end
@@ -138,7 +138,7 @@ function areas.follow(squid)
     if not stillInside[key] then
       changed = true
       if entry.manager:IsValid() and entry.volume:IsValid() then
-        entry.kind.setInside(entry.manager, entry.volume, squid, false)
+        entry.kind.setInside(entry.manager, entry.volume, monster, false)
       end
     end
   end
@@ -154,14 +154,14 @@ function areas.follow(squid)
 end
 
 -- Once the player no longer drives the squid, the volumes are left as the game's own overlaps would leave them.
-function areas.forget(squid)
+function areas.forget(monster)
   for _, entry in pairs(enteredVolumes) do
-    if entry.manager:IsValid() and entry.volume:IsValid() and squid and squid:IsValid() then
-      entry.kind.setInside(entry.manager, entry.volume, squid, false)
+    if entry.manager:IsValid() and entry.volume:IsValid() and monster and monster:IsValid() then
+      entry.kind.setInside(entry.manager, entry.volume, monster, false)
     end
   end
   enteredVolumes = {}
-  followedSquidAddress = nil
+  followedMonsterAddress = nil
 end
 
 return areas

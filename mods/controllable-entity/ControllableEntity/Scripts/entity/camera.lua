@@ -45,16 +45,16 @@ end
 -- Gives the squid its spring arm and camera; nil after logging when the engine won't make them. A rig the squid
 -- already has is reused: the engine views through a pawn's first camera, so a second rig (after a hot reload of the
 -- mod, in playtest 4) would be one the player never sees, and the view toggle would move the wrong one.
-local function buildRig(squid)
+local function buildRig(monster)
   local armClass = StaticFindObject(SPRING_ARM_CLASS)
   local cameraClass = StaticFindObject(CAMERA_CLASS)
-  local existingArm = squid:GetComponentByClass(armClass)
-  local existingView = squid:GetComponentByClass(cameraClass)
+  local existingArm = monster:GetComponentByClass(armClass)
+  local existingView = monster:GetComponentByClass(cameraClass)
   local arm, view = existingArm, existingView
   local reused = arm and arm:IsValid() and view and view:IsValid()
   if not reused then
-    arm = squid:AddComponentByClass(armClass, false, IDENTITY_TRANSFORM, false)
-    view = squid:AddComponentByClass(cameraClass, true, IDENTITY_TRANSFORM, false)
+    arm = monster:AddComponentByClass(armClass, false, IDENTITY_TRANSFORM, false)
+    view = monster:AddComponentByClass(cameraClass, true, IDENTITY_TRANSFORM, false)
   end
   if not arm or not arm:IsValid() or not view or not view:IsValid() then
     game.log("Could not give the squid a camera; the view stays as it is")
@@ -69,7 +69,7 @@ local function buildRig(squid)
   arm.bDoCollisionTest = false
   view:K2_AttachToComponent(arm, FName(ARM_END_SOCKET), SNAP_TO_TARGET, SNAP_TO_TARGET, SNAP_TO_TARGET, false)
   game.log(reused and "The squid already has a camera; using it" or "Gave the squid a camera")
-  return { squidAddress = squid:GetAddress(), arm = arm, view = view }
+  return { monsterAddress = monster:GetAddress(), arm = arm, view = view }
 end
 
 -- The camera manager's own lowest look pitch, from its class default: the value it had before the mod changed it, even
@@ -88,7 +88,7 @@ end
 --     first person keeps the manager's own limit.
 local function applyView()
   rig.arm.TargetArmLength = isThirdPerson and config.camera.thirdPersonDistance or 0
-  rig.squid.Mesh:SetOwnerNoSee(not isThirdPerson)
+  rig.monster.Mesh:SetOwnerNoSee(not isThirdPerson)
   local ownLowestPitch = defaultLowestPitch(rig.manager)
   rig.manager.ViewPitchMin = isThirdPerson and math.max(ownLowestPitch, config.camera.thirdPersonLowestPitch)
     or ownLowestPitch
@@ -100,61 +100,61 @@ local lastReportedDistance = nil
 local REPORT_DISTANCE_STEP = 250
 
 -- Playtest diagnostics: where the camera really is, relative to the squid.
-local function reportDistance(controller, squid)
+local function reportDistance(controller, monster)
   local cameraLocation = controller.PlayerCameraManager:GetCameraLocation()
-  local squidLocation = squid:K2_GetActorLocation()
-  local distance = game.distance(cameraLocation, squidLocation)
+  local monsterLocation = monster:K2_GetActorLocation()
+  local distance = game.distance(cameraLocation, monsterLocation)
   if lastReportedDistance and math.abs(distance - lastReportedDistance) < REPORT_DISTANCE_STEP then
     return
   end
   lastReportedDistance = distance
   game.log("The camera is %.0f units from the squid (camera %.0f, %.0f, %.0f; squid %.0f, %.0f, %.0f; %s)", distance,
-    cameraLocation.X, cameraLocation.Y, cameraLocation.Z, squidLocation.X, squidLocation.Y, squidLocation.Z,
+    cameraLocation.X, cameraLocation.Y, cameraLocation.Z, monsterLocation.X, monsterLocation.Y, monsterLocation.Z,
     isThirdPerson and "third person" or "first person")
 end
 
 -- Runs when the player becomes the entity and about once a second after, while they drive the squid: builds the rig
 -- once per squid, and hands the game's camera back to the squid whenever the game's own code has moved it.
-function camera.follow(controller, squid)
+function camera.follow(controller, monster)
   local manager = controller.PlayerCameraManager
   if not manager:IsValid() then
     game.log("No camera manager; the view stays as it is")
     return
   end
 
-  if not rig or rig.squidAddress ~= squid:GetAddress() or not rig.view:IsValid() then
-    rig = buildRig(squid)
+  if not rig or rig.monsterAddress ~= monster:GetAddress() or not rig.view:IsValid() then
+    rig = buildRig(monster)
     if not rig then
       return
     end
-    rig.squid = squid
+    rig.monster = monster
     rig.manager = manager
     applyView()
   end
 
   local viewTarget = controller:GetViewTarget()
   local cachedCrewBody = manager.Player
-  local followsSquid = viewTarget:IsValid() and viewTarget:GetAddress() == squid:GetAddress()
-  if cachedCrewBody:IsValid() or not followsSquid then
+  local followsMonster = viewTarget:IsValid() and viewTarget:GetAddress() == monster:GetAddress()
+  if cachedCrewBody:IsValid() or not followsMonster then
     local previous = cachedCrewBody:IsValid() and cachedCrewBody or viewTarget
     game.log("The game's camera was following %s; handing it the squid", describe(previous))
-    manager:BPI_CameraPlayer_ResetPlayer(squid)
+    manager:BPI_CameraPlayer_ResetPlayer(monster)
   end
 
-  reportDistance(controller, squid)
+  reportDistance(controller, monster)
 end
 
 function camera.toggle()
   isThirdPerson = not isThirdPerson
-  if rig and rig.squid:IsValid() and rig.manager:IsValid() then
+  if rig and rig.monster:IsValid() and rig.manager:IsValid() then
     applyView()
   end
 end
 
 -- After losing: the rig goes, and the game's camera follows whoever the host points it at.
 function camera.reset()
-  if rig and rig.squid:IsValid() then
-    rig.squid.Mesh:SetOwnerNoSee(false)
+  if rig and rig.monster:IsValid() then
+    rig.monster.Mesh:SetOwnerNoSee(false)
   end
   if rig and rig.manager:IsValid() then
     rig.manager.ViewPitchMin = defaultLowestPitch(rig.manager)

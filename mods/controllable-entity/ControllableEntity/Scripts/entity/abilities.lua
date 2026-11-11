@@ -10,6 +10,7 @@ local config = require("entity.config")
 local cries = require("entity.cries")
 local game = require("entity.game")
 local hunt = require("entity.hunt")
+local kits = require("entity.kits")
 local lair = require("entity.lair")
 local links = require("entity.links")
 local Meter = require("entity.meter")
@@ -34,8 +35,8 @@ end
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
 -- The crew member nearest the squid inside a cone around the aim, within reach; nil when nobody qualifies.
-local function crewInCone(squid, aim, reach, coneDegrees)
-  local origin = squid:K2_GetActorLocation()
+local function crewInCone(monster, aim, reach, coneDegrees)
+  local origin = monster:K2_GetActorLocation()
   local minimumAlignment = math.cos(math.rad(coneDegrees / 2))
   local best, bestDistance = nil, reach
 
@@ -73,19 +74,20 @@ end
 -- without one), so the swing's montage is played through the same multicast the attack ends in. Its damage comes
 -- from the montage's sphere check in front of the squid (BP_ParentMonster.BasicSphereAttackDamage), which runs only
 -- while the squid is attacking, so a swing at nothing hurts nobody.
-local function attack(squid, aim)
-  local target, distance = crewInCone(squid, aim, config.attack.reach, config.attack.coneDegrees)
+local function attack(monster, aim)
+  local target, distance = crewInCone(monster, aim, config.attack.reach, config.attack.coneDegrees)
   if target then
-    squid:BPI_BasicMonster_SetSimpleAttack(target, target:K2_GetActorLocation(), distance)
+    monster:BPI_BasicMonster_SetSimpleAttack(target, target:K2_GetActorLocation(), distance)
     return true
   end
 
-  local swing = StaticFindObject(game.paths.swingMontage)
+  local swingPath = kits.forMonster(monster).swingMontage
+  local swing = StaticFindObject(swingPath)
   if not swing or not swing:IsValid() then
-    game.log("No swing montage at %s; the lash only lands on a crew member in reach", game.paths.swingMontage)
+    game.log("No swing montage at %s; the lash only lands on a crew member in reach", swingPath)
     return false, "NoTarget"
   end
-  squid["AttackSimpleAnim (Clients)"](squid, swing, squid.AttackSimplePlayRate, nil)
+  monster["AttackSimpleAnim (Clients)"](monster, swing, monster.AttackSimplePlayRate, nil)
   return true
 end
 
@@ -93,27 +95,27 @@ end
 -- warp to. The entity leaps where they aim, so the landing point is written here instead.
 -- Ends a peek with the game's own call, as C pressed again does. The pose otherwise outlasts the peek: the squid
 -- crawled and leapt still looking down (playtest 8). Dropping out of the vent ends it on its own.
-local function stopPeeking(squid)
+local function stopPeeking(monster)
   if not peeking then
     return
   end
   if peeking.grate:IsValid() then
-    squid:BPI_Monster_LookFromVent(peeking.grate, false, false)
+    monster:BPI_Monster_LookFromVent(peeking.grate, false, false)
   end
   peeking = nil
 end
 
-local function leap(squid, aim)
-  stopPeeking(squid)
-  local origin = squid:K2_GetActorLocation()
+local function leap(monster, aim)
+  stopPeeking(monster)
+  local origin = monster:K2_GetActorLocation()
   local direction = horizontal(aim)
-  squid.LastSpecialAttackPlayerLocation = {
+  monster.LastSpecialAttackPlayerLocation = {
     X = origin.X + direction.X * config.leap.distance,
     Y = origin.Y + direction.Y * config.leap.distance,
     Z = origin.Z,
   }
-  local target = crewInCone(squid, aim, config.leap.distance + 150, config.attack.coneDegrees)
-  squid:BPI_Monster_SetSpecialAttack(target or squid)
+  local target = crewInCone(monster, aim, config.leap.distance + 150, config.attack.coneDegrees)
+  monster:BPI_Monster_SetSpecialAttack(target or monster)
   return true
 end
 
@@ -122,9 +124,9 @@ end
 -- climb (playtest 6: the player had no way up the elbow joints the AI climbs; playtest 8: nor back down). Dropping out
 -- leaves the ducts, so it waits for the power while the lair holds the squid; climbing stays inside them, so it
 -- doesn't.
-local function vent(squid)
-  local location = squid:K2_GetActorLocation()
-  if not squid.InVent then
+local function vent(monster)
+  local location = monster:K2_GetActorLocation()
+  if not monster.InVent then
     if hunt.areVentsShut() then
       return false, "VentsShut"
     end
@@ -132,63 +134,63 @@ local function vent(squid)
     if not entrance then
       return false, "NoVentEntrance"
     end
-    squid:BPI_Monster_JumpToVent(entrance, true)
+    monster:BPI_Monster_JumpToVent(entrance, true)
     return true
   end
 
   local exit, exitDistance = vents.nearest(location, config.vents.exitReach)
   local climb, climbDistance, isFromTop = vents.nearestClimb(location)
   if climb and (not exit or climbDistance < exitDistance) then
-    stopPeeking(squid)
+    stopPeeking(monster)
     -- Up from the step's foot, or down from its top
-    squid:BPI_Monster_ClimbVent250(climb, isFromTop)
+    monster:BPI_Monster_ClimbVent250(climb, isFromTop)
     return true
   end
   if not exit then
     return false, "NoVentExit"
   end
-  if lair.isLeashed(squid) then
+  if lair.isLeashed(monster) then
     return false, "PowerOff"
   end
   -- The drop's own animation ends a peek
   peeking = nil
-  local target = crewInCone(squid, { X = 0, Y = 0, Z = -1 }, config.vents.exitReach, 120)
-  squid:BPI_Monster_AttackFromVent(exit, target)
+  local target = crewInCone(monster, { X = 0, Y = 0, Z = -1 }, config.vents.exitReach, 120)
+  monster:BPI_Monster_AttackFromVent(exit, target)
   return true
 end
 
 -- C: looks down through the grate under the squid, or stops looking.
-local function peek(squid)
+local function peek(monster)
   if peeking then
-    stopPeeking(squid)
+    stopPeeking(monster)
     return true
   end
-  if not squid.InVent then
+  if not monster.InVent then
     return false, "NotInVent"
   end
-  local location = squid:K2_GetActorLocation()
+  local location = monster:K2_GetActorLocation()
   local grate = vents.nearest(location, config.vents.exitReach)
   if not grate then
     return false, "NoVentExit"
   end
   peeking = { grate = grate, location = { X = location.X, Y = location.Y, Z = location.Z } }
-  squid:BPI_Monster_LookFromVent(grate, true, false)
+  monster:BPI_Monster_LookFromVent(grate, true, false)
   return true
 end
 
 -- The ultimate arms the guaranteed kill, then leaps (or drops from the vent) at once to deliver it.
-local function ultimate(squid, aim, now)
+local function ultimate(monster, aim, now)
   -- Before arming, so the meter isn't spent on a kill the shuttle's approach won't allow
-  if zones.isNearShuttle(squid:K2_GetActorLocation()) then
+  if zones.isNearShuttle(monster:K2_GetActorLocation()) then
     return false, "ShuttleZone"
   end
   if not meter:arm(now) then
     return false, "UltimateNotReady"
   end
-  if squid.InVent then
-    return vent(squid, aim)
+  if monster.InVent then
+    return vent(monster, aim)
   end
-  return leap(squid, aim)
+  return leap(monster, aim)
 end
 
 local moveByCommand = {
@@ -198,9 +200,9 @@ local moveByCommand = {
   Peek = peek,
   Ultimate = ultimate,
   -- The squid's cries, which everyone near it hears: a choice to give itself away
-  Roar = function(squid) return cries.play(squid, "Roar", true) end,
-  Curious = function(squid) return cries.play(squid, "Curious", true) end,
-  Call = function(squid) return cries.play(squid, "Call", true) end,
+  Roar = function(monster) return cries.play(monster, "Roar", true) end,
+  Curious = function(monster) return cries.play(monster, "Curious", true) end,
+  Call = function(monster) return cries.play(monster, "Call", true) end,
 }
 
 -- Runs a command from the entity player: checks it came from the entity and is off cooldown, then moves the squid.
@@ -214,18 +216,18 @@ local function runCommand(command)
       return
     end
 
-    if config.lair.heldMoves[command] and lair.isLeashed(entity.squid) then
+    if config.lair.heldMoves[command] and lair.isLeashed(entity.monster) then
       links.sendEvent(controller, "Denied.PowerOff")
       return
     end
 
-    local now = game.timeSeconds(entity.squid)
+    local now = game.timeSeconds(entity.monster)
     if now < (readyAtByCommand[command] or 0) then
       links.sendEvent(controller, "Denied.Cooldown")
       return
     end
 
-    local ok, reason = moveByCommand[command](entity.squid, aim, now)
+    local ok, reason = moveByCommand[command](entity.monster, aim, now)
     if not ok then
       links.sendEvent(controller, "Denied." .. reason)
       return
@@ -244,14 +246,14 @@ end
 -- with the game's own "hit while grabbing" knockback, which releases the player on every machine and clears the
 -- squid's IsGrabPlayer, the flag its decapitation checks before killing.
 local function onGrabStarted(context)
-  local squid = context:get()
+  local monster = context:get()
   local entity = takeover.activeEntity()
-  if not entity or not squid:HasAuthority() or squid:GetAddress() ~= entity.squid:GetAddress() then
+  if not entity or not monster:HasAuthority() or monster:GetAddress() ~= entity.monster:GetAddress() then
     return
   end
 
-  local now = game.timeSeconds(squid)
-  local isNearShuttle = zones.isNearShuttle(squid:K2_GetActorLocation())
+  local now = game.timeSeconds(monster)
+  local isNearShuttle = zones.isNearShuttle(monster:K2_GetActorLocation())
   if meter:grabKills(now) and not isNearShuttle then
     meter:spendKill(now)
     links.sendEvent(entity.controller, "KillStarted")
@@ -260,11 +262,11 @@ local function onGrabStarted(context)
 
   -- One frame later, once the grab's own multicast has finished, so the knockback replaces it cleanly
   ExecuteInGameThreadAfterFrames(1, function()
-    if not squid:IsValid() then
+    if not monster:IsValid() then
       return
     end
-    local montage = StaticFindObject(game.paths.grabInterruptedMontage)
-    squid["KnockBack (Clients)"](squid, montage, 1.0)
+    local montage = StaticFindObject(entity.kit.killGrab.breakMontage)
+    monster["KnockBack (Clients)"](monster, montage, 1.0)
   end)
   links.sendEvent(entity.controller, isNearShuttle and "Denied.ShuttleNoKill" or "Denied.UltimateNotReady")
 end
@@ -284,19 +286,19 @@ function abilities.tick()
     return
   end
 
-  local now = game.timeSeconds(entity.squid)
+  local now = game.timeSeconds(entity.monster)
   meter:advance(now, lastTickAt and now - lastTickAt or 0)
   lastTickAt = now
 
   -- Crawling away from the grate ends the peek (playtest 8); out of the ducts, the drop ended it already
-  local squid = entity.squid
-  if peeking and not squid.InVent then
+  local monster = entity.monster
+  if peeking and not monster.InVent then
     peeking = nil
   elseif peeking then
-    local location = squid:K2_GetActorLocation()
+    local location = monster:K2_GetActorLocation()
     local offsetX, offsetY = location.X - peeking.location.X, location.Y - peeking.location.Y
     if math.sqrt(offsetX * offsetX + offsetY * offsetY) > config.vents.peekBreakDistance then
-      stopPeeking(squid)
+      stopPeeking(monster)
     end
   end
 
@@ -313,10 +315,10 @@ function abilities.tick()
   end
 
   -- The HUD's health bar shows the pool the squid is on: stagger while standing, real health while down
-  local fields = game.squidHealthFields
-  local downed = squid[fields.downed] == true
-  local current = downed and squid[fields.health] or squid[fields.stagger]
-  local maximum = downed and squid[fields.maxHealth] or squid[fields.maxStagger]
+  local fields = entity.kit.healthFields
+  local downed = monster[fields.downed] == true
+  local current = downed and monster[fields.health] or monster[fields.stagger]
+  local maximum = downed and monster[fields.maxHealth] or monster[fields.maxStagger]
   link.Downed = downed
   link.Health = (maximum and maximum > 0) and current / maximum or 1
   link.Stamina = movement.stamina()
@@ -327,7 +329,9 @@ function abilities.register()
   for command in pairs(moveByCommand) do
     links.onCommand(command, runCommand(command))
   end
-  game.hookWhenLoaded(game.paths.squidClass, "GrabHeadPlayer", onGrabStarted)
+  for _, kit in ipairs(kits.playable) do
+    game.hookWhenLoaded(kit.classPath, kit.killGrab.functionName, onGrabStarted)
+  end
 end
 
 return abilities

@@ -10,6 +10,8 @@ package.path = "mods/controllable-entity/ControllableEntity/Scripts/?.lua;mods/c
 local fake = require("fake_ue4ss")
 fake.install()
 
+local kits = require("entity.kits")
+
 local crawl = require("entity.crawl")
 local hunt = require("entity.hunt")
 
@@ -40,7 +42,7 @@ local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false, velocity = lo
     self.InVent = inVent
   end,
 })
-local entity = { squid = squid }
+local entity = { monster = squid, kit = kits.byId.Squid }
 local function crouches()
   return #fake.callsTo(squid, "BPI_Monster_SetInVent")
 end

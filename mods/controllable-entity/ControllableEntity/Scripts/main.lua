@@ -55,7 +55,7 @@ LoopInGameThreadWithDelay(200, function()
   -- The speed, stamina and vent time first, so the link the meter's tick fills carries this tick's values
   local entity = takeover.activeEntity()
   if entity then
-    local now = game.timeSeconds(entity.squid)
+    local now = game.timeSeconds(entity.monster)
     movement.tickHost(entity, now)
     hunt.tick(entity, now)
     zones.tickHost(entity, now)

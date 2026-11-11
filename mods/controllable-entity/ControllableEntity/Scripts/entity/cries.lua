@@ -10,6 +10,7 @@
 
 local config = require("entity.config")
 local game = require("entity.game")
+local kits = require("entity.kits")
 
 local cries = {}
 
@@ -18,20 +19,20 @@ local MOUTH_MULTIPLIER = 1.0
 
 -- On the host, per squid: whether the entity saw a crew member at the last check, when it may next call out at one,
 -- and whether the squid was down.
-local function freshWatch(squidAddress)
-  return { squidAddress = squidAddress, wasSeeing = false, nextSeenAt = 0, wasDown = false }
+local function freshWatch(monsterAddress)
+  return { monsterAddress = monsterAddress, wasSeeing = false, nextSeenAt = 0, wasDown = false }
 end
 
 local watch = freshWatch(nil)
 
 -- Plays one of the squid's cries on every machine. One the entity asks for cuts off whatever the squid was saying;
 -- one of its own waits for silence. False after logging when the cue won't load.
-function cries.play(squid, cry, isAsked)
-  local cue = game.loadGameAsset(game.paths.squidCries[cry])
+function cries.play(monster, cry, isAsked)
+  local cue = game.loadGameAsset(kits.forMonster(monster).cries[cry])
   if not cue then
     return false
   end
-  squid:BPI_Monster_PlayVoiceAudio(cue, 1.0, 1.0, isAsked, MOUTH_MULTIPLIER, true, 0, not isAsked)
+  monster:BPI_Monster_PlayVoiceAudio(cue, 1.0, 1.0, isAsked, MOUTH_MULTIPLIER, true, 0, not isAsked)
   return true
 end
 
@@ -39,7 +40,7 @@ end
 -- the entity player left behind (takeover.lua) is hidden, so it isn't seen.
 local function seesCrew(entity)
   local controller = entity.controller
-  local origin = entity.squid:K2_GetActorLocation()
+  local origin = entity.monster:K2_GetActorLocation()
   local look = game.rotationDirection(controller:GetControlRotation())
   local coneCosine = math.cos(math.rad(config.cries.sightConeDegrees / 2))
   for _, crewMember in ipairs(FindAllOf(game.classNames.crewCharacter) or {}) do
@@ -59,21 +60,21 @@ end
 
 -- Runs five times a second on the host while there is an entity: the cries the squid makes on its own.
 function cries.tickHost(entity, now)
-  local squid = entity.squid
-  if watch.squidAddress ~= squid:GetAddress() then
-    watch = freshWatch(squid:GetAddress())
+  local monster = entity.monster
+  if watch.monsterAddress ~= monster:GetAddress() then
+    watch = freshWatch(monster:GetAddress())
   end
 
   local isSeeing = seesCrew(entity)
   if isSeeing and not watch.wasSeeing and now >= watch.nextSeenAt then
     watch.nextSeenAt = now + config.cries.seenCallSeconds
-    cries.play(squid, "Seen", false)
+    cries.play(monster, "Seen", false)
   end
   watch.wasSeeing = isSeeing
 
-  local isDown = squid[game.squidHealthFields.downed] == true
+  local isDown = monster[entity.kit.healthFields.downed] == true
   if watch.wasDown and not isDown then
-    cries.play(squid, "Escape", false)
+    cries.play(monster, "Escape", false)
   end
   watch.wasDown = isDown
 end

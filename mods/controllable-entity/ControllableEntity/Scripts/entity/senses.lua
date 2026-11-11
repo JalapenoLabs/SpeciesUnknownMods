@@ -33,7 +33,7 @@ local function hear(abilities, takeover, location, loudness, noiseRange, kind)
     return
   end
 
-  local distance = game.distance(entity.squid:K2_GetActorLocation(), location)
+  local distance = game.distance(entity.monster:K2_GetActorLocation(), location)
   local audibleRange = config.senses.hearingRange * loudness
   if noiseRange and noiseRange > 0 then
     audibleRange = math.min(audibleRange, noiseRange)
@@ -43,7 +43,7 @@ local function hear(abilities, takeover, location, loudness, noiseRange, kind)
   end
 
   if distance <= config.meter.noiseNearbyDistance then
-    abilities.meter():noteNoiseNearby(game.timeSeconds(entity.squid))
+    abilities.meter():noteNoiseNearby(game.timeSeconds(entity.monster))
   end
   links.sendPing(entity.controller, blurred(location, distance), loudness, kind)
 end
@@ -67,7 +67,7 @@ function senses.register(abilities, takeover)
 
       -- Footsteps arrive with every step of every player; one ping per walker per interval is plenty
       local entity = takeover.activeEntity()
-      local now = entity and game.timeSeconds(entity.squid) or 0
+      local now = entity and game.timeSeconds(entity.monster) or 0
       local walkerAddress = walker:GetAddress()
       if now - (lastFootstepPingAtBySource[walkerAddress] or -math.huge) < config.senses.footstepInterval then
         return
@@ -91,14 +91,14 @@ function senses.register(abilities, takeover)
       -- ForceSound's own rules (BP_MyGameState): a maximum distance when set, and a minimum one when set
       local location = locationParameter:get()
       local soundLocation = { X = location.X, Y = location.Y, Z = location.Z }
-      local distance = game.distance(entity.squid:K2_GetActorLocation(), soundLocation)
+      local distance = game.distance(entity.monster:K2_GetActorLocation(), soundLocation)
       local maxDistance, minDistance = maxDistanceParameter:get(), minDistanceParameter:get()
       if (maxDistance ~= 0 and distance > maxDistance) or (minDistance ~= 0 and distance < minDistance) then
         return
       end
 
       if distance <= config.meter.noiseNearbyDistance then
-        abilities.meter():noteNoiseNearby(game.timeSeconds(entity.squid))
+        abilities.meter():noteNoiseNearby(game.timeSeconds(entity.monster))
       end
       links.sendPing(entity.controller, blurred(soundLocation, distance), 1.0, "Alarm")
     end)
