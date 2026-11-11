@@ -34,21 +34,6 @@ local IDENTITY_TRANSFORM = {
 -- nextRefreshAt }, or nil.
 local built = nil
 
--- Engine and game assets are in the game's asset registry, so LoadAsset finds them when nothing has loaded them yet.
-local function loadAsset(path)
-  local asset = StaticFindObject(path)
-  if asset and asset:IsValid() then
-    return asset
-  end
-  LoadAsset(path)
-  asset = StaticFindObject(path)
-  if asset and asset:IsValid() then
-    return asset
-  end
-  game.log("Could not load %s", path)
-  return nil
-end
-
 -- The squid's light, reusing one it already has (after a hot reload of the mod) rather than stacking a second.
 local function giveLantern(squid)
   local lightClass = StaticFindObject(POINT_LIGHT_CLASS)
@@ -89,8 +74,8 @@ end
 
 -- A pool of marker discs, spawned once per world and moved to the openings near the squid.
 local function spawnMarkers(world)
-  local mesh = loadAsset(MARKER_MESH)
-  local material = loadAsset(MARKER_MATERIAL)
+  local mesh = game.loadGameAsset(MARKER_MESH)
+  local material = game.loadGameAsset(MARKER_MATERIAL)
   local markerClass = StaticFindObject(STATIC_MESH_ACTOR_CLASS)
   if not mesh or not material or not markerClass then
     return {}

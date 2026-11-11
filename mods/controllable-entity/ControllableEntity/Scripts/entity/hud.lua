@@ -12,6 +12,7 @@
 local config = require("entity.config")
 local game = require("entity.game")
 local links = require("entity.links")
+local objectives = require("entity.objectives")
 local vents = require("entity.vents")
 
 local hud = {}
@@ -86,7 +87,7 @@ local messageByEvent = {
   ["Denied.NotInVent"] = "Peek works from inside a vent.",
   ["Denied.PowerOff"] = "The vents hold you until the power is on.",
   ["Denied.UltimateNotReady"] = "Your hunger isn't ready.",
-  ["Denied.VentsShut"] = "The vents won't take you yet.",
+  ["Denied.VentsShut"] = "The vents take you again once your vent time is half back.",
   ["Denied.HostOnly"] = "The host turns entity mode on or off.",
   ["Denied.EntityModeOff"] = "Entity mode is off. The host can turn it on.",
 }
@@ -304,7 +305,8 @@ local function hideCrewHud(now)
   state.nextCrewHudCheckAt = now + CREW_HUD_CHECK_SECONDS
   for _, className in ipairs(game.classNames.crewHudWidgets) do
     for _, crewWidget in ipairs(FindAllOf(className) or {}) do
-      if crewWidget:IsValid() then
+      -- The entity's own objectives are the crew's overlay too (objectives.lua)
+      if crewWidget:IsValid() and not objectives.owns(crewWidget) then
         crewWidget:RemoveFromParent()
       end
     end

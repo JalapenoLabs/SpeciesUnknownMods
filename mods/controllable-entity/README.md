@@ -154,6 +154,7 @@ gets a mod key of its own.
 | Aim (`IA_ADS`) | Leap where you look; a grab on landing is broken off unless the kill is ready |
 | Interact (`IA_Interact`, E) | Ultimate: with a full meter, leap (or drop) and the grab kills |
 | Crouch (`IA_Crouch`) | Peek down through the grate while in a vent |
+| Objectives (`IA_ViewPseudo`, Tab, held) | Show the entity's objectives, in the crew's own overlay |
 | Flashlight (`IA_FlashLight`) | Switch between third person (the start) and first person; in first person the squid's own mesh is hidden from its player |
 | Hold Tool (`IA_HoldTool`, Space) | Climb into the nearest vent, drop out of it onto whoever is below, or climb a step up inside the ducts |
 | F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out |
@@ -196,6 +197,11 @@ The HUD is laid out like the crew's own, so the top of the screen holds only the
   left. The widget turns its map with whatever it follows, so it follows an invisible actor that rides with the squid
   but never turns. Its item icons (the special weapons, the black box) are hidden: they stay on the map while a crew
   member carries them, which would show the entity where that player is.
+- **Objectives, while Tab is held:** the crew's own objectives overlay (`UMG_ObjectiveList`), headed "THE ENTITY"
+  instead of the contract, with the entity's objectives: kill all humans, leave them no respawns (with how many the
+  crew have left, `BP_MyGameState.Respawn`), and stay alive. The entity wins exactly when the crew is all dead with no
+  respawns left, which is when the game itself ends the mission. Nothing on it hints at the crew's contract, and the
+  crew's name tags, which their Tab also shows, stay hidden.
 - **Key hints, under the minimap, small:** `H hints` and `F camera`. H hides them and the peek prompt, and brings them
   back.
 - The crew HUD (status bars, objectives, crosshair) is hidden while the player is the squid, and so are the wall maps
@@ -250,6 +256,7 @@ create: network events and a widget layout.
   | `areas.lua` | entity player | The map sections and the minimap's deck around the squid, which the game only follows for crew |
   | `minimap.lua` | entity player | The game's minimap in the corner, north up, centred on the squid |
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
+  | `objectives.lua` | entity player | The entity's objectives, in the crew's objectives overlay |
   | `game.lua`, `config.lua` | both | Game paths and helpers; every tunable |
 
 - **Blueprint pak** (`ControllableEntity_P`, in `Content/Paks/~mods/`), generated from code by the asset builder

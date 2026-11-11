@@ -119,6 +119,22 @@ function game.log(message, ...)
   print(string.format("[ControllableEntity] " .. message .. "\n", ...))
 end
 
+-- Loads one of the game's own assets or classes by its object path. The game's assets are in its asset registry, so
+-- UE4SS's LoadAsset finds those nothing has loaded yet. Nil after logging when it can't.
+function game.loadGameAsset(path)
+  local asset = StaticFindObject(path)
+  if asset and asset:IsValid() then
+    return asset
+  end
+  LoadAsset(path)
+  asset = StaticFindObject(path)
+  if asset and asset:IsValid() then
+    return asset
+  end
+  game.log("Could not load the game's %s", path)
+  return nil
+end
+
 -- Mod classes that failed to load, so a missing pak is reported once instead of on every retry.
 local reportedMissingClasses = {}
 

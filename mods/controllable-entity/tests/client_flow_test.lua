@@ -29,12 +29,31 @@ fake.objects["/Script/Engine.CameraComponent"] = fake.object("CameraComponentCla
 fake.objects[game.paths.widgetLayoutLibrary] = fake.object("WidgetLayoutLibrary", nil, {
   GetViewportScale = function() return 2 end,
   GetViewportSize = function() return { X = 1920, Y = 1080 } end,
+  SlotAsVerticalBoxSlot = function() return fake.object("VerticalBoxSlot") end,
 })
 fake.installModPak(game.modClasses)
 fake.object("GameStateBase")
 fake.world = fake.object("World")
 
 local widget = fake.entityHud()
+-- The game's objectives overlay and its rows, which the entity's Tab builds its own of
+local objectiveListClass = fake.object("UMG_ObjectiveList_C_Class")
+local objectiveClass = fake.object("UMG_Objective_C_Class")
+fake.objects["/Game/Blueprints/UI/UMG_ObjectiveList.UMG_ObjectiveList_C"] = objectiveListClass
+fake.objects["/Game/Blueprints/UI/UMG_Objective.UMG_Objective_C"] = objectiveClass
+local objectiveList = fake.object("UMG_ObjectiveList_C", {
+  VerticalBoxObjective = fake.object("VerticalBox"),
+  TxtContractType = fake.object("TextBlock"),
+  ImgContractType = fake.object("Image"),
+  WrapBox_Modifier = fake.object("WrapBox"),
+  inViewport = false,
+}, {
+  IsInViewport = function(self) return self.inViewport end,
+  AddToViewport = function(self) self.inViewport = true end,
+  RemoveFromParent = function(self) self.inViewport = false end,
+})
+local objectiveRows = {}
+fake.object("BP_MyGameState_C", { Respawn = 2 })
 
 local function lastArgument(element, method)
   local calls = fake.callsTo(element, method)
@@ -42,7 +61,15 @@ local function lastArgument(element, method)
 end
 local createdWidgets = 0
 fake.objects[game.paths.widgetLibrary] = fake.object("WidgetBlueprintLibrary", nil, {
-  Create = function()
+  Create = function(_, _, class)
+    if class == objectiveListClass then
+      return objectiveList
+    end
+    if class == objectiveClass then
+      local row = fake.object("UMG_Objective_C")
+      table.insert(objectiveRows, row)
+      return row
+    end
     createdWidgets = createdWidgets + 1
     return widget
   end,
@@ -91,6 +118,7 @@ fake.loadClass(game.paths.controllerClass, {
   "InpActEvt_IA_FlashLight_K2Node_EnhancedInputActionEvent_44",
   "InpActEvt_IA_Interact_K2Node_EnhancedInputActionEvent_30",
   "InpActEvt_IA_HoldTool_K2Node_EnhancedInputActionEvent_19",
+  "InpActEvt_IA_ViewPseudo_K2Node_EnhancedInputActionEvent_14",
   "InpActEvt_IA_OpenPauseMenu_K2Node_EnhancedInputActionEvent_10",
   "InpActEvt_IA_Reload_K2Node_EnhancedInputActionEvent_32",
 })
@@ -184,6 +212,21 @@ interactHook(fake.param(controller), fake.param({ pressed = true }))
 commands = fake.callsTo(link, "EntityServerCommand")
 assert(commands[#commands].args[1]:ToString() == "Ultimate", "Interact fires the ultimate")
 assert(not fake.keybinds.SPACE, "venting is no mod key, so it stays out of the game's menus")
+
+-- Holding the game's objectives key (Tab) shows the entity's own objectives, in the crew's overlay (playtest 6)
+local viewObjectivesHook = fake.hooks[controllerPath .. "InpActEvt_IA_ViewPseudo_K2Node_EnhancedInputActionEvent_14"]
+viewObjectivesHook(fake.param(controller), fake.param({ pressed = true }))
+assert(objectiveList.inViewport, "holding the key shows the entity's objectives")
+assert(lastArgument(objectiveList.TxtContractType, "SetText").text == "THE ENTITY", "under the entity's own header")
+assert(lastArgument(objectiveList.ImgContractType, "SetVisibility") == 1, "without the contract's icon")
+assert(#objectiveRows == 3 and objectiveRows[1].Text.text == "Kill all humans", "starting with the hunt")
+assert(objectiveRows[2].Text.text:find("2 left") and objectiveRows[2].IsCurrent, "and the crew's respawns left")
+fake.now = 0.6
+fake.runLoops(33)
+assert(objectiveList.inViewport, "the crew-HUD sweep leaves the entity's objectives up")
+viewObjectivesHook(fake.param(controller), fake.param({ pressed = false }))
+assert(not objectiveList.inViewport, "letting go of the key hides them")
+fake.now = 0
 
 -- If the game's own code moves the camera elsewhere, it goes back to the squid within a second, keeping its rig
 local shuttleCamera = fake.object("CameraActor")

@@ -14,6 +14,7 @@ local config = require("entity.config")
 local hud = require("entity.hud")
 local minimap = require("entity.minimap")
 local movement = require("entity.movement")
+local objectives = require("entity.objectives")
 local vision = require("entity.vision")
 local game = require("entity.game")
 local links = require("entity.links")
@@ -101,6 +102,19 @@ local function toggleView(controller, actionValueParameter)
   camera.toggle()
 end
 
+-- The game's objectives key (Tab by default): shows the entity's objectives while held. The game's own handler asks
+-- the pawn to show the crew's (and the crew's name tags), which the squid ignores.
+local function viewObjectives(controller, actionValueParameter)
+  if not drivenSquid(controller) then
+    return
+  end
+  if buttonPressed(actionValueParameter) then
+    objectives.show(controller)
+    return
+  end
+  objectives.hide()
+end
+
 -- The pause menu opens only while the controller's canPause is on (BP_MyPlayerController._CanOpenPauseMenu), and the
 -- crew body turns it off on its way out (BP_Character calls BPI_PlayerController_SetCanPause(false) in several
 -- states). The game's own handler has already run when this post-hook does, so when it refused, pausing goes back on
@@ -127,6 +141,7 @@ local handlerByAction = {
   HoldTool = button("Vent"),
   Crouch = button("Peek"),
   FlashLight = toggleView,
+  ViewPseudo = viewObjectives,
   OpenPauseMenu = openPauseMenu,
 }
 
@@ -250,6 +265,7 @@ function control.register()
       return
     end
     vision.forget()
+    objectives.hide()
   end)
   links.onClientEvent("BecameEntity", onBecameEntity)
   links.onClientEvent("Lost", camera.reset)
