@@ -342,6 +342,28 @@ local function takeControl(controller, squid, worldKey)
   lair.begin(squid, controller)
 end
 
+-- A hot reload of the mod (UE4SS's Ctrl+R) forgets who the entity is, while the player still drives the squid. Their
+-- controller is the proof: the squid's AI was destroyed at the takeover, so only the entity player can be driving it.
+-- They're taken back as the entity where they are; the lair isn't rebuilt, so the leash is gone until the next mission.
+local function adoptAfterReload(squid, worldKey)
+  local controller = game.playerControllerOf(squid)
+  if not controller then
+    return false
+  end
+  volunteerKey = playerKey(controller.PlayerState)
+  activeEntity = {
+    key = volunteerKey,
+    controller = controller,
+    squid = squid,
+    playerState = controller.PlayerState,
+    parkedBody = nil,
+    worldKey = worldKey,
+  }
+  squid.ShouldCheckIfStuck = false
+  game.log("%s is driving the squid; taken back as the entity after a reload", volunteerKey)
+  return true
+end
+
 local function noticeLoss()
   local entity = activeEntity
   activeEntity = nil
@@ -420,6 +442,9 @@ function takeover.reconcile()
 
   -- On Hawking the squid spawns only once a crew member leaves the shuttle
   local squid = isMission() and missionSquid() or nil
+  if squid and adoptAfterReload(squid, worldKey) then
+    return
+  end
 
   if not volunteerKey then
     local chosen = squid and pickAtRandom() or nil

@@ -184,4 +184,18 @@ squid.location = roaming
 fake.runLoops(200)
 assert(squid.location == roaming, "once the power has been on, the leash is gone")
 
+-- Regression (playtest 5): a hot reload of the mod (Ctrl+R) forgot who the entity was, so every move was ignored while
+-- the player still drove the squid. UE4SS drops the old scripts' hooks and loops and runs fresh copies
+for name in pairs(package.loaded) do
+  if name:match("^entity%.") then
+    package.loaded[name] = nil
+  end
+end
+fake.loops, fake.customEvents, fake.hooks = {}, {}, {}
+dofile("mods/controllable-entity/ControllableEntity/Scripts/main.lua")
+fake.runLoops(1000)
+fake.now = 30
+command("Attack")
+assert(lastEvent() == "Denied.NoTarget", "after a reload, the player driving the squid is still the entity")
+
 print("lair test passed")
