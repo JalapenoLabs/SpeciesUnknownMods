@@ -136,8 +136,9 @@ entity could keep away from the shuttle for good, so with an entity:
 ### Voice: the entity has no comms
 
 - Nobody hears the entity player at all, nearby or over the radio, and their radio key does nothing (not even its
-  click). Their own machine never turns their mic on, and the host mutes them on both of the game's voice channels
-  for the rest of the mission.
+  click). Their own machine never turns their mic on, and the host mutes them on both of the game's voice channels.
+- Once the entity has lost, its player can talk to everyone again, over the radio too: the crew finally hear the
+  thing they hunted speak.
 - The entity hears the crew only as someone standing near them would. The host takes the entity off the radio
   channel, and every crew machine sends radio speech on the proximity channel too: the crew still hear each other
   over the radio, and the entity hears a crew member on the radio only up close, without the radio's static.

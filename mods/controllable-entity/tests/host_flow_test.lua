@@ -263,4 +263,18 @@ fake.now = fake.now + 0.2
 fake.runLoops(200)
 assert(squid.CharacterMovement.MaxWalkSpeed == 404, "then it sprints again")
 
+-- Playtest 6: once the entity has lost, its player talks to everyone again ("You kill it and then it can talk")
+squid.destroyed = true
+fake.runLoops()
+fake.runLoops()
+assert(lastEvent(crewController) == "Lost", "the crew killed the entity")
+local released = fake.callsTo(entityTalker, "SetMutedOnVoiceChannel")
+assert(released[#released].args[1] == false and released[#released - 1].args[1] == false,
+  "the lost entity is unmuted on both channels")
+local rejoined = fake.callsTo(entityTalker, "SetVoiceChannel")
+assert(rejoined[#rejoined].args[1] == 1 and rejoined[#rejoined].args[2] == true, "and back on the crew's radio")
+local unmuted = fake.param(false)
+fake.hooks[talkerPath .. "SetMutedOnVoiceChannel"](fake.param(entityTalker), unmuted, fake.param(0))
+assert(unmuted:get() == false, "and the game's own mute settings are theirs again")
+
 print("host flow test passed")

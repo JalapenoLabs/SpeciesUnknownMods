@@ -9,7 +9,8 @@
 -- open mic). A listener hears a speaker only through a channel both are in, and the radio wins when both are.
 --
 --   - The entity's own machine never turns its mic on, whatever the game asks, and the radio key's click is silent.
---   - The host mutes the entity on both channels and takes it off the radio channel, for the rest of the mission.
+--   - The host mutes the entity on both channels and takes it off the radio channel while it's the entity. Once it
+--     has lost, its player talks to everyone again: the entity they hunted can hear it speak at last.
 --   - Every crew machine sends radio speech on the proximity channel too. The crew, in both channels, still hear the
 --     radio; the entity, in proximity alone, hears the speaker only nearby, without the radio's effect.
 
@@ -28,7 +29,7 @@ local RADIO_CLICK_NAME = "radio_static_placeholder"
 local PROXIMITY_CHANNEL = 0
 local RADIO_CHANNEL = 1
 
--- On the host: the entity's player state, whose talker stays silent for the rest of the mission; nil before one.
+-- On the host: the entity's player state, whose talker stays silent while it's the entity; nil without one.
 local silencedPlayerState = nil
 -- On each machine: whether its own player drove the squid at the last check, so the game's voice hears of a change.
 local wasLocalEntity = false
@@ -84,6 +85,15 @@ end
 -- The host
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
+local function talkerOf(playerState)
+  local worldVoice = FindFirstOf(WORLD_VOICE_CLASS_NAME)
+  local talker = worldVoice and worldVoice:IsValid() and worldVoice:GetVoipTalker(playerState)
+  if not talker or not talker:IsValid() then
+    return nil
+  end
+  return talker
+end
+
 -- Runs once a second on the host while there is an entity: silences its talker once per entity.
 local function silenceEntity(entity)
   local playerState = entity.playerState
@@ -92,9 +102,8 @@ local function silenceEntity(entity)
   if isSilenced or not playerState:IsValid() then
     return
   end
-  local worldVoice = FindFirstOf(WORLD_VOICE_CLASS_NAME)
-  local talker = worldVoice and worldVoice:IsValid() and worldVoice:GetVoipTalker(playerState)
-  if not talker or not talker:IsValid() then
+  local talker = talkerOf(playerState)
+  if not talker then
     game.log("No voice talker for the entity yet; trying again in a second")
     return
   end
@@ -103,6 +112,22 @@ local function silenceEntity(entity)
   talker:SetMutedOnVoiceChannel(true, RADIO_CHANNEL)
   talker:SetVoiceChannel(RADIO_CHANNEL, false)
   game.log("The entity is silent to everyone, and off the crew's radio")
+end
+
+-- Once the entity has lost (playtest 6: "You kill it and then it can talk"), the holds come off and its player is back
+-- on both channels, unmuted. After a map change its talker went with the old world, so there's nothing to undo.
+local function releaseEntity()
+  local playerState = silencedPlayerState
+  silencedPlayerState = nil
+  local talker = playerState:IsValid() and talkerOf(playerState)
+  if not talker then
+    game.log("The entity's voice was left with the old map")
+    return
+  end
+  talker:SetVoiceChannel(RADIO_CHANNEL, true)
+  talker:SetMutedOnVoiceChannel(false, PROXIMITY_CHANNEL)
+  talker:SetMutedOnVoiceChannel(false, RADIO_CHANNEL)
+  game.log("The entity has lost: its player can talk to everyone again")
 end
 
 -- Pre-hooks on the entity's talker: the game sets these again (the proximity mute follows the player's own mute
@@ -161,9 +186,14 @@ function voice.register(takeover)
 
   LoopInGameThreadWithDelay(1000, function()
     follow()
-    local entity = game.isHost() and takeover.activeEntity()
+    if not game.isHost() then
+      return
+    end
+    local entity = takeover.activeEntity()
     if entity then
       silenceEntity(entity)
+    elseif silencedPlayerState then
+      releaseEntity()
     end
   end)
 end
