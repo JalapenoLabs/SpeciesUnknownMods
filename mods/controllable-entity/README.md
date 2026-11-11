@@ -337,8 +337,8 @@ the mission), and the squid can't sit. Leave through the pause menu. Steps 6 to 
 3. **The squid is forced and taken.** Start a contract. The mission's specimen is the squid, the volunteer sees
    "You are the entity" and controls it, and the host's log shows `took control of the squid` then
    `Kept the entity out of the crew`. The volunteer's crew body is gone. On Hawking the squid only spawns once a
-   crew member steps out of the shuttle (see [How the mission's monster is chosen](#how-the-missions-monster-is-chosen)),
-   so until then the volunteer plays as crew; alone, walk out yourself.
+   crew member steps out of the shuttle, so until then the volunteer plays as crew; alone, walk out yourself (see
+   [How the mission's monster is chosen](#how-the-missions-monster-is-chosen)).
 4. **Moving.** Walk, look, and check the crew see the squid move smoothly. Note any rubber-banding.
 5. **Lash, leap, vents.** Shoot next to a crew member: a lash with a cooldown on the HUD. Aim: a leap where you
    look; a grab on landing breaks off with "Your hunger isn't ready". Interact by a vent: climb in; Crouch peeks;
