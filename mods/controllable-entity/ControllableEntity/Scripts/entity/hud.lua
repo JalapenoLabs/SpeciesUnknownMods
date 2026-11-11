@@ -54,7 +54,6 @@ local messageByEvent = {
   PowerRestored = "The power is on. Hunt.",
   Lost = "The crew got you. You're out of this mission.",
   KillStarted = "Got one.",
-  ["Sprint.Tired"] = "You're out of breath.",
   FrenzyStarted = "FRENZY: every grab kills.",
   FrenzyPartial = "They have the weapon. Your hunger grows faster.",
   EntityModeOn = "Entity mode: ON",

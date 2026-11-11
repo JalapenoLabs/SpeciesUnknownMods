@@ -90,13 +90,14 @@ return {
     -- The square's side and its distance from the screen's top-right corner, in HUD units (1080p pixels).
     size = 300,
     margin = 24,
-    -- The game's minimap Scale: larger zooms in. The crew's tool runs from 0.7 to 1.0.
-    startZoom = 1.0,
-    minimumZoom = 0.35,
-    maximumZoom = 3.0,
+    -- The game's minimap Scale: larger zooms in. At 1 the whole ship fits the square; the crew's tool, on a 1024-pixel
+    -- screen, runs from 0.7 to 1.0.
+    startZoom = 3.0,
+    minimumZoom = 1.0,
+    maximumZoom = 8.0,
     zoomStep = 1.25,
-    -- Degrees added to the squid's heading for the player icon, in case the map's "up" isn't the world's +X.
-    iconAngleOffset = 0,
+    -- Degrees added to the squid's heading for the player icon: the map draws world +Y up, so yaw 0 (+X) points left.
+    iconAngleOffset = -90,
   },
 
   camera = {

@@ -72,7 +72,12 @@ controller.Pawn = squid
 fake.runLoops(33)
 assert(createdWith == widgetClass, "the game's own minimap widget is used")
 assert(#fake.callsTo(minimapWidget, "AddToViewport") == 1, "it goes on the screen")
-assert(lastArgument(minimapWidget, "SetDesiredSizeInViewport")[1].X == config.minimap.size, "as a square")
+-- Regression (playtest 6): sized to the corner square, the map spilled over the whole screen. It keeps its 1024-unit
+-- layout, clipped to it, and is scaled down to the square
+assert(lastArgument(minimapWidget, "SetDesiredSizeInViewport")[1].X == 1024, "at the size it is laid out for")
+assert(lastArgument(minimapWidget, "SetClipping")[1] == 1, "clipped to its square")
+assert(math.abs(lastArgument(minimapWidget, "SetRenderScale")[1].X - config.minimap.size / 1024) < 1e-9,
+  "scaled down to the corner")
 assert(minimapWidget.ParentActor == follower, "centred on the follower, not the squid")
 assert(lastArgument(follower, "K2_AttachToActor")[1] == squid, "which rides with the squid")
 local absolute = lastArgument(follower.StaticMeshComponent, "SetAbsolute")
@@ -85,8 +90,8 @@ assert(lastArgument(minimapWidget.CanvasPanel_DynamicIcone, "SetVisibility")[1] 
 -- The player icon turns with the squid
 squid.yaw = 120
 fake.runLoops(33)
-assert(lastArgument(minimapWidget.UMG_Icone_player_C_0, "SetRenderTransformAngle")[1] == 120,
-  "the icon shows which way the squid faces")
+assert(lastArgument(minimapWidget.UMG_Icone_player_C_0, "SetRenderTransformAngle")[1] == 120 - 90,
+  "the icon shows which way the squid faces (the map draws +Y up)")
 
 -- "." zooms in and "," out, within the limits
 local startZoom = minimapWidget.Scale

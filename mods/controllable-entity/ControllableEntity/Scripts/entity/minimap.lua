@@ -16,11 +16,17 @@ local minimap = {}
 
 local WIDGET_CLASS = "/Game/Blueprints/Inventory/Map/UMG_MiniMap.UMG_MiniMap_C"
 local FOLLOWER_CLASS = "/Script/Engine.StaticMeshActor"
--- EAttachmentRule, EComponentMobility, ESlateVisibility
+-- EAttachmentRule, EComponentMobility, ESlateVisibility, EWidgetClipping
 local SNAP_TO_TARGET = 2
 local KEEP_WORLD = 1
 local MOVABLE = 2
 local COLLAPSED = 1
+local CLIP_TO_BOUNDS = 1
+-- The widget is laid out as a 1024-unit square: its map canvas is that wide, and its Tick centres the map with that
+-- number written in (UMG_MiniMap.Tick divides by 1024). It stays at that size, clipped to it, and is scaled down to
+-- the corner square, pinned at its top-right corner so the scaling keeps it in place (playtest 6: sized to the square
+-- instead, the map was off centre and spilled over the whole screen).
+local DESIGN_SIZE = 1024
 
 -- What this machine has built: { worldKey, squidAddress, widget, follower }, or nil.
 local built = nil
@@ -70,8 +76,12 @@ local function build(controller, squid)
   widget:SetAnchorsInViewport({ Minimum = { X = 1, Y = 0 }, Maximum = { X = 1, Y = 0 } })
   widget:SetAlignmentInViewport({ X = 1, Y = 0 })
   widget:SetPositionInViewport({ X = -config.minimap.margin, Y = config.minimap.margin }, false)
-  widget:SetDesiredSizeInViewport({ X = config.minimap.size, Y = config.minimap.size })
-  widget["Screen Width"] = config.minimap.size
+  widget:SetDesiredSizeInViewport({ X = DESIGN_SIZE, Y = DESIGN_SIZE })
+  widget["Screen Width"] = DESIGN_SIZE
+  widget:SetClipping(CLIP_TO_BOUNDS)
+  local shrink = config.minimap.size / DESIGN_SIZE
+  widget:SetRenderTransformPivot({ X = 1, Y = 0 })
+  widget:SetRenderScale({ X = shrink, Y = shrink })
   widget.ParentActor = follower
 
   zoom = zoom or config.minimap.startZoom
@@ -113,7 +123,8 @@ function minimap.follow(controller, squid)
   local widget = built.widget
   widget.Scale = zoom
   widget.CanvasPanel_DynamicIcone:SetVisibility(COLLAPSED)
-  -- North up: the icon turns by the squid's heading (yaw 0 faces up the map)
+  -- The icon turns with the squid. The map draws world +Y up and +X to the left (MapUtils.WorldToWidgetLocation
+  -- negates both), so a heading of yaw points the icon yaw - 90 degrees clockwise from up
   widget.UMG_Icone_player_C_0:SetRenderTransformAngle(squid:K2_GetActorRotation().Yaw + config.minimap.iconAngleOffset)
 end
 

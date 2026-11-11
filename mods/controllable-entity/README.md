@@ -159,7 +159,9 @@ The HUD runs along the top of the screen, in the game's own style for key prompt
 - **Noise pings** as coloured markers over the world: red gunshots, blue footsteps, amber alarms, doors and
   explosions.
 - **The minimap, top right:** the game's own minimap (the screen of the crew's minimap tool, `UMG_MiniMap`), always
-  centred on the squid with north up, and the player icon turning with the squid. The widget turns its map with
+  centred on the squid with north up, and the player icon turning with the squid. The widget is laid out as a
+  1024-unit square (its Tick has the number written in), so it stays that size, clipped to it, scaled down to a
+  300-unit square pinned at its top-right corner. The map draws world +Y up and +X to the left. The widget turns its map with
   whatever it follows, so it follows an invisible actor that rides with the squid but never turns. Its item icons
   (the special weapons, the black box) are hidden: they stay on the map while a crew member carries them, which would
   show the entity where that player is.
@@ -170,8 +172,7 @@ SVGs in [`art/icons/`](art/icons/).
 
 The squid moves at the game's combat speed, 30% faster in the vents than the game's own crouched speed. Holding
 Left Shift sprints at the squid's top speed (the game's own, as when the AI monster gets angry) for up to 6 seconds;
-the stamina refills over 10 seconds, and an out-of-breath squid ("You're out of breath.") sprints again once it is
-back to 30%. The crew's sprint is bound on the crew character, not the controller, so the mod watches Shift itself.
+the stamina refills over 10 seconds, and an out-of-breath squid sprints again once it is back to 30%. The crew's sprint is bound on the crew character, not the controller, so the mod watches Shift itself.
 The host owns the stamina; both machines apply the same speed (see `movement.lua`).
 
 ## Install
