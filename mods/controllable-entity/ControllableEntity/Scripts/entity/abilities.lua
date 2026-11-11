@@ -8,6 +8,7 @@
 
 local config = require("entity.config")
 local game = require("entity.game")
+local hunt = require("entity.hunt")
 local lair = require("entity.lair")
 local links = require("entity.links")
 local Meter = require("entity.meter")
@@ -107,6 +108,9 @@ end
 local function vent(squid)
   local location = squid:K2_GetActorLocation()
   if not squid.InVent then
+    if hunt.areVentsShut() then
+      return false, "VentsShut"
+    end
     local entrance = vents.nearest(location, config.vents.enterReach)
     if not entrance then
       return false, "NoVentEntrance"
@@ -272,6 +276,7 @@ function abilities.tick()
   link.Downed = downed
   link.Health = (maximum and maximum > 0) and current / maximum or 1
   link.Stamina = movement.stamina()
+  link.VentTime = hunt.ventTimeLeft()
 end
 
 function abilities.register()

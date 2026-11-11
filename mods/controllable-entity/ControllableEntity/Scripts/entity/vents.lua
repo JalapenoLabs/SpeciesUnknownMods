@@ -85,6 +85,30 @@ function vents.openingOf(vent, fromInside)
   return { X = floor.X, Y = floor.Y, Z = floor.Z }
 end
 
+-- Frames to wait between asking the squid to crouch and teleporting it: the crouch applies on its next movement
+-- update, and only the crouched capsule fits the ducts.
+local CROUCH_FRAMES = 2
+
+-- Puts the squid inside the ducts at a spot, then runs `onArrived` (optional) once it's there. SetInVent is what the
+-- vents' own trigger calls: it replicates the state and crouches the squid. The teleport waits for the crouch to
+-- apply; a teleport that still finds no room places the squid without the check, and says so in the log.
+function vents.moveInto(squid, spot, onArrived)
+  squid:BPI_Monster_SetInVent(true)
+  ExecuteInGameThreadAfterFrames(CROUCH_FRAMES, function()
+    if not squid:IsValid() then
+      game.log("The squid was gone before it could be moved into the vents")
+      return
+    end
+    if not squid:K2_TeleportTo(spot, squid:K2_GetActorRotation()) then
+      game.log("No room to teleport the squid to %.0f, %.0f, %.0f; placing it there", spot.X, spot.Y, spot.Z)
+      squid:K2_SetActorLocation(spot, false, {}, true)
+    end
+    if onArrived then
+      onArrived()
+    end
+  end)
+end
+
 -- The in-duct spots beside a shaft's top, as plain vectors; empty when the shaft has none.
 function vents.spotsOf(vent)
   local spots = {}

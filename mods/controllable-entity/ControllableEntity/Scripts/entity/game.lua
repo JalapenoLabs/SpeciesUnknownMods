@@ -87,6 +87,34 @@ game.contractTypes = {
   Extraction = 3,
 }
 
+-- Identifies the current world on the host: its game state is rebuilt on every map, so its address changes with the
+-- world. Nil without a game state.
+function game.currentWorldKey()
+  local gameState = FindFirstOf("GameStateBase")
+  if not gameState or not gameState:IsValid() then
+    return nil
+  end
+  return gameState:GetAddress()
+end
+
+-- The mission's contract type (game.contractTypes), from the game state's contract; nil without a game state.
+function game.contractType()
+  local gameState = FindFirstOf(game.classNames.gameState)
+  if not gameState or not gameState:IsValid() then
+    return nil
+  end
+  return gameState.Contract["ContractType_2_AD7B8E08435CF5A38556E7BA67C34760"]
+end
+
+-- Whether a weapon's grab (BP_LaserGun.BPI_Weapon_SetGrabbed, on the host) is a crew member taking the contract's
+-- objective weapon, the one that can kill the specimen, in a contract to kill or capture it. The game runs the grab
+-- again on every re-grab.
+function game.isSpecialWeaponGrab(weapon)
+  local contract = game.contractType()
+  local isHuntContract = contract == game.contractTypes.Elimination or contract == game.contractTypes.Capture
+  return weapon:HasAuthority() and isHuntContract and weapon.IsObjectiveWeapon and weapon.IsGrabbed
+end
+
 function game.log(message, ...)
   print(string.format("[ControllableEntity] " .. message .. "\n", ...))
 end

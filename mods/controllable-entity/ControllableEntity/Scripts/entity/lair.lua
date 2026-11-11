@@ -59,28 +59,6 @@ local function chooseStartSpot()
   return farthestSpot
 end
 
--- Frames to wait between asking the squid to crouch and teleporting it: the crouch applies on its next movement
--- update, and only the crouched capsule fits the ducts.
-local CROUCH_FRAMES = 2
-
--- Puts the squid inside the ducts at a spot. SetInVent is what the vents' own trigger calls: it replicates the state
--- and crouches the squid. The teleport waits for the crouch to apply; a teleport that still finds no room places the
--- squid without the check, and says so in the log.
-local function moveIntoVent(squid, spot)
-  squid:BPI_Monster_SetInVent(true)
-  ExecuteInGameThreadAfterFrames(CROUCH_FRAMES, function()
-    if not squid:IsValid() then
-      game.log("The squid was gone before it could be moved into the vents")
-      return
-    end
-    if squid:K2_TeleportTo(spot, squid:K2_GetActorRotation()) then
-      return
-    end
-    game.log("No room to teleport the squid to %.0f, %.0f, %.0f; placing it there", spot.X, spot.Y, spot.Z)
-    squid:K2_SetActorLocation(spot, false, {}, true)
-  end)
-end
-
 -- Starts the entity in its lair, right after the takeover.
 function lair.begin(squid, controller)
   local spot = chooseStartSpot()
@@ -90,7 +68,7 @@ function lair.begin(squid, controller)
     return
   end
 
-  moveIntoVent(squid, spot)
+  vents.moveInto(squid, spot)
   local leashed = isPowerOff()
   current = {
     squid = squid,
@@ -105,6 +83,14 @@ function lair.begin(squid, controller)
   end
   game.log("The squid starts in a vent at %.0f, %.0f, %.0f%s", spot.X, spot.Y, spot.Z,
     leashed and ", held there until the power is on" or "")
+end
+
+-- Lets the squid out of its lair early, when the vents stop being safe for it (hunt.lua).
+function lair.release()
+  if current and current.leashed then
+    current.leashed = false
+    game.log("The lair lets the squid go: the vents are no longer safe")
+  end
 end
 
 function lair.forget()
@@ -144,7 +130,7 @@ function lair.tick()
     return
   end
 
-  moveIntoVent(squid, current.lastInside)
+  vents.moveInto(squid, current.lastInside)
   local now = game.timeSeconds(squid)
   if now - current.lastWarnedAt >= config.lair.warningInterval then
     current.lastWarnedAt = now

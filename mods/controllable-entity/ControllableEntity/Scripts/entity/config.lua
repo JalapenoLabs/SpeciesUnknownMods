@@ -63,6 +63,19 @@ return {
     climbVerticalReach = 150,
   },
 
+  -- Once a crew member holds the weapon that can kill the specimen (kill and capture contracts), the vents stop being
+  -- a hiding place (hunt.lua).
+  hunt = {
+    -- How long the squid can stay in the vents at a time.
+    ventSeconds = 20,
+    -- Outside the vents the time refills this many times slower than it drains: a second for every six.
+    refillSlowdown = 6,
+    -- Once the time has run out, the vents stay shut until it has refilled this far.
+    reopenFraction = 0.5,
+    -- A squid still in the vents this long after being forced out is moved to the power room.
+    stuckSeconds = 10,
+  },
+
   lair = {
     -- The entity starts inside a vent at least this far from every crew member (the farthest one when none is).
     minimumCrewDistance = 2500,

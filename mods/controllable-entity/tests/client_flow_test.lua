@@ -61,7 +61,7 @@ local crewBody = fake.object("BP_Character_C")
 fake.giveView(controller, crewBody)
 local cameraManager = controller.PlayerCameraManager
 local link = fake.object("BP_EntityLink_C", {
-  Owner = controller, Meter = 0.5, Frenzy = false, Health = 0.8, Downed = false, Stamina = 1,
+  Owner = controller, Meter = 0.5, Frenzy = false, Health = 0.8, Downed = false, Stamina = 1, VentTime = 1,
 })
 local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false, Mesh = fake.object("SkeletalMeshComponent") }, {
   K2_GetActorLocation = function() return { X = 0, Y = 300, Z = 0 } end,
@@ -251,6 +251,13 @@ link.Stamina = 0.4
 fake.runLoops(33)
 assert(lastArgument(widget.StaminaBar, "SetVisibility") == 3 and lastArgument(widget.StaminaBar, "SetPercent") == 0.4,
   "a used stamina bar shows how much is left")
+-- The vent time shows at the top only once the vents have used some, while the crew hunts the squid
+assert(lastArgument(widget.VentTime, "SetVisibility") == 2, "a full vent time shows nothing")
+link.VentTime = 0.25
+fake.runLoops(33)
+assert(lastArgument(widget.VentTime, "SetVisibility") == 3 and lastArgument(widget.VentTimeBar, "SetPercent") == 0.25,
+  "a draining vent time shows how much is left")
+link.VentTime = 1
 
 -- The view cone sits on the minimap's centre and turns with the look (yaw 90 is up on the north-up map); the key hints
 -- sit under the minimap

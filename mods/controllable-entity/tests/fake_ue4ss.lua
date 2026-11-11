@@ -152,7 +152,10 @@ function fake.entityHud()
     return fake.object(name, { Slot = fake.object(name .. "Slot") })
   end
   local widget = fake.object("WBP_EntityHUD_C")
-  local parts = { "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "PeekPrompt", "FrenzyText", "StatusText" }
+  local parts = {
+    "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "PeekPrompt", "FrenzyText", "StatusText", "VentTime",
+    "VentTimeBar",
+  }
   for _, name in ipairs(parts) do
     widget[name] = element(name)
   end

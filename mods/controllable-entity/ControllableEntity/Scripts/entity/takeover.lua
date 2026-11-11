@@ -48,14 +48,6 @@ local function playerKey(playerState)
   return "name:" .. playerState:GetPlayerName():ToString()
 end
 
--- Identifies the current world: its game state is rebuilt on every map, so its address changes with the world.
-local function currentWorldKey()
-  local gameState = FindFirstOf("GameStateBase")
-  if not gameState or not gameState:IsValid() then
-    return nil
-  end
-  return gameState:GetAddress()
-end
 
 local function controllerForKey(key)
   for _, controller in ipairs(FindAllOf("PlayerController") or {}) do
@@ -155,7 +147,7 @@ local function onVolunteer(_, controller)
   end
 
   volunteerKey = key
-  announcedWorldKey = currentWorldKey()
+  announcedWorldKey = game.currentWorldKey()
   syncForcedSquid()
   links.sendEvent(controller, "Volunteered")
   game.log("%s will be the entity next mission", key)
@@ -367,7 +359,7 @@ function takeover.isEntityController(controller)
     local squid = missionSquid()
     local driver = squid and game.playerControllerOf(squid)
     if driver and driver:GetAddress() == controller:GetAddress() then
-      adoptAfterReload(squid, currentWorldKey())
+      adoptAfterReload(squid, game.currentWorldKey())
     end
   end
   return activeEntity ~= nil and controller ~= nil and controller:IsValid()
@@ -405,7 +397,7 @@ end
 
 -- Runs every second on the host.
 function takeover.reconcile()
-  local worldKey = currentWorldKey()
+  local worldKey = game.currentWorldKey()
 
   -- A map change took the entity's world with it (a mission ending normally travels back to the lobby): that's not
   -- a loss, so the entity is forgotten quietly

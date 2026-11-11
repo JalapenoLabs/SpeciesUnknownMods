@@ -61,7 +61,7 @@ local cooldownSlots = {
 }
 
 -- What only the entity sees, hidden before the takeover (a volunteer sees only their status line).
-local ENTITY_PARTS = { "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "PeekPrompt" }
+local ENTITY_PARTS = { "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "PeekPrompt", "VentTime" }
 
 local messageByEvent = {
   Volunteered = "You'll be the entity next mission. Only you know. F8 backs out.",
@@ -74,7 +74,9 @@ local messageByEvent = {
   Lost = "The crew got you. You're out of this mission.",
   KillStarted = "Got one.",
   FrenzyStarted = "FRENZY: every grab kills.",
-  FrenzyPartial = "They have the weapon. Your hunger grows faster.",
+  FrenzyPartial = "They have the weapon. Your hunger grows faster, and the vents won't hide you for long.",
+  ForcedOut = "Your time in the vents is up. Out you go.",
+  VentsReopened = "The vents will take you again.",
   EntityModeOn = "Entity mode: ON",
   EntityModeOff = "Entity mode: OFF",
   ["Denied.Cooldown"] = "Not yet.",
@@ -84,6 +86,7 @@ local messageByEvent = {
   ["Denied.NotInVent"] = "Peek works from inside a vent.",
   ["Denied.PowerOff"] = "The vents hold you until the power is on.",
   ["Denied.UltimateNotReady"] = "Your hunger isn't ready.",
+  ["Denied.VentsShut"] = "The vents won't take you yet.",
   ["Denied.HostOnly"] = "The host turns entity mode on or off.",
   ["Denied.EntityModeOff"] = "Entity mode is off. The host can turn it on.",
 }
@@ -210,11 +213,14 @@ local function drawActions(widget, link, now)
 end
 
 -- The health bar shows the pool the squid is on (playtest 6): its stagger while standing, its real health once a hit
--- has knocked it down. Like the crew's, the stamina bar only shows once sprinting has used some.
+-- has knocked it down. Like the crew's, the stamina bar only shows once sprinting has used some, and the vent time
+-- (top centre, once the crew hunts the squid) only once the vents have used some.
 local function drawVitals(widget, link)
   widget.HealthBar:SetPercent(link.Health)
   widget.HealthBar:SetFillColorAndOpacity(healthColorByDowned[link.Downed == true])
   drawCharge(widget.StaminaBar, link.Stamina)
+  setShown(widget.VentTime, link.VentTime < 1)
+  widget.VentTimeBar:SetPercent(link.VentTime)
 end
 
 -- The peek prompt shows while C would work, the way the game shows "press E" only while there is something to use
