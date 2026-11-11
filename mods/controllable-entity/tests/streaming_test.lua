@@ -31,13 +31,13 @@ local squid = fake.object("BP_Monster_Poulpi_C", { location = { X = 0, Y = 0, Z 
 })
 
 -- A volume around X = 0 and one around X = 1500, each 1000 units wide, each with its own manager. GetActorBounds
--- returns its box through out parameters, which UE4SS fills into the table passed for them (playtest 5:
--- AVolume.EncompassesPoint isn't callable from Lua)
+-- returns its box through two struct out parameters, which UE4SS fills field by field into the table passed for
+-- each (playtest 5: AVolume.EncompassesPoint isn't callable from Lua, and one table for both lost the origin)
 local function volume(centreX)
   return fake.object("TriggerVolume", nil, {
-    GetActorBounds = function(_, _, out)
-      out.Origin = { X = centreX, Y = 0, Z = 0 }
-      out.BoxExtent = { X = 500, Y = 500, Z = 500 }
+    GetActorBounds = function(_, _, origin, extent)
+      origin.X, origin.Y, origin.Z = centreX, 0, 0
+      extent.X, extent.Y, extent.Z = 500, 500, 500
     end,
   })
 end

@@ -205,7 +205,8 @@ local function drawPings(widget, controller, now)
 end
 
 -- The crew HUD belongs to the parked crew body, so it would stay on screen over the squid's view. It comes off the
--- screen rather than being hidden: the respawn-capsule status sets its own visibility again (playtest 5).
+-- screen rather than being hidden: the respawn-capsule status sets its own visibility again, and isn't reported as
+-- in the viewport either, so the removal doesn't ask first (removing a widget that isn't shown does nothing).
 local function hideCrewHud(now)
   if now < state.nextCrewHudCheckAt then
     return
@@ -213,7 +214,7 @@ local function hideCrewHud(now)
   state.nextCrewHudCheckAt = now + CREW_HUD_CHECK_SECONDS
   for _, className in ipairs(game.classNames.crewHudWidgets) do
     for _, crewWidget in ipairs(FindAllOf(className) or {}) do
-      if crewWidget:IsValid() and crewWidget:IsInViewport() then
+      if crewWidget:IsValid() then
         crewWidget:RemoveFromParent()
       end
     end

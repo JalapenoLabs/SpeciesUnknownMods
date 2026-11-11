@@ -22,21 +22,22 @@ local enteredVolumes = {}
 -- Each volume's bounding box, by address: volumes never move, so it is read once. { origin, extent }
 local boundsByVolume = {}
 
--- The out parameters come back in the table passed for them, under their names.
+-- UE4SS fills a struct out parameter's fields (X, Y, Z) into the table passed for it, so each needs its own table
+-- (LuaUObject.cpp: struct and array out parameters reuse the table; others go in it under their names).
 local function boundsOf(volume)
   local address = volume:GetAddress()
   local bounds = boundsByVolume[address]
-  if bounds then
+  if bounds ~= nil then
     return bounds
   end
-  local out = {}
-  volume:GetActorBounds(false, out, out, false)
-  if not out.Origin or not out.BoxExtent then
+  local origin, extent = {}, {}
+  volume:GetActorBounds(false, origin, extent, false)
+  if not origin.X or not extent.X then
     game.log("A streaming volume gave no bounds; its section is left to the game")
     boundsByVolume[address] = false
     return false
   end
-  bounds = { origin = out.Origin, extent = out.BoxExtent }
+  bounds = { origin = origin, extent = extent }
   boundsByVolume[address] = bounds
   return bounds
 end

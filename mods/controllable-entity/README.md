@@ -113,7 +113,8 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
   volumes, and the squid's collision never triggers them. The entity's machine tells each volume when the squid is
   inside it, through the game's own `BPI_Streaming_AddActorToTrigger`, so walls and floors appear around the squid
   as they do around crew ([docs/game-internals.md](../../docs/game-internals.md#gameplay-state-worth-knowing)).
-- On the roadmap: a glowing path along the ducts to the nearest opening (needs the host's navigation data sent to
+- On the roadmap: seeing down into the room below while in the vents (the crew and the openings under the squid), from
+  playtest 5. Then a glowing path along the ducts to the nearest opening (needs the host's navigation data sent to
   the entity), and an overlay of the duct network while inside.
 
 ### Controls and HUD
