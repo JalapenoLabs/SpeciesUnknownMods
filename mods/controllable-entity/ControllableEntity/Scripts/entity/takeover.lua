@@ -122,6 +122,10 @@ end
 
 -- Toggles the sender as the entity. Only the sender is told; the rest of the crew learns nothing until the mission.
 local function onVolunteer(_, controller)
+  -- The entity's own F8 is the solo power switch (lair.lua); it never signs the entity out mid-mission
+  if takeover.isEntityController(controller) then
+    return
+  end
   if not entityModeOn then
     links.sendEvent(controller, "Denied.EntityModeOff")
     return

@@ -11,9 +11,10 @@
 --
 -- The hunted squid is also loud: every so often it cries out, so the crew can follow it. The AI's cries come from its
 -- behaviour tree, which a player's squid doesn't run, so the host plays them: the squid's own voice, replicated to
--- every machine and heard near it, and its far call, which only listeners well away from it hear.
+-- every machine and heard near it (cries.lua), and its far call, which only listeners well away from it hear.
 
 local config = require("entity.config")
+local cries = require("entity.cries")
 local game = require("entity.game")
 local lair = require("entity.lair")
 local links = require("entity.links")
@@ -27,8 +28,6 @@ local NAVIGATION = "/Script/NavigationSystem.Default__NavigationSystemV1"
 -- floor.
 local POWER_SCREEN_STANDOFF = 150
 local FLOOR_SEARCH_EXTENT = { X = 300, Y = 300, Z = 1500 }
--- BPI_Monster_PlayVoiceType's chase cry (EMonsterVoiceType: 0 Search, 1 Sound, 2 See, 3 Chase, ...).
-local CHASE_VOICE = 3
 
 -- The hunt in the current mission: { worldKey, ventSecondsLeft, isShut, forcedOutAt, lastTickAt, nextCryAt }; nil
 -- until a crew member holds the special weapon.
@@ -93,9 +92,9 @@ local function moveToPowerRoom(entity)
     spot.X, spot.Y, spot.Z)
 end
 
--- The hunted squid's cry: its own voice near it, and its far call for everyone well away from it.
+-- The hunted squid's cry: its roar near it, and its far call for everyone well away from it.
 local function cry(squid)
-  squid:BPI_Monster_PlayVoiceType(CHASE_VOICE, false, 1.0, true, true)
+  cries.play(squid, "Roar", false)
   squid["PlayVoiceFar(Multi)"](squid)
 end
 

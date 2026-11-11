@@ -1,8 +1,13 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- Host side of where the entity starts. The squid goes straight into a vent away from the crew (its lair) and stays in
--- the ducts near it until the crew turns the power on: the game's own grace period, in which the crew is safe. Some
--- contracts start with the power on, and then the squid is free at once.
+-- Host side of where the entity starts. The squid goes straight into the ducts (its lair) and stays in them until the
+-- crew turns the power on: the game's own grace period, in which the crew is safe. Some contracts start with the power
+-- on, and then the squid is free at once.
+--
+-- It starts in the vent nearest where the game spawned it: the game manager's spawn point for the mission's monster
+-- (BP_GameManager.GetSpawnPoint), the one the AI would start from, skipping vents too near the crew. Inside, the
+-- whole duct network is the squid's (playtest 7: a radius around the start pulled the squid back from ducts it could
+-- see and crawl into, with no sign why). Only leaving the ducts puts it back.
 
 local config = require("entity.config")
 local game = require("entity.game")
@@ -11,7 +16,9 @@ local vents = require("entity.vents")
 
 local lair = {}
 
--- The current lair: { squid, controller, anchor, lastInside, leashed, lastWarnedAt }, or nil.
+local POWER_SCREEN_CLASS_NAME = "BP_Screen_RestorePower_C"
+
+-- The current lair: { squid, controller, lastInside, leashed, lastWarnedAt }, or nil.
 local current = nil
 
 local function isPowerOff()
@@ -32,9 +39,11 @@ end
 
 -- A random vent spot at least minimumCrewDistance from every crew member, or the spot farthest from the crew when
 -- none is that far. Nil when the map has no vents.
-local function chooseStartSpot()
+-- The duct spot nearest where the game spawned the squid that is far enough from every crew member, or the one
+-- farthest from the crew when none is.
+local function chooseStartSpot(spawnLocation)
   local crew = crewLocations()
-  local farEnough = {}
+  local nearestFarEnough, nearestFarEnoughDistance = nil, math.huge
   local farthestSpot, farthestDistance = nil, -1
 
   for _, vent in ipairs(vents.all()) do
@@ -44,24 +53,21 @@ local function chooseStartSpot()
       for _, location in ipairs(crew) do
         nearestCrewDistance = math.min(nearestCrewDistance, game.distance(spot, location))
       end
-      if nearestCrewDistance >= config.lair.minimumCrewDistance then
-        table.insert(farEnough, spot)
+      local spawnDistance = game.distance(spot, spawnLocation)
+      if nearestCrewDistance >= config.lair.minimumCrewDistance and spawnDistance < nearestFarEnoughDistance then
+        nearestFarEnough, nearestFarEnoughDistance = spot, spawnDistance
       end
       if nearestCrewDistance > farthestDistance then
         farthestSpot, farthestDistance = spot, nearestCrewDistance
       end
     end
   end
-
-  if #farEnough > 0 then
-    return farEnough[math.random(#farEnough)]
-  end
-  return farthestSpot
+  return nearestFarEnough or farthestSpot
 end
 
 -- Starts the entity in its lair, right after the takeover.
 function lair.begin(squid, controller)
-  local spot = chooseStartSpot()
+  local spot = chooseStartSpot(squid:K2_GetActorLocation())
   if not spot then
     game.log("No vent on this map; the squid starts where the game spawned it")
     current = nil
@@ -73,16 +79,18 @@ function lair.begin(squid, controller)
   current = {
     squid = squid,
     controller = controller,
-    anchor = spot,
     lastInside = spot,
     leashed = leashed,
     lastWarnedAt = -math.huge,
   }
   if leashed then
-    links.sendEvent(controller, "Leashed")
+    -- Alone, nobody else can turn the power on, so the entity is told how to (onSoloPowerOn)
+    local gameState = FindFirstOf(game.classNames.gameState)
+    local isAlone = gameState:IsValid() and gameState.PlayerArray:GetArrayNum() == 1
+    links.sendEvent(controller, isAlone and "LeashedAlone" or "Leashed")
   end
   game.log("The squid starts in a vent at %.0f, %.0f, %.0f%s", spot.X, spot.Y, spot.Z,
-    leashed and ", held there until the power is on" or "")
+    leashed and ", held in the ducts until the power is on" or "")
 end
 
 -- Lets the squid out of its lair early, when the vents stop being safe for it (hunt.lua).
@@ -124,8 +132,7 @@ function lair.tick()
   end
 
   local location = squid:K2_GetActorLocation()
-  local distance = game.distance(location, current.anchor)
-  if squid.InVent and distance <= config.lair.leashRadius then
+  if squid.InVent then
     current.lastInside = { X = location.X, Y = location.Y, Z = location.Z }
     return
   end
@@ -135,9 +142,36 @@ function lair.tick()
   if now - current.lastWarnedAt >= config.lair.warningInterval then
     current.lastWarnedAt = now
     links.sendEvent(current.controller, "Denied.PowerOff")
-    game.log("Pulled the squid back into its lair: %s (at %.0f, %.0f, %.0f, %.0f units from its start)",
-      squid.InVent and "past the leash" or "out of the ducts", location.X, location.Y, location.Z, distance)
+    game.log("Pulled the squid back into the ducts from %.0f, %.0f, %.0f", location.X, location.Y, location.Z)
   end
+end
+
+-- F8 as the entity, playing alone: turns the power on, as the crew would at the power screen, so a solo player can
+-- test what comes after the lair. With anyone else in the session it's the crew's job, and F8 does nothing.
+local function onSoloPowerOn(takeover, controller)
+  local gameState = FindFirstOf(game.classNames.gameState)
+  if not takeover.isEntityController(controller) or not gameState:IsValid() then
+    game.log("Solo power from a player who isn't the entity; ignored")
+    return
+  end
+  if gameState.PlayerArray:GetArrayNum() > 1 then
+    links.sendEvent(controller, "Denied.NotAlone")
+    return
+  end
+  if not isPowerOff() then
+    return
+  end
+  -- What the power screen sets: emergency power on contracts that have it (BP_Screen_RestorePower.LimitedLight)
+  local screen = FindFirstOf(POWER_SCREEN_CLASS_NAME)
+  local isLimited = screen and screen:IsValid() and screen.LimitedLight == true
+  gameState:ChangeLightStatut(isLimited and game.lightStatus.Limited or game.lightStatus.On, false)
+  game.log("The entity turned the power on, playing alone")
+end
+
+function lair.register(takeover)
+  links.onCommand("SoloPowerOn", function(_, controller)
+    onSoloPowerOn(takeover, controller)
+  end)
 end
 
 return lair

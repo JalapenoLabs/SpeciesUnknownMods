@@ -118,7 +118,7 @@ end
 
 -- The handler for each game input action the entity uses, by the action's name (IA_<Name>). Buttons become a host
 -- command when pressed, except the flashlight, which the squid has no use for and which switches the view instead.
--- Interact (E) fires the ultimate and HoldTool (Space) vents (playtest 6).
+-- Interact (E) fires the ultimate and HoldTool (Space) vents (playtest 6); the weapon slots cry out (playtest 7).
 -- The rest of the game's actions (reload, weapon slots, ...) mean nothing to the squid.
 local handlerByAction = {
   Move = move,
@@ -127,6 +127,10 @@ local handlerByAction = {
   ADS = button("Leap"),
   Interact = button("Ultimate"),
   HoldTool = button("Vent"),
+  -- The crew's weapon-slot keys (1, 2 and 3) are the squid's cries (cries.lua)
+  Slot1 = button("Roar"),
+  Slot2 = button("Curious"),
+  Slot3 = button("Call"),
   Crouch = button("Peek"),
   FlashLight = toggleView,
   ViewPseudo = viewObjectives,
@@ -146,9 +150,12 @@ local function registerKeys()
     end)
   end)
 
+  -- F8 volunteers, in the lobby; as the entity it turns the power on when playing alone, for testing (lair.lua)
   RegisterKeyBind(Key[config.keys.volunteer], function()
     ExecuteInGameThread(function()
-      links.sendCommand("Volunteer", nil, nil)
+      local controller = game.localController()
+      local isEntity = controller and game.squidDrivenBy(controller)
+      links.sendCommand(isEntity and "SoloPowerOn" or "Volunteer", nil, nil)
     end)
   end)
 

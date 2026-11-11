@@ -35,6 +35,7 @@ local function controller(isLocal, state)
     IsLocalController = function() return isLocal end,
     IsPlayerController = function() return true end,
     K2_GetActorLocation = function() return location(0, 0, 0) end,
+    GetControlRotation = function() return { Pitch = 0, Yaw = 0, Roll = 0 } end,
   }, { "PlayerController" })
   object.Possess = function(self, pawn)
     self.Pawn = pawn
@@ -67,6 +68,7 @@ fake.object("BP_MyGameState_C", {
   LightStatut = game.lightStatus.Off,
   Contract = { ContractType_2_AD7B8E08435CF5A38556E7BA67C34760 = game.contractTypes.Elimination },
   ["In Game Player State "] = fake.array({ entityState, crewState }),
+  PlayerArray = fake.array({ entityState, crewState }),
 }, nil, { "GameStateBase" })
 fake.object("BP_PlayableGameMode_C")
 
@@ -121,6 +123,8 @@ fake.objects["/Script/NavigationSystem.Default__NavigationSystemV1"] = fake.obje
 -- The squid spawns once the volunteer is signed up, as when a crew member leaves the shuttle on Hawking
 local gameManager = fake.object("BP_GameManager_C", { Monster = fake.invalid() })
 local weapon = fake.object("BP_LaserGun_C", { IsObjectiveWeapon = true, IsGrabbed = true })
+local roarCue = fake.object("SoundCue")
+fake.objects[game.paths.squidCries.Roar] = roarCue
 
 dofile("mods/controllable-entity/ControllableEntity/Scripts/main.lua")
 for _, classPath in ipairs({ game.paths.squidClass, game.paths.gameStateClass, game.paths.weaponClass }) do
@@ -161,10 +165,13 @@ assert(lastEvent() ~= "ForcedOut")
 -- A crew member grabs the special weapon: the hunt begins, and the lair lets the squid go
 local grab = fake.hooks[game.paths.weaponClass .. ":BPI_Weapon_SetGrabbed"]
 grab(fake.param(weapon))
-local roaming = location(farVent.Point1Component:K2_GetComponentLocation().X + config.lair.leashRadius * 3, 0, 400)
-squid.location = roaming
-runSeconds(60, 70)
-assert(squid.location == roaming, "the lair no longer holds the squid")
+squid.InVent = false
+squid.location = location(0, 900, 0)
+runSeconds(60, 60)
+assert(squid.location.X == 0 and not squid.InVent, "the lair no longer holds the squid in the ducts")
+squid.InVent = true
+squid.location = location(6050, 0, 400)
+runSeconds(60.2, 70)
 assert(math.abs(entityLink.VentTime - 0.5) < 0.02, "ten seconds in the vents use half the vent time")
 
 -- Regression (playtest 6): a human entity could hide in the vents for good. Once the time runs out the squid is forced
@@ -191,9 +198,9 @@ local climbs = fake.callsTo(squid, "BPI_Monster_JumpToVent")
 assert(#climbs == 1 and climbs[1].args[1] == nearVent, "and the squid can climb in")
 
 -- The hunted squid is loud: every 12 seconds it cries out, near it and far from it, so the crew can follow it
-local cries = fake.callsTo(squid, "BPI_Monster_PlayVoiceType")
-assert(#cries >= 6 and #cries <= 8 and cries[1].args[1] == 3 and cries[1].args[5] == true,
-  "the squid's chase cry plays on every machine, every 12 seconds of the hunt")
+local cries = fake.callsTo(squid, "BPI_Monster_PlayVoiceAudio")
+assert(#cries >= 6 and #cries <= 8 and cries[1].args[1] == roarCue and cries[1].args[6] == true,
+  "the squid's roar plays on every machine, every 12 seconds of the hunt")
 assert(#fake.callsTo(squid, "PlayVoiceFar(Multi)") == #cries, "with its far call for the crew well away")
 
 -- Should the forced drop not get the squid out (a spot it can't reach), it's moved to the power room 10 seconds later

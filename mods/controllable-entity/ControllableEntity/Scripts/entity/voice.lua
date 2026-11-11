@@ -23,6 +23,7 @@ local LOCAL_VOICE_CLASS_NAME = "OnsetVoipLocalPlayerSubsystem"
 local WORLD_VOICE_CLASS_NAME = "OnsetVoipWorldSubsystem"
 local TALKER_CLASS = "/Script/OnsetVoip.OnsetVoipTalker"
 local PLAYER_STATE_CLASS = "/Game/Blueprints/Player/BP_MyPlayerState.BP_MyPlayerState_C"
+local PLAYER_STATE_CLASS_NAME = "BP_MyPlayerState_C"
 local PLAY_SOUND_2D = "/Script/Engine.GameplayStatics:PlaySound2D"
 -- The click the radio key plays on the speaker's own machine (BP_MyPlayerState.SetUseRadio).
 local RADIO_CLICK_NAME = "radio_static_placeholder"
@@ -74,8 +75,11 @@ local function follow()
     return
   end
   wasLocalEntity = isEntity
+  -- Only a session's player state picks the mic's channels: the main menu's has no voice (playtest 7: leaving a
+  -- mission for the main menu called it there and failed)
   local playerState = controller.PlayerState
-  if playerState:IsValid() then
+  local hasVoice = playerState:IsValid() and playerState:GetClass():GetFName():ToString() == PLAYER_STATE_CLASS_NAME
+  if hasVoice then
     playerState:UpdateComChannels()
   end
   game.log(isEntity and "The entity's mic is off" or "The mic is back to the game's own settings")

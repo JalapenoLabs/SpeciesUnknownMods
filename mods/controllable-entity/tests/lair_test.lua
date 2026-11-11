@@ -31,6 +31,7 @@ local function controller(isLocal, state)
     IsLocalController = function() return isLocal end,
     IsPlayerController = function() return true end,
     K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
+    GetControlRotation = function() return { Pitch = 0, Yaw = 0, Roll = 0 } end,
   }, { "PlayerController" })
   object.Possess = function(self, pawn)
     self.Pawn = pawn
@@ -62,6 +63,7 @@ fake.world = fake.object("World", nil, {
 local gameState = fake.object("BP_MyGameState_C", {
   LightStatut = game.lightStatus.Off,
   ["In Game Player State "] = fake.array({ entityState, crewState }),
+  PlayerArray = fake.array({ entityState, crewState }),
 }, nil, { "GameStateBase" })
 fake.object("BP_PlayableGameMode_C")
 
@@ -84,6 +86,8 @@ end
 
 vent(location(300, 0, 0), location(350, 0, 400))
 local farVent = vent(location(6000, 0, 0), location(6050, 0, 400))
+-- Far from the crew too, but much farther from where the game spawns the squid
+vent(location(-30000, 0, 0), location(-30050, 0, 400))
 
 fake.object("BP_Character_C", { CharacterMovement = fake.object("CharacterMovementComponent") }, {
   K2_GetActorLocation = function() return location(0, 0, 0) end,
@@ -141,32 +145,37 @@ assert(entityController.Pawn == squid, "the volunteer takes the squid")
 assert(squid.InVent, "the game knows it's in the vents")
 fake.runFrames()
 
--- It starts inside the far vent's duct, not where the game spawned it
+-- Regression (playtest 7): the start was any vent far from the crew (alone, anywhere: crew quarters). It's the duct
+-- nearest the game's own spawn point for its monster that is far from the crew, so the entity starts where the AI would
 local farSpot = farVent.Point1Component:K2_GetComponentLocation()
 assert(squid.location.X == farSpot.X and squid.location.Z == farSpot.Z,
-  "the squid starts in the vent far from the crew")
+  "the squid starts in the vent nearest its spawn that is far from the crew")
 assert(lastEvent() == "Leashed", "the entity is told to wait for the power")
 
 -- Regression (found reading BP_BaseMonster): standing still for 20 seconds made the AI's stuck check respawn the squid
 assert(squid.ShouldCheckIfStuck == false, "the AI's stuck check is off for a player's squid")
 
--- Straying past the leash, or dropping out of the ducts, puts the squid back
-local insideLeash = location(farSpot.X + config.lair.leashRadius / 2, farSpot.Y, farSpot.Z)
-squid.location = insideLeash
-fake.runLoops(200)
-assert(squid.location == insideLeash, "moving around inside the leash is fine")
+-- Playing with someone, F8 as the entity is the crew's job: it neither turns the power on nor signs the entity out
+fake.customEvents.EntityServerCommand(fake.param(entityLink), fake.param(fake.name("SoloPowerOn")),
+  fake.param(nil), fake.param(nil))
+assert(#fake.callsTo(gameState, "ChangeLightStatut") == 0, "with a crew, F8 leaves the power to them")
+command("Volunteer")
+assert(entityController.Pawn == squid, "and the entity stays the entity")
+assert(lastEvent() == "Denied.NotAlone", "and says so")
 
-squid.location = location(farSpot.X + config.lair.leashRadius * 2, farSpot.Y, farSpot.Z)
+-- Regression (playtest 7): a radius around the start pulled the squid back from ducts it could see and crawl into.
+-- The whole duct network is the squid's; only dropping out of the ducts puts it back
+local farInTheDucts = location(farSpot.X + 20000, farSpot.Y, farSpot.Z)
+squid.location = farInTheDucts
 fake.runLoops(200)
-fake.runFrames()
-assert(squid.location.X == insideLeash.X, "past the leash, the squid goes back to where it last stood inside it")
-assert(lastEvent() == "Denied.PowerOff")
+assert(squid.location == farInTheDucts, "anywhere in the ducts is fine")
 
 squid.InVent = false
 fake.now = 1
 fake.runLoops(200)
 fake.runFrames()
-assert(squid.InVent and squid.location.X == insideLeash.X, "out of the ducts, the squid goes back in")
+assert(squid.InVent and squid.location.X == farInTheDucts.X, "out of the ducts, the squid goes back where it stood")
+assert(lastEvent() == "Denied.PowerOff")
 
 -- The moves that leave the ducts wait for the power: dropping out of the vent the squid is over, the leap and the
 -- ultimate
@@ -194,15 +203,25 @@ fake.now = 20
 command("Vent")
 assert(#fake.callsTo(squid, "BPI_Monster_ClimbVent250") == 1, "at the top of the step, there's nothing to climb")
 
+-- Playing alone, F8 as the entity turns the power on, for testing past the lair
+gameState.PlayerArray = fake.array({ entityState })
+fake.customEvents.EntityServerCommand(fake.param(entityLink), fake.param(fake.name("SoloPowerOn")),
+  fake.param(nil), fake.param(nil))
+local switches = fake.callsTo(gameState, "ChangeLightStatut")
+assert(#switches == 1 and switches[1].args[1] == game.lightStatus.On, "alone, F8 turns the power on")
+gameState.PlayerArray = fake.array({ entityState, crewState })
+
 -- The crew turns the power on: the squid is free, for good
 gameState.LightStatut = game.lightStatus.On
 fake.runLoops(200)
 assert(lastEvent() == "PowerRestored")
 gameState.LightStatut = game.lightStatus.Off
-local roaming = location(farSpot.X + config.lair.leashRadius * 5, farSpot.Y, farSpot.Z)
+local roaming = location(farSpot.X + 300, farSpot.Y, 0)
+squid.InVent = false
 squid.location = roaming
 fake.runLoops(200)
-assert(squid.location == roaming, "once the power has been on, the leash is gone")
+assert(squid.location == roaming and not squid.InVent, "once the power has been on, the squid may leave the ducts")
+squid.InVent = true
 
 -- Regression (playtest 5): a hot reload of the mod (Ctrl+R) forgot who the entity was, so every move was ignored while
 -- the player still drove the squid. UE4SS drops the old scripts' hooks and loops and runs fresh copies

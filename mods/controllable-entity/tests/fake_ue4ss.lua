@@ -98,6 +98,7 @@ function fake.array(elements)
   return setmetatable(array, {
     __len = function(self) return #self.elements end,
     __index = {
+      GetArrayNum = function(self) return #self.elements end,
       ForEach = function(self, callback)
         for index, element in ipairs(self.elements) do
           if callback(index, fake.param(element)) then

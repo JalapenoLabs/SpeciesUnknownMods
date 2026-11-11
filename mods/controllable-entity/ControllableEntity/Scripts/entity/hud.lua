@@ -71,6 +71,7 @@ local messageByEvent = {
   VolunteerTaken = "Someone else already claimed the entity.",
   BecameEntity = "You are the entity. Hunt by sound.",
   Leashed = "Lurk in the vents until the crew turns the power on.",
+  LeashedAlone = "Lurk in the vents until the power is on. Playing alone, F8 turns it on.",
   PowerRestored = "The power is on. Hunt.",
   Lost = "The crew got you. You're out of this mission.",
   KillStarted = "Got one.",
@@ -92,6 +93,7 @@ local messageByEvent = {
   ["Denied.Forbidden"] = "Hunt elsewhere: this area is forbidden to you.",
   ["Denied.ShuttleNoKill"] = "Your grab can't kill this close to the shuttle.",
   ["Denied.ShuttleZone"] = "Save your hunger: it can't kill this close to the shuttle.",
+  ["Denied.NotAlone"] = "The crew turns the power on. F8 only does it when you play alone.",
   ["Denied.VentsShut"] = "The vents take you again once your vent time is half back.",
   ["Denied.HostOnly"] = "The host turns entity mode on or off.",
   ["Denied.EntityModeOff"] = "Entity mode is off. The host can turn it on.",
@@ -423,6 +425,10 @@ local stateChangeByEvent = {
   Leashed = function()
     state.isLeashed = true
     state.persistentStatus = messageByEvent.Leashed
+  end,
+  LeashedAlone = function()
+    state.isLeashed = true
+    state.persistentStatus = messageByEvent.LeashedAlone
   end,
   PowerRestored = function()
     state.isLeashed = false

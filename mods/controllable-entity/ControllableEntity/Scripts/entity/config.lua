@@ -27,6 +27,10 @@ return {
     Ultimate = 6,
     Vent = 1,
     Peek = 0.5,
+    -- The squid's cries on the 1, 2 and 3 keys (cries.lua)
+    Roar = 6,
+    Curious = 3,
+    Call = 6,
   },
 
   movement = {
@@ -91,12 +95,20 @@ return {
     warningInterval = 3,
   },
 
+  -- The cries the squid makes on its own (cries.lua).
+  cries = {
+    -- The "seen you" call: when the entity first sees a crew member within this range and view cone (degrees, all
+    -- the way across), at most this often.
+    sightRange = 3000,
+    sightConeDegrees = 90,
+    seenCallSeconds = 8,
+  },
+
   lair = {
-    -- The entity starts inside a vent at least this far from every crew member (the farthest one when none is).
+    -- The entity starts in the vent nearest the game's spawn point that is at least this far from every crew member
+    -- (the vent farthest from them when none is).
     minimumCrewDistance = 2500,
-    -- Until the crew turns the power on, the squid stays inside the ducts within this distance of its start.
-    leashRadius = 1200,
-    -- The shortest gap between two "the vents hold you" messages while the player pushes against the leash.
+    -- The shortest gap between two "the vents hold you" messages while the player tries to leave the ducts.
     warningInterval = 3,
     -- The moves that would leave the ducts, which wait until the power is on. Venting decides for itself: dropping
     -- out of the ducts waits, climbing inside them doesn't (abilities.lua).

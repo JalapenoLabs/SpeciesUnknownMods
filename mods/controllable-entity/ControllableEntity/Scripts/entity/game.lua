@@ -20,6 +20,15 @@ game.paths = {
   characterClass = "/Game/Blueprints/Player/BP_ParentCharacter.BP_ParentCharacter_C",
   engineClass = "/Game/Blueprints/Engine/BP_Engine.BP_Engine_C",
   capsuleScreenClass = "/Game/Blueprints/Interact/UMG_ScreenCapsule.UMG_ScreenCapsule_C",
+  -- The squid's cries (cries.lua), among the cues its Blueprint brings with it, by the name the mod gives each.
+  squidCries = {
+    Roar = "/Game/Monster_SoundFX_Pack1/Wav/Monsters/Monster06/Roar/Monster6_Chase_Wav_Cue.Monster6_Chase_Wav_Cue",
+    Curious =
+      "/Game/Monster_SoundFX_Pack1/Wav/Monsters/Monster06/Calls/Monster6_Sound_Wav_Cue1.Monster6_Sound_Wav_Cue1",
+    Call = "/Game/Monster_SoundFX_Pack1/Wav/Monsters/Monster05/Calls/Monster5_Call8_Wav_Cue.Monster5_Call8_Wav_Cue",
+    Seen = "/Game/Monster_SoundFX_Pack1/Wav/Monsters/Monster06/Calls/Monster6_See_Wav_Cue.Monster6_See_Wav_Cue",
+    Escape = "/Game/Monster_SoundFX_Pack1/Wav/Monsters/Monster06/Roar/Monster6_Escape_Wav_Cue.Monster6_Escape_Wav_Cue",
+  },
   -- The squid's basic attack (BP_Monster_Poulpi.GetAttackSimpleAnim always picks it).
   swingMontage = "/Game/Blueprints/Monsters/Poulpi/Anim/Poulpi_Attack_Small1_Montage.Poulpi_Attack_Small1_Montage",
   grabInterruptedMontage =

@@ -78,4 +78,16 @@ fake.runLoops(1000)
 assert(#fake.callsTo(playerState, "UpdateComChannels") == 2 and captureAsked("ToggleVoiceCapture") == true,
   "the mic is back to the game's own settings")
 
+-- Regression (playtest 7): leaving a mission for the main menu asked the main menu's player state, which has no
+-- voice, to pick the mic's channels, and failed
+controller.Pawn = squid
+fake.runLoops(1000)
+local menuPlayerState = fake.object("BP_MainMenuPlayerState_C", nil, {
+  UpdateComChannels = function() error("the main menu's player state has no voice") end,
+})
+controller.PlayerState = menuPlayerState
+controller.Pawn = fake.invalid()
+fake.runLoops(1000)
+assert(captureAsked("ToggleVoiceCapture") == true, "back at the main menu, the mic is the game's again")
+
 print("voice test passed")

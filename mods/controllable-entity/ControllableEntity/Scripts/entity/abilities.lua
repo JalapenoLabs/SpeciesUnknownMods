@@ -7,6 +7,7 @@
 -- work"), so animations, damage and networking stay the game's own.
 
 local config = require("entity.config")
+local cries = require("entity.cries")
 local game = require("entity.game")
 local hunt = require("entity.hunt")
 local lair = require("entity.lair")
@@ -174,6 +175,10 @@ local moveByCommand = {
   Vent = vent,
   Peek = peek,
   Ultimate = ultimate,
+  -- The squid's cries, which everyone near it hears: a choice to give itself away
+  Roar = function(squid) return cries.play(squid, "Roar", true) end,
+  Curious = function(squid) return cries.play(squid, "Curious", true) end,
+  Call = function(squid) return cries.play(squid, "Call", true) end,
 }
 
 -- Runs a command from the entity player: checks it came from the entity and is off cooldown, then moves the squid.
