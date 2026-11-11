@@ -77,6 +77,7 @@ local messageByEvent = {
   FrenzyStarted = "FRENZY: every grab kills.",
   FrenzyPartial = "They have the weapon. Your hunger grows faster, and the vents won't hide you for long.",
   ForcedOut = "Your time in the vents is up. Out you go.",
+  ShuttleNear = "Near the shuttle: no sprinting, and no kills.",
   VentsReopened = "The vents will take you again.",
   EntityModeOn = "Entity mode: ON",
   EntityModeOff = "Entity mode: OFF",
@@ -87,6 +88,10 @@ local messageByEvent = {
   ["Denied.NotInVent"] = "Peek works from inside a vent.",
   ["Denied.PowerOff"] = "The vents hold you until the power is on.",
   ["Denied.UltimateNotReady"] = "Your hunger isn't ready.",
+  ["Denied.Shuttle"] = "Hunt them away from their shuttle: you can't board it.",
+  ["Denied.Forbidden"] = "Hunt elsewhere: this area is forbidden to you.",
+  ["Denied.ShuttleNoKill"] = "Your grab can't kill this close to the shuttle.",
+  ["Denied.ShuttleZone"] = "Save your hunger: it can't kill this close to the shuttle.",
   ["Denied.VentsShut"] = "The vents take you again once your vent time is half back.",
   ["Denied.HostOnly"] = "The host turns entity mode on or off.",
   ["Denied.EntityModeOff"] = "Entity mode is off. The host can turn it on.",
@@ -387,6 +392,10 @@ local function showMessage(kind)
     return
   end
   local message = messageByEvent[kind]
+  -- Events that only change what the HUD shows (ShuttleLeft) have no message of their own
+  if not message then
+    return
+  end
   local _, wordCount = message:gsub("%S+", "")
   local seconds = math.max(MESSAGE_MINIMUM_SECONDS, MESSAGE_BASE_SECONDS + MESSAGE_SECONDS_PER_WORD * wordCount)
   state.message = message
@@ -419,6 +428,15 @@ local stateChangeByEvent = {
     state.isLeashed = false
     state.persistentStatus = nil
   end,
+  -- The shuttle's rules hold while the squid is near it
+  ShuttleNear = function()
+    state.persistentStatus = messageByEvent.ShuttleNear
+  end,
+  ShuttleLeft = function()
+    if state.persistentStatus == messageByEvent.ShuttleNear then
+      state.persistentStatus = nil
+    end
+  end,
   Lost = function()
     state.isEntity = false
     state.isLeashed = false
@@ -442,7 +460,15 @@ function hud.toggleHints()
 end
 
 function hud.register()
+  -- Every event with a message, and the few that only change what the HUD shows (ShuttleLeft)
+  local eventKinds = {}
   for kind in pairs(messageByEvent) do
+    eventKinds[kind] = true
+  end
+  for kind in pairs(stateChangeByEvent) do
+    eventKinds[kind] = true
+  end
+  for kind in pairs(eventKinds) do
     links.onClientEvent(kind, function()
       local controller = game.localController()
       if controller then

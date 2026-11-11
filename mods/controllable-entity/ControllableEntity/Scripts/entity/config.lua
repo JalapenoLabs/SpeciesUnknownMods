@@ -78,6 +78,15 @@ return {
     crySeconds = 12,
   },
 
+  -- Where the entity may not go, and the shuttle's approach (zones.lua).
+  zones = {
+    -- How far beyond the shuttle's aboard box its approach reaches, across the floor: there the entity can't sprint,
+    -- use its ultimate, or kill. Hawking's approach corridor runs about 1,200 units from the airlock.
+    shuttleApproach = 1500,
+    -- The shortest gap between two "keep out" messages while the player pushes against a forbidden place.
+    warningInterval = 3,
+  },
+
   lair = {
     -- The entity starts inside a vent at least this far from every crew member (the farthest one when none is).
     minimumCrewDistance = 2500,
@@ -108,6 +117,14 @@ return {
     markerScale = { X = 0.8, Y = 0.8, Z = 0.03 },
     -- How often the markers follow the squid around.
     markerRefreshSeconds = 0.5,
+    -- The posts around the places the entity may not go (red) and the shuttle's approach (amber), one every this
+    -- many units along each edge, this thick as the engine cylinder's scale. Rebuilt this often if the places changed
+    -- (a forbidden area streams in with its section).
+    postSpacing = 400,
+    postThickness = 0.12,
+    forbiddenColor = { R = 3.0, G = 0.12, B = 0.08, A = 1 },
+    approachColor = { R = 3.0, G = 1.1, B = 0.08, A = 1 },
+    zoneRefreshSeconds = 2,
   },
 
   minimap = {

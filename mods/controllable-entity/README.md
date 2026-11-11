@@ -102,6 +102,25 @@ holds the special weapon (the same trigger as partial frenzy), the vents are onl
   (`BPI_Monster_PlayVoiceType`, replicated, heard near it) and its far call (`PlayVoiceFar(Multi)`, heard only well
   away from it).
 
+### The shuttle and the forbidden areas
+
+The AI keeps out of the game's forbidden areas and never guards the crew's shuttle; a player would do both. So:
+
+- **The shuttle is the crew's.** The entity can't board it, except in capture contracts (below). Aboard is the
+  shuttle's own bay box, the one its launch check uses (`BP_PlayerShip.TriggerBoxOverlap`, or on Polar the volume
+  outside it, `ExtTriggerBase`). The host puts a squid that strays aboard back where it last stood outside ("Hunt
+  them away from their shuttle").
+- **Its approach is calm.** Within 15 m of the bay, which takes in Hawking's corridor from the airlock, the entity
+  can't sprint, can't use its ultimate, and its grabs never kill (frenzy included); the lash still works. Its HUD
+  says so while it's there.
+- **Forbidden areas are the game's own:** where its AI may not path (`NavArea_Forbidden`): the genetics lab's wing on
+  Hawking, the underground electrical area on Polar. The host asks the navigation whether the squid stands on
+  forbidden floor (a point projects through the game's `QuerryFilter_CheckForbidden` only outside them), so every
+  map's areas count without a list of them, and puts the squid back where it last stood outside.
+- **The entity sees the edges:** glowing posts, only on its machine, red where it may not go and amber around the
+  shuttle's approach. The forbidden areas' posts come from the trigger boxes carrying the forbidden area, which load
+  with their section of the ship, so they appear as the squid gets near.
+
 ### Capture contracts: kill it off the shuttle
 
 A capture contract wants the specimen alive in the shuttle's capture cell, and killing it fails the contract. A human
@@ -278,6 +297,7 @@ create: network events and a widget layout.
   | `meter.lua` | host | The kill meter and frenzy rules, as plain logic (unit tested) |
   | `frenzy.lua` | host | The three frenzy triggers |
   | `hunt.lua` | host | The vents' time limit once the crew holds the special weapon |
+  | `zones.lua` | both | The shuttle, its approach and the forbidden areas: where the entity may not go |
   | `capture.lua` | host | In capture contracts, the entity killed off the shuttle counts as captured |
   | `senses.lua` | host | Noise sources to blurred pings |
   | `control.lua` | entity player | Input to movement and commands; the mod's keys |
@@ -345,6 +365,8 @@ kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack 
 - `tests/entity_mode_test.lua`: F9, forcing the squid from the lobby, and the random pick.
 - `tests/lair_test.lua`: the start in a vent, the leash and the power.
 - `tests/hunt_test.lua`: the vents' time limit once the crew holds the special weapon.
+- `tests/zones_test.lua`: kept off the shuttle and out of forbidden areas, the shuttle's approach, and the marked
+  boxes.
 - `tests/capture_test.lua`: the entity killed off or aboard the shuttle in capture contracts.
 - `tests/voice_test.lua`: the entity's mic and radio click, and crew radio speech sent nearby too.
 - `tests/vision_test.lua`: the entity's light and the vent markers.

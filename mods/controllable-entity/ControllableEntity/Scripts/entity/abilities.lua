@@ -15,6 +15,7 @@ local Meter = require("entity.meter")
 local movement = require("entity.movement")
 local takeover = require("entity.takeover")
 local vents = require("entity.vents")
+local zones = require("entity.zones")
 
 local abilities = {}
 
@@ -154,6 +155,10 @@ end
 
 -- The ultimate arms the guaranteed kill, then leaps (or drops from the vent) at once to deliver it.
 local function ultimate(squid, aim, now)
+  -- Before arming, so the meter isn't spent on a kill the shuttle's approach won't allow
+  if zones.isNearShuttle(squid:K2_GetActorLocation()) then
+    return false, "ShuttleZone"
+  end
   if not meter:arm(now) then
     return false, "UltimateNotReady"
   end
@@ -219,7 +224,8 @@ local function onGrabStarted(context)
   end
 
   local now = game.timeSeconds(squid)
-  if meter:grabKills(now) then
+  local isNearShuttle = zones.isNearShuttle(squid:K2_GetActorLocation())
+  if meter:grabKills(now) and not isNearShuttle then
     meter:spendKill(now)
     links.sendEvent(entity.controller, "KillStarted")
     return
@@ -233,7 +239,7 @@ local function onGrabStarted(context)
     local montage = StaticFindObject(game.paths.grabInterruptedMontage)
     squid["KnockBack (Clients)"](squid, montage, 1.0)
   end)
-  links.sendEvent(entity.controller, "Denied.UltimateNotReady")
+  links.sendEvent(entity.controller, isNearShuttle and "Denied.ShuttleNoKill" or "Denied.UltimateNotReady")
 end
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --

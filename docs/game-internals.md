@@ -97,6 +97,22 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
 - **Monsters respawn when stuck.** `BP_BaseMonster."Check If Stuck"` runs every second once an AI controller
   possesses the monster. After 20 seconds without moving it calls `BP_GameManager.InitMonster(false, ...)`, which
   destroys the monster and spawns a new one. `ShouldCheckIfStuck` turns the check off.
+- **The shuttle** is `BP_PlayerShip` (one per map). Its `TriggerBoxOverlap` (half extents 2500×900×400 on Hawking,
+  spanning the bay between the airlocks) is "aboard": on the host its overlaps fill `PlayersInside` and
+  `MonstersInside` and set the replicated `MonsterInside`, and `CheckForLaunch` needs the power on, no monster
+  inside, the doors closed and every player aboard seated. With `UseExteriorTrigger` (Polar) it uses the volumes
+  `ExtTriggerBase` / `ExtTriggerVisual` instead. The capture cell (`BP_Capture`) is inside it.
+- **Forbidden areas** are only the navigation area `NavArea_Forbidden`, which steers the AI's paths
+  (`QuerryFilter_CheckForbidden` excludes it and `NavArea_Obstacle`; `GameManager.CheckForbiddenPath` drops targets
+  behind it). Hawking marks the genetics lab's wing with three trigger boxes in the `Hawking_StaticMap_Laboratory`
+  section whose `CollisionComp.AreaClass` is the forbidden area; Polar spawns a `BP_DynamicNav_Forbidden` over its
+  underground electrical area on the host. A possessed monster ignores them.
+- **The power** is restored at `BP_Screen_RestorePower` (one per map: Hawking's on the command deck): interacting with
+  it runs `ChangeLightStatut` about 2 seconds later.
+- **The AI's cries** come from its behaviour tree (`BTTask_PlayVoice` → `BPI_Monster_PlayVoiceType(type, override,
+  volume, noIfPlaying, replicate)`), so a possessed monster is silent but for its footsteps and montages. With
+  `replicate` the cry multicasts and plays on the monster's positional voice on every machine; `PlayVoiceFar(Multi)`
+  plays its far call only for listeners over 2,000 units away.
 - **Voice is the Onset VoIP plugin** (`/Script/OnsetVoip`, in the executable), voice data relayed through the host.
   The host puts each player's talker (`OnsetVoipWorldSubsystem.GetVoipTalker(playerState)`) in channel 0, proximity
   (3D on the speaker's pawn, `VOIPProxy` attenuation), and channel 1, radio (2D, `VOIPRadio` attenuation and the

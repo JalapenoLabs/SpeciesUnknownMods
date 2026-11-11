@@ -24,20 +24,38 @@ fake.objects["/Game/Blueprints/Inventory/Map/Materials/UnlitColor_MAT.UnlitColor
 fake.installModPak(game.modClasses)
 fake.object("GameStateBase")
 
-local markers = {}
+-- Everything the entity's vision spawns: the vent markers (flat discs) and the zone posts (thin and tall)
+local markers, posts = {}, {}
 fake.world = fake.object("World", nil, {
-  SpawnActor = function()
+  SpawnActor = function(_, _, location)
     local glow = fake.object("MaterialInstanceDynamic")
     local disc = fake.object("StaticMeshComponent", nil, {
       CreateDynamicMaterialInstance = function() return glow end,
     })
-    local marker = fake.object("StaticMeshActor", { StaticMeshComponent = disc, glow = glow, hidden = false }, {
+    local actor = fake.object("StaticMeshActor", { StaticMeshComponent = disc, glow = glow, hidden = false }, {
       SetActorHiddenInGame = function(self, hidden) self.hidden = hidden end,
-      K2_SetActorLocation = function(self, location) self.location = location end,
+      K2_SetActorLocation = function(self, where) self.location = where end,
     })
-    table.insert(markers, marker)
-    return marker
+    actor.location = location
+    actor.SetActorScale3D = function(self, scale)
+      table.insert(scale.X == config.vision.postThickness and posts or markers, self)
+    end
+    return actor
   end,
+})
+
+-- The crew's shuttle, whose approach and bay the entity sees marked, in a kill contract
+fake.object("BP_PlayerShip_C", {
+  UseExteriorTrigger = false,
+  ExtTriggerBase = fake.invalid(),
+  TriggerBoxOverlap = fake.object("BoxComponent", nil, {
+    K2_GetComponentLocation = function() return { X = 9000, Y = 6000, Z = -450 } end,
+    GetScaledBoxExtent = function() return { X = 2500, Y = 900, Z = 400 } end,
+    K2_GetComponentRotation = function() return { Pitch = 0, Yaw = 0, Roll = 0 } end,
+  }),
+})
+fake.object("BP_MyGameState_C", {
+  Contract = { ContractType_2_AD7B8E08435CF5A38556E7BA67C34760 = game.contractTypes.Elimination },
 })
 
 local controller = fake.object("BP_MyPlayerController_C", { Pawn = fake.invalid() }, {
@@ -85,6 +103,16 @@ assert(lanternIntensity() == config.vision.lanternCandelas, "fully lit inside th
 assert(#markers == config.vision.markerCount, "the marker pool is spawned once")
 assert(#fake.callsTo(markers[1].glow, "SetVectorParameterValue") == 1, "markers glow in the marker colour")
 
+-- Playtest 6: glowing posts stand along the shuttle's approach (amber) and its bay (red, as the entity may not board)
+assert(#posts > 0, "the shuttle's edges are marked with posts")
+local colours = {}
+for _, post in ipairs(posts) do
+  local colour = fake.callsTo(post.glow, "SetVectorParameterValue")[1].args[2]
+  colours[colour == config.vision.forbiddenColor and "red" or "amber"] = true
+end
+assert(colours.red and colours.amber, "red where the entity may not go, amber around the approach")
+local postCount = #posts
+
 local shown = {}
 for _, marker in ipairs(markers) do
   if not marker.hidden then
@@ -103,12 +131,16 @@ assert(markers[1].location.Z == 0, "outside the ducts, markers sit on the floor 
 assert(lanternIntensity() == config.vision.roomLanternCandelas, "and the light dims to a faint glow")
 fake.runLoops(100)
 assert(#markers == config.vision.markerCount, "the pool is reused, not respawned")
+assert(#posts == postCount, "and the posts stay while the zones don't change")
 
 -- Once the player stops driving the squid (they lost), everything only they could see goes
 controller.Pawn = fake.invalid()
 fake.runLoops(100)
 for _, marker in ipairs(markers) do
   assert(marker.destroyed, "the markers are removed")
+end
+for _, post in ipairs(posts) do
+  assert(post.destroyed, "and the posts")
 end
 assert(#fake.callsTo(lantern, "K2_DestroyComponent") == 1, "and the light")
 
