@@ -102,6 +102,20 @@ function fake.array(elements)
   })
 end
 
+-- Gives a fake player controller what the camera code reads: a camera manager, and a view target that follows
+-- SetViewTargetWithBlend the way the engine's does.
+function fake.giveView(controller, cameraManager)
+  controller.PlayerCameraManager = cameraManager or fake.object("PlayerCameraManager", { FreeCamDistance = 256 }, {
+    GetCameraLocation = function() return { X = 0, Y = 0, Z = 0 } end,
+  })
+  controller.viewTarget = fake.invalid()
+  controller.GetViewTarget = function(self) return self.viewTarget end
+  controller.SetViewTargetWithBlend = function(self, target, ...)
+    table.insert(fake.calls, { object = self, method = "SetViewTargetWithBlend", args = { target, ... } })
+    self.viewTarget = target
+  end
+end
+
 -- Makes the mod's pak classes loadable the way the game would: through AssetRegistryHelpers.GetAsset, by package
 -- and class name. Returns each class object by its mod class key.
 function fake.installModPak(modClasses)

@@ -62,7 +62,9 @@ fake.objects[game.paths.widgetLibrary] = fake.object("WidgetBlueprintLibrary", n
 
 -- Regression (playtest 3): UE4SS doesn't hand CameraStyle back as a readable name, so reading it crashed the takeover.
 -- The fake's starting value can't be read either; the mod must only ever write it.
-local cameraManager = fake.object("PlayerCameraManager", { CameraStyle = {}, FreeCamDistance = 256 })
+local cameraManager = fake.object("PlayerCameraManager", { CameraStyle = {}, FreeCamDistance = 256 }, {
+  GetCameraLocation = function() return { X = 0, Y = 0, Z = 0 } end,
+})
 local controller = fake.object("BP_MyPlayerController_C", {
   Pawn = fake.invalid(),
   PlayerCameraManager = cameraManager,
@@ -74,8 +76,11 @@ local controller = fake.object("BP_MyPlayerController_C", {
     return true
   end,
 }, { "PlayerController" })
+fake.giveView(controller, cameraManager)
 local link = fake.object("BP_EntityLink_C", { Owner = controller, Meter = 0.5, Frenzy = false })
-local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false })
+local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false }, {
+  K2_GetActorLocation = function() return { X = 0, Y = 300, Z = 0 } end,
+})
 -- The crew HUD the player's crew body created before the takeover
 local crewHud = fake.object("UI_HUD_Display_C", nil, { GetVisibility = function() return 4 end })
 
@@ -165,6 +170,14 @@ assert(math.abs(commands[#commands].args[2].Y - 1) < 1e-9, "the command carries 
 fake.keybinds.SPACE()
 commands = fake.callsTo(link, "EntityServerCommand")
 assert(commands[#commands].args[1]:ToString() == "Ultimate")
+
+-- Regression (playtest 4): something in the game kept the view off the squid. While the player drives the squid, the
+-- view goes back to it every second
+local shuttleCamera = fake.object("CameraActor")
+controller:SetViewTargetWithBlend(shuttleCamera, 0, 0, 0, false)
+fake.runLoops(1000)
+assert(controller:GetViewTarget() == squid, "the view is put back on the squid")
+assert(cameraManager.CameraStyle:ToString() ~= "Default", "with the squid's camera style")
 
 -- The HUD shows the meter and a ping
 fake.customEvents.EntityClientPing(fake.param(link), fake.param({ X = 100, Y = 0, Z = 0 }), fake.param(1.0),

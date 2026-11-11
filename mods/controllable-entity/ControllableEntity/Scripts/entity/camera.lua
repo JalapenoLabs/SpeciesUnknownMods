@@ -63,4 +63,44 @@ function camera.reset(controller)
   apply(controller)
 end
 
+local function describe(actor)
+  if not actor or not actor:IsValid() then
+    return "nothing"
+  end
+  return actor:GetClass():GetFName():ToString()
+end
+
+-- How far the camera was from the squid at the last report, so the log shows changes, not every second.
+local lastReportedDistance = nil
+-- Distance changes smaller than this aren't worth a log line.
+local REPORT_DISTANCE_STEP = 250
+
+-- Runs about once a second while the player drives the squid. The game's own code can move the view elsewhere (back
+-- to the crew body, or to a fixed camera such as the shuttle's), so the view target and style are put back on the
+-- squid whenever they've moved, and the log says what had them. It also reports where the camera really is, so a
+-- playtest log shows whether the player is seeing the squid at all.
+function camera.keepOnSquid(controller, squid)
+  local viewTarget = controller:GetViewTarget()
+  if not viewTarget:IsValid() or viewTarget:GetAddress() ~= squid:GetAddress() then
+    game.log("The view was on %s; putting it back on the squid", describe(viewTarget))
+    controller:SetViewTargetWithBlend(squid, 0, 0, 0, false)
+  end
+  apply(controller)
+
+  local manager = controller.PlayerCameraManager
+  if not manager:IsValid() then
+    return
+  end
+  local cameraLocation = manager:GetCameraLocation()
+  local squidLocation = squid:K2_GetActorLocation()
+  local distance = game.distance(cameraLocation, squidLocation)
+  if lastReportedDistance and math.abs(distance - lastReportedDistance) < REPORT_DISTANCE_STEP then
+    return
+  end
+  lastReportedDistance = distance
+  game.log("The camera is %.0f units from the squid (camera %.0f, %.0f, %.0f; squid %.0f, %.0f, %.0f; %s)", distance,
+    cameraLocation.X, cameraLocation.Y, cameraLocation.Z, squidLocation.X, squidLocation.Y, squidLocation.Z,
+    isThirdPerson and "third person" or "first person")
+end
+
 return camera

@@ -28,6 +28,7 @@ local hostController = fake.object("BP_MyPlayerController_C", { PlayerState = ho
   K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
 }, { "PlayerController" })
 hostController.Possess = function(self, pawn) self.Pawn = pawn end
+fake.giveView(hostController)
 
 local hostLink = nil
 fake.world = fake.object("World", nil, {

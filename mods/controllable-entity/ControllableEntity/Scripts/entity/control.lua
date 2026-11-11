@@ -196,6 +196,13 @@ function control.register()
       end
     end)
   registerKeys()
+  LoopInGameThreadWithDelay(1000, function()
+    local controller = game.localController()
+    local squid = controller and drivenSquid(controller)
+    if squid then
+      camera.keepOnSquid(controller, squid)
+    end
+  end)
   links.onClientEvent("BecameEntity", onBecameEntity)
   links.onClientEvent("Lost", function()
     local controller = game.localController()

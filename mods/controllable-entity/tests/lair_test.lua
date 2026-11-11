@@ -36,6 +36,7 @@ local function controller(isLocal, state)
     self.Pawn = pawn
     pawn.Controller = self
   end
+  fake.giveView(object)
   return object
 end
 

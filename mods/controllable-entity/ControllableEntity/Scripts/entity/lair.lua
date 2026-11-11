@@ -138,7 +138,8 @@ function lair.tick()
   end
 
   local location = squid:K2_GetActorLocation()
-  if squid.InVent and game.distance(location, current.anchor) <= config.lair.leashRadius then
+  local distance = game.distance(location, current.anchor)
+  if squid.InVent and distance <= config.lair.leashRadius then
     current.lastInside = { X = location.X, Y = location.Y, Z = location.Z }
     return
   end
@@ -148,6 +149,8 @@ function lair.tick()
   if now - current.lastWarnedAt >= config.lair.warningInterval then
     current.lastWarnedAt = now
     links.sendEvent(current.controller, "Denied.PowerOff")
+    game.log("Pulled the squid back into its lair: %s (at %.0f, %.0f, %.0f, %.0f units from its start)",
+      squid.InVent and "past the leash" or "out of the ducts", location.X, location.Y, location.Z, distance)
   end
 end
 

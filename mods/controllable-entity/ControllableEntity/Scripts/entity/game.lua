@@ -41,8 +41,9 @@ game.classNames = {
   mainMenuGameMode = "BP_MainMenuGameMode_C",
   -- The game's vent shafts; the Polar map uses a subclass.
   vents = { "BP_Vent_Up_C", "BP_Vent_Up_POLAR_C" },
-  -- The crew HUD, which the crew character creates (BP_Character): status bars, objectives and the crosshair.
-  crewHudWidgets = { "UI_HUD_Display_C", "UMG_ObjectiveList_C", "UI_Crosshair_Simple_C" },
+  -- The crew HUD, which the crew character creates (BP_Character): status bars, objectives, the crosshair and the
+  -- respawn-capsule status.
+  crewHudWidgets = { "UI_HUD_Display_C", "UMG_ObjectiveList_C", "UI_Crosshair_Simple_C", "HUD_Respawn_C" },
 }
 
 -- MonsterList value for the squid (BP_Lobby_FunctionLibrairy.GetMonsterSoftClass).

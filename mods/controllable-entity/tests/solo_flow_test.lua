@@ -26,6 +26,7 @@ local hostController = fake.object("BP_MyPlayerController_C", { PlayerState = ho
   IsPlayerController = function() return true end,
   K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
 }, { "PlayerController" })
+fake.giveView(hostController)
 hostController.Possess = function(self, pawn)
   self.Pawn = pawn
   pawn.Controller = self
@@ -51,6 +52,7 @@ fake.customEvents.EntityServerCommand(fake.param(hostLink), fake.param(fake.name
 fake.object("BP_PlayableGameMode_C")
 local squid = fake.object("BP_Monster_Poulpi_C", { Controller = fake.invalid() }, {
   BPI_Monster_GetSpeedByType = function(_, _, out) out.Speed = 400 end,
+  K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
 })
 fake.object("BP_GameManager_C", { Monster = squid })
 local movement = fake.object("CharacterMovementComponent")
