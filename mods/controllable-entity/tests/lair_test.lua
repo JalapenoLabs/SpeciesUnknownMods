@@ -135,11 +135,14 @@ fake.runLoops(1000)
 fake.runLoops(1000)
 assert(entityController.Pawn == squid, "the volunteer takes the squid")
 
+-- It crouches into the vent state first, and moves once the crouch has applied (a frame or two later)
+assert(squid.InVent, "the game knows it's in the vents")
+fake.runFrames()
+
 -- It starts inside the far vent's duct, not where the game spawned it
 local farSpot = farVent.Point1Component:K2_GetComponentLocation()
 assert(squid.location.X == farSpot.X and squid.location.Z == farSpot.Z,
   "the squid starts in the vent far from the crew")
-assert(squid.InVent, "and the game knows it's in the vents")
 assert(lastEvent() == "Leashed", "the entity is told to wait for the power")
 
 -- Regression (found reading BP_BaseMonster): standing still for 20 seconds made the AI's stuck check respawn the squid
@@ -153,12 +156,14 @@ assert(squid.location == insideLeash, "moving around inside the leash is fine")
 
 squid.location = location(farSpot.X + config.lair.leashRadius * 2, farSpot.Y, farSpot.Z)
 fake.runLoops(200)
+fake.runFrames()
 assert(squid.location.X == insideLeash.X, "past the leash, the squid goes back to where it last stood inside it")
 assert(lastEvent() == "Denied.PowerOff")
 
 squid.InVent = false
 fake.now = 1
 fake.runLoops(200)
+fake.runFrames()
 assert(squid.InVent and squid.location.X == insideLeash.X, "out of the ducts, the squid goes back in")
 
 -- The moves that leave the ducts wait for the power

@@ -59,16 +59,26 @@ local function chooseStartSpot()
   return farthestSpot
 end
 
+-- Frames to wait between asking the squid to crouch and teleporting it: the crouch applies on its next movement
+-- update, and only the crouched capsule fits the ducts.
+local CROUCH_FRAMES = 2
+
 -- Puts the squid inside the ducts at a spot. SetInVent is what the vents' own trigger calls: it replicates the state
--- and crouches the squid, which is what lets its capsule fit the ducts. The crouch only applies on the next movement
--- update, so a teleport that finds no room for the standing capsule falls back to placing the squid without a check.
+-- and crouches the squid. The teleport waits for the crouch to apply; a teleport that still finds no room places the
+-- squid without the check, and says so in the log.
 local function moveIntoVent(squid, spot)
   squid:BPI_Monster_SetInVent(true)
-  if squid:K2_TeleportTo(spot, squid:K2_GetActorRotation()) then
-    return
-  end
-  game.log("No room to teleport the squid to %.0f, %.0f, %.0f; placing it there", spot.X, spot.Y, spot.Z)
-  squid:K2_SetActorLocation(spot, false, {}, true)
+  ExecuteInGameThreadAfterFrames(CROUCH_FRAMES, function()
+    if not squid:IsValid() then
+      game.log("The squid was gone before it could be moved into the vents")
+      return
+    end
+    if squid:K2_TeleportTo(spot, squid:K2_GetActorRotation()) then
+      return
+    end
+    game.log("No room to teleport the squid to %.0f, %.0f, %.0f; placing it there", spot.X, spot.Y, spot.Z)
+    squid:K2_SetActorLocation(spot, false, {}, true)
+  end)
 end
 
 -- Starts the entity in its lair, right after the takeover.
