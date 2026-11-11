@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Player: a head and shoulders. -->
+  <g stroke="#000" stroke-opacity="0.4" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <circle cx="64" cy="44" r="20"/>
+    <path d="M26 108 C26 84 44 74 64 74 C84 74 102 84 102 108"/>
+  </g>
+  <g stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <circle cx="64" cy="44" r="20"/>
+    <path d="M26 108 C26 84 44 74 64 74 C84 74 102 84 102 108"/>
+  </g>
+</svg>

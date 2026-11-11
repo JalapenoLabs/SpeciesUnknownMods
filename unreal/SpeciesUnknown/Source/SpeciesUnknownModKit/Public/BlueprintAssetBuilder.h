@@ -56,6 +56,9 @@ private:
 	static UWidget* ConstructKeyCap(UWidgetTree* WidgetTree, const FModWidgetElement& Element);
 	static UWidget* ConstructRow(UWidgetTree* WidgetTree, const FModWidgetElement& Element);
 	static UWidget* ConstructColumn(UWidgetTree* WidgetTree, const FModWidgetElement& Element);
+	static UWidget* ConstructButton(UWidgetTree* WidgetTree, const FModWidgetElement& Element);
+	static UWidget* ConstructWrap(UWidgetTree* WidgetTree, const FModWidgetElement& Element);
+	static UWidget* ConstructScroll(UWidgetTree* WidgetTree, const FModWidgetElement& Element);
 	// A row's or column's child, in a size box when it has a fixed size, so its space holds while Lua hides it
 	static UWidget* ConstructSizedChild(UWidgetTree* WidgetTree, const FModWidgetElement& Child);
 

@@ -162,14 +162,14 @@ assert(#fake.callsTo(link, "EntityServerCommand") == 1, "the vent key is the cre
 flashlightHook(fake.param(controller), fake.param({ pressed = true }))
 assert(#squidComponents == 0, "the flashlight is the crew's own as crew")
 
--- Entity mode: every player's F9 goes to the host, which decides whether it counts
+-- The entity picker is the host's: a client's F9 goes to the host, which tells them so
 fake.keybinds.F9()
 commands = fake.callsTo(link, "EntityServerCommand")
-assert(commands[#commands].args[1]:ToString() == "ToggleEntityMode")
-fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("EntityModeOff")), fake.param(0))
+assert(commands[#commands].args[1]:ToString() == "OpenPicker")
+fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("Denied.HostOnly")), fake.param(0))
 fake.runLoops(33)
 local statusTexts = fake.callsTo(widget.StatusText, "SetText")
-assert(statusTexts[#statusTexts].args[1].text == "Entity mode: OFF", "the presser sees the new mode")
+assert(statusTexts[#statusTexts].args[1].text == "The host picks the entity.", "the presser is told it's the host's")
 local createdForMessage = createdWidgets
 
 -- The host makes this player the entity

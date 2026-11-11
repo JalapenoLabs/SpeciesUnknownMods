@@ -195,8 +195,8 @@ return {
     -- UE4SS key names for the mod's own keys, which the game binds to nothing. The squid's moves are the game's own
     -- actions instead (control.lua), so the player's own bindings carry over.
     volunteer = "F8",
-    -- Host only: turns entity mode on or off for the session.
-    entityMode = "F9",
+    -- Host only, in the lobby: opens the entity picker (picker.lua), and closes it.
+    picker = "F9",
     -- Held to sprint; an Unreal key name (the squid reuses no game action for it: the crew's sprint is bound on the
     -- crew character, not the controller).
     sprint = "LeftShift",

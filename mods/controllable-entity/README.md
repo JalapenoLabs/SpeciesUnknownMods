@@ -20,17 +20,26 @@ kills, and around sound instead of wallhacks.
 
 ### Choosing the entity
 
-- **Entity mode** is on by default. The host's F9 turns it on or off for the session, and only the host sees the
-  "Entity mode: ON/OFF" message. Anyone else's F9 shows them that the host decides. Turning it off releases the
-  volunteer; an entity already playing finishes their mission.
-- **Volunteering:** in the lobby, a player presses F8 to be the entity next mission (F8 again backs out). The choice
-  is private: only that player sees it; the host is told over the network. There is one entity per mission.
-- **Random pick:** in co-op with no volunteer, a random player becomes the entity when the squid appears. The pick
-  lasts one mission. Playing alone there is no random pick, only a volunteer.
-- While entity mode is on, every co-op mission's specimen is the squid, and so is a solo mission with a volunteer.
-  The squid is forced from the lobby, before the mission loads, so the mission spawns it with the right bodies and
-  corpses loaded. The mission rolls its monster seconds after it loads, before every player has arrived, which is
-  why the random pick can't wait until then to decide.
+- **The host's picker:** in the lobby, the host presses F9 for a panel of clickable tiles (playtest 8), with two
+  choices, both **Random** by default, that hold for the session:
+  - **The entity:** Random, one of the playable entities (each with the game's codex portrait), or **AI only**, where
+    the mission's monster stays the game's own AI and nobody plays it.
+  - **Who plays it:** Random, or any player in the session (the host included). The picked player is told, and only
+    they are. A picked player who leaves the session puts the choice back on Random, and the host is told.
+
+  F9 again closes it. The panel uses the game's own UI mode (its pause menu's), so the character stands still and
+  the cursor shows. Anyone else's F9 tells them the host picks; the host's F9 outside the lobby says to pick there.
+- **Volunteering:** with the player on Random, a player presses F8 in the lobby to be the entity next mission (F8
+  again backs out). The choice is private: only that player sees it; the host is told over the network. There is one
+  entity per mission, and the host's pick of a player comes before a volunteer.
+- **Random pick:** with no pick and no volunteer, in co-op a random player becomes the entity when its monster
+  appears. The pick lasts one mission and stays private. Playing alone there is no random pick, only a volunteer or
+  the host's pick.
+- **The entity's monster is forced from the lobby** whenever the mission will have an entity, before the mission
+  loads: the mission rolls its monster seconds after it loads, before every player has arrived, and places what
+  belongs to it (the special weapon for its weakness, its bodies and corpses) as it loads. Random rolls among the
+  playable entities, once per mission, rather than leaving the game's roll, which may land on a monster nobody can
+  play yet.
 
 ### The start: the lair and the power
 
@@ -218,7 +227,7 @@ gets a mod key of its own.
 | Hold Tool (`IA_HoldTool`, Space) | Climb into the nearest vent, drop out of it onto whoever is below, or climb a step up inside the ducts |
 | Weapon slots 1, 2, 3 (`IA_Slot1`–`IA_Slot3`) | Cry out, for everyone near to hear: a roar, a curious call, a long call |
 | F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out. As the entity, playing alone: turn the power on |
-| F9 (mod key, host only) | Turn entity mode on or off |
+| F9 (mod key, host only, in the lobby) | Open the entity picker: which entity, and who plays it (F9 again closes it) |
 | Left Shift (mod key, held) | Sprint, on stamina |
 | `.` and `,` (mod keys) | Zoom the minimap in and out |
 | H (mod key) | Hide the key hints under the minimap, or show them again |
@@ -306,7 +315,8 @@ create: network events and a widget layout.
   | Module | Runs on | Does |
   |--------|---------|------|
   | `links.lua` | both | Spawns a `BP_EntityLink` per player (host) and routes its events to the modules below |
-  | `takeover.lua` | host | Entity mode, volunteering and the random pick, forcing the squid, possessing it, crew exclusion, loss |
+  | `takeover.lua` | host | The host's choices, volunteering and the random pick, forcing the entity's monster, possessing it, crew exclusion, loss |
+  | `picker.lua` | host | The host's entity picker: its panel of tiles, clicks, and the game's UI mode |
   | `lair.lua` | host | The start in the ducts near the game's spawn, the ducts as the lair until the power is on, and F8's power alone |
   | `cries.lua` | host | The squid's cries: on the 1, 2 and 3 keys, on spotting a crew member, and on getting back up |
   | `vents.lua` | both | Finding vent shafts, the in-duct spots beside them, and the steps up inside the ducts |
@@ -382,7 +392,9 @@ kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack 
 - `tests/meter_test.lua`: the meter and frenzy rules.
 - `tests/host_flow_test.lua` and `tests/client_flow_test.lua`: the real scripts through a whole round, as the host
   and as the entity player's machine, against `tests/fake_ue4ss.lua`, a stand-in for UE4SS and the game objects.
-- `tests/entity_mode_test.lua`: F9, forcing the squid from the lobby, and the random pick.
+- `tests/entity_mode_test.lua`: the host's choices, forcing the entity's monster from the lobby, the host's pick of
+  a player, and the random pick.
+- `tests/picker_test.lua`: the host's picker panel: its tiles, clicks, players joining, and the UI mode.
 - `tests/lair_test.lua`: the start in the ducts near the game's spawn, the ducts as the lair, the power, and F8 alone.
 - `tests/cries_test.lua`: the cries the squid makes on its own.
 - `tests/hunt_test.lua`: the vents' time limit once the crew holds the special weapon.
@@ -550,7 +562,7 @@ There's nobody to lash, grab or hear, and the shuttle can't launch: as the only 
 one friend.
 
 1. **Loads.** Every player launches with UE4SS, the pak and the Lua installed. The log shows `Loaded. F8 in the lobby
-   volunteers to be the entity; the host's F9 turns entity mode on or off.` and, once in the lobby,
+   volunteers to be the entity; the host's F9 picks the entity and its player.` and, once in the lobby,
    `Hooked ... BP_MyPlayerController`.
 2. **Volunteering is private.** In the lobby, one player presses F8. Only they see "You'll be the entity next
    mission". Pressing F8 again backs out; a second player pressing F8 while someone is signed up sees "Someone else
@@ -582,9 +594,14 @@ one friend.
    screen never goes black. Over a grate in a vent, `C Peek` shows under the minimap; Crouch peeks through the grate,
    and the hint goes while peek recharges. Away from a grate there's no hint. Shoot with nobody near: the squid swings
    at the air. Press 1, 2 and 3: a roar, a curious call and a long call, each with a short cooldown.
-8. **Entity mode.** In a co-op lobby the host presses F9: only the host sees "Entity mode: OFF"; the next mission
-   rolls its own monster and nobody becomes it. F9 again turns it back on. A client's F9 shows "The host turns entity
-   mode on or off".
+8. **The host's picker (alone works too).** In the lobby the host presses F9: a panel opens with the cursor showing
+   and the character standing still. The entity row shows Random, the squid with its codex portrait, and AI only;
+   the player row shows Random and a tile per player. Both rows start on Random (marked amber). Click the squid, then
+   your own player tile: both are marked, and the log shows `The host picked the entity: Squid`. F9 closes it. Start
+   a contract alone: you become the squid without volunteering. Back in the lobby, pick AI only: the next mission's
+   monster is the game's own and nobody becomes it. With a friend: their F9 shows "The host picks the entity"; pick
+   them and only they see "The host picked you"; when a picked friend leaves, the host sees "The player you picked
+   left". If a tile can't be clicked, the cursor is missing, or a portrait is blank, send the log.
 9. **The random pick.** In co-op, with nobody volunteering, start a contract: the squid is the specimen, and when it
    appears one random player becomes it (only they are told). The next mission picks again.
 10. **The lash and the leap.** Shoot next to a crew member: a lash, and its bar fills in the stack. Aim: a leap where

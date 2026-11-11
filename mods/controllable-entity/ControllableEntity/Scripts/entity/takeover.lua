@@ -1,8 +1,8 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- Host side of becoming the entity: entity mode, volunteering in the lobby (or a random pick), forcing the squid as
--- the mission's specimen, taking control of it when it spawns, keeping the entity player out of the crew, and noticing
--- when they lose.
+-- Host side of becoming the entity: the host's choices (which entity, and who plays it: picker.lua), volunteering in
+-- the lobby, forcing the chosen entity's monster as the mission's specimen, taking control of it when it spawns,
+-- keeping the entity player out of the crew, and noticing when they lose.
 --
 -- Lua state outlives map travel, so the volunteer is remembered from the lobby into the mission and back.
 
@@ -14,10 +14,14 @@ local movement = require("entity.movement")
 
 local takeover = {}
 
--- Entity mode, which the host turns on or off for the session. While it's on, every co-op mission has an entity.
-local entityModeOn = true
--- Who will be the entity, by the game's own lobby player id (stable across travel, unlike the controller and player
--- state objects, which are rebuilt on every map): a volunteer, or the player picked at random this mission.
+-- The host's choices for the session (picker.lua, playtest 8): the entity ("Random", a kit's id, or "AiOnly", when the
+-- mission's monster stays the game's AI) and who plays it ("Random", or a player's key). Random rolls each mission.
+takeover.choice = { entity = "Random", player = "Random" }
+-- The kit Random rolled for the next mission, in the lobby among the playable kits; rolled again for each mission.
+local rolledKit = nil
+-- Who will be the entity when the host leaves it to chance, by the game's own lobby player id (stable across travel,
+-- unlike the controller and player state objects, which are rebuilt on every map): a volunteer, or the player picked
+-- at random this mission. The host's own pick of a player comes first (pickedController).
 local volunteerKey = nil
 -- True when volunteerKey came from the random pick, which lasts one mission; a volunteer stays until they back out.
 local chosenAtRandom = false
@@ -67,27 +71,8 @@ function takeover.activeEntity()
 end
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
--- Where we are
+-- Players
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
-
-local function exists(className)
-  local object = FindFirstOf(className)
-  return object ~= nil and object:IsValid()
-end
-
--- The lobby's game mode (BP_LobbyGameMode) is a subclass of the mission's (BP_PlayableGameMode), so "a playable game
--- mode exists" is true in the lobby too; the lobby has to be ruled out by name.
-local function isLobby()
-  return exists(game.classNames.lobbyGameMode)
-end
-
-local function isMission()
-  return not isLobby() and exists(game.classNames.missionGameMode)
-end
-
-local function isMainMenu()
-  return exists(game.classNames.mainMenuGameMode)
-end
 
 local function playerControllers()
   return FindAllOf(game.classNames.playerController) or {}
@@ -98,21 +83,41 @@ end
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
 -- BP_MyGameInstance.spawnForceSessionMonster: when set (not 0 or 1), BP_GameManager spawns that monster instead of
--- a random one. The game never sets it itself.
-local function forceMonster(enabled)
+-- a random one. The game never sets it itself. Nil leaves the mission's own roll.
+local function forceMonster(kit)
   local gameInstance = FindFirstOf(game.classNames.gameInstance)
   if not gameInstance or not gameInstance:IsValid() then
-    game.log("No game instance; can't force the squid")
+    game.log("No game instance; can't force the mission's monster")
     return
   end
-  gameInstance.spawnForceSessionMonster = enabled and kits.byId.Squid.monsterType or 0
+  gameInstance.spawnForceSessionMonster = kit and kit.monsterType or 0
+end
+
+-- The player the host picked, while they're in the session; nil when the host leaves it to chance.
+local function pickedController()
+  if takeover.choice.player == "Random" then
+    return nil
+  end
+  return controllerForKey(takeover.choice.player)
 end
 
 -- Decides the next mission's specimen, from the lobby. The mission rolls its monster seconds after it loads, before
--- every player has even arrived, so the squid is forced whenever the mission will have an entity: a volunteer, or a
--- random pick among two or more players. Playing alone, only a volunteer makes sense.
+-- every player has even arrived, and places what belongs to it (the special weapon for its weakness) as it loads, so
+-- the entity's monster is forced whenever the mission will have an entity: one the host picked, a volunteer, or a
+-- random pick among two or more players. Playing alone, only a volunteer or the host's pick makes sense. Random rolls
+-- among the playable kits, once per mission, rather than leaving a roll that may land on a monster no kit plays.
 local function syncForcedMonster()
-  forceMonster(entityModeOn and (volunteerKey ~= nil or #playerControllers() >= 2))
+  local hasPlayer = pickedController() ~= nil or volunteerKey ~= nil or #playerControllers() >= 2
+  if takeover.choice.entity == "AiOnly" or not hasPlayer then
+    forceMonster(nil)
+    return
+  end
+  if takeover.choice.entity == "Random" then
+    rolledKit = rolledKit or kits.playable[math.random(#kits.playable)]
+    forceMonster(rolledKit)
+    return
+  end
+  forceMonster(kits.byId[takeover.choice.entity])
 end
 
 local function forgetVolunteer()
@@ -127,7 +132,7 @@ local function onVolunteer(_, controller)
   if takeover.isEntityController(controller) then
     return
   end
-  if not entityModeOn then
+  if takeover.choice.entity == "AiOnly" then
     links.sendEvent(controller, "Denied.EntityModeOff")
     return
   end
@@ -146,7 +151,9 @@ local function onVolunteer(_, controller)
     return
   end
 
-  if volunteerKey ~= nil then
+  local picked = pickedController()
+  local isPickedByHost = picked and picked:GetAddress() == controller:GetAddress()
+  if volunteerKey ~= nil or (picked and not isPickedByHost) then
     links.sendEvent(controller, "VolunteerTaken")
     return
   end
@@ -158,29 +165,60 @@ local function onVolunteer(_, controller)
   game.log("%s will be the entity next mission", key)
 end
 
--- Turns entity mode on or off; only the host may. Turning it off releases the volunteer, so the next mission is the
--- game's own. An entity already playing keeps playing until the mission ends.
-local function onToggleEntityMode(_, controller)
-  -- On the host, the host's own controller is the only local one
+-- The host's F9 opens the picker on its own machine (picker.lua); anyone else's reaches here and is told it's the
+-- host's.
+local function onOpenPicker(_, controller)
   if not controller:IsLocalController() then
     links.sendEvent(controller, "Denied.HostOnly")
-    return
   end
+end
 
-  entityModeOn = not entityModeOn
-  if not entityModeOn and volunteerKey then
+-- The host picks the entity: Random, a kit's id, or AiOnly. AI only releases the volunteer, so the next mission is the
+-- game's own; an entity already playing keeps playing until the mission ends.
+function takeover.chooseEntity(choice)
+  takeover.choice.entity = choice
+  rolledKit = nil
+  if choice == "AiOnly" and volunteerKey then
     local volunteer = controllerForKey(volunteerKey)
     if volunteer then
       links.sendEvent(volunteer, "Unvolunteered")
     end
     forgetVolunteer()
   end
-  if isLobby() then
+  if game.isLobby() then
     syncForcedMonster()
   end
+  game.log("The host picked the entity: %s", choice)
+end
 
-  links.sendEvent(controller, entityModeOn and "EntityModeOn" or "EntityModeOff")
-  game.log("Entity mode is %s", entityModeOn and "on" or "off")
+-- The host picks who plays the entity: Random, or a player's key. The picked player is told (only they are); a
+-- player the host picked before and no longer is goes back to the crew.
+function takeover.choosePlayer(choice)
+  local previous = pickedController()
+  takeover.choice.player = choice
+  local picked = pickedController()
+  if previous and not (picked and picked:GetAddress() == previous:GetAddress()) then
+    links.sendEvent(previous, "Unvolunteered")
+  end
+  if picked then
+    links.sendEvent(picked, "PickedByHost")
+  end
+  if game.isLobby() then
+    syncForcedMonster()
+  end
+  game.log("The host picked who plays the entity: %s", choice)
+end
+
+-- The session's players, for the host's picker: { key, name } each, in the order the game lists them.
+function takeover.players()
+  local players = {}
+  for _, controller in ipairs(playerControllers()) do
+    local key = controller:IsValid() and playerKey(controller.PlayerState)
+    if key then
+      table.insert(players, { key = key, name = controller.PlayerState:GetPlayerName():ToString() })
+    end
+  end
+  return players
 end
 
 -- With no volunteer, a co-op mission's entity is a player picked at random once the squid is there to take.
@@ -320,7 +358,7 @@ local function takeControl(controller, monster, worldKey)
   monster.ShouldCheckIfStuck = false
 
   activeEntity = {
-    key = volunteerKey,
+    key = playerKey(controller.PlayerState),
     controller = controller,
     monster = monster,
     kit = kits.forMonster(monster),
@@ -330,7 +368,7 @@ local function takeControl(controller, monster, worldKey)
   }
   releaseParkedBody(activeEntity)
   links.sendEvent(controller, "BecameEntity")
-  game.log("%s took control of the squid", volunteerKey)
+  game.log("%s took control of the %s", activeEntity.key, activeEntity.kit.displayName)
   lair.begin(monster, controller)
 end
 
@@ -362,7 +400,7 @@ end
 -- the entity at once after a reload, rather than at the next reconcile: a sprint started in that second was lost
 -- (playtest 6), and Shift only sends a command when it changes.
 function takeover.isEntityController(controller)
-  if not activeEntity and controller and controller:IsValid() and isMission() then
+  if not activeEntity and controller and controller:IsValid() and game.isMission() then
     local monster = missionMonster()
     local driver = monster and game.playerControllerOf(monster)
     if driver and driver:GetAddress() == controller:GetAddress() then
@@ -399,7 +437,7 @@ local function announceVolunteer(controller, worldKey)
     return
   end
   announcedWorldKey = worldKey
-  links.sendEvent(controller, isMission() and "WaitingForSquid" or "Volunteered")
+  links.sendEvent(controller, game.isMission() and "WaitingForSquid" or "Volunteered")
 end
 
 -- Runs every second on the host.
@@ -413,22 +451,37 @@ function takeover.reconcile()
     lair.forget()
   end
 
-  -- Back at the main menu the session is over: nobody is the entity any more, and the next session's mission must
-  -- roll its monster normally
-  if isMainMenu() then
+  -- Back at the main menu the session is over: nobody is the entity any more, the host's choices go back to Random,
+  -- and the next session's mission must roll its monster normally
+  if game.isMainMenu() then
     if volunteerKey then
       game.log("%s is no longer the entity (back at the main menu)", volunteerKey)
       forgetVolunteer()
     end
-    forceMonster(false)
+    takeover.choice = { entity = "Random", player = "Random" }
+    rolledKit = nil
+    forceMonster(nil)
     return
   end
 
-  -- A random pick lasts one mission; back in the lobby, the next mission picks again
-  if chosenAtRandom and not isMission() then
+  -- A random pick lasts one mission; back in the lobby, the next mission picks again, and Random rolls its entity
+  -- again
+  if chosenAtRandom and not game.isMission() then
     forgetVolunteer()
   end
-  if isLobby() then
+  if game.isMission() then
+    rolledKit = nil
+  end
+  if game.isLobby() then
+    -- A player the host picked who has left the session leaves the choice to chance again, and the host is told
+    if takeover.choice.player ~= "Random" and not pickedController() then
+      game.log("%s, whom the host picked, has left; the entity's player is random again", takeover.choice.player)
+      takeover.choice.player = "Random"
+      local host = game.localController()
+      if host then
+        links.sendEvent(host, "PickedPlayerLeft")
+      end
+    end
     syncForcedMonster()
   end
 
@@ -445,17 +498,19 @@ function takeover.reconcile()
     return
   end
 
-  if not entityModeOn then
+  if takeover.choice.entity == "AiOnly" then
     return
   end
 
-  -- On Hawking the squid spawns only once a crew member leaves the shuttle
-  local monster = isMission() and missionMonster() or nil
+  -- On Hawking the monster spawns only once a crew member leaves the shuttle
+  local monster = game.isMission() and missionMonster() or nil
   if monster and adoptAfterReload(monster, worldKey) then
     return
   end
 
-  if not volunteerKey then
+  -- The host's pick, then a volunteer, then a player picked at random
+  local chosenKey = takeover.choice.player ~= "Random" and takeover.choice.player or volunteerKey
+  if not chosenKey then
     local chosen = monster and pickAtRandom() or nil
     if chosen then
       takeControl(chosen, monster, worldKey)
@@ -463,8 +518,8 @@ function takeover.reconcile()
     return
   end
 
-  -- The volunteer's controller arrives during the first seconds of every map; the next pass tries again
-  local controller = controllerForKey(volunteerKey)
+  -- The chosen player's controller arrives during the first seconds of every map; the next pass tries again
+  local controller = controllerForKey(chosenKey)
   if not controller then
     return
   end
@@ -489,7 +544,7 @@ end
 
 function takeover.register()
   links.onCommand("Volunteer", onVolunteer)
-  links.onCommand("ToggleEntityMode", onToggleEntityMode)
+  links.onCommand("OpenPicker", onOpenPicker)
   game.hookWhenLoaded(game.paths.gameStateClass, "UpdateInGamePlayers", onCrewListChanged)
 end
 

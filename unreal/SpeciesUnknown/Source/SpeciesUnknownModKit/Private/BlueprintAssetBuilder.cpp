@@ -6,17 +6,20 @@
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/Button.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
+#include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/SizeBoxSlot.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Components/WrapBox.h"
 #include "EdGraphSchema_K2.h"
 #include "EditorAssetLibrary.h"
 #include "Engine/Blueprint.h"
@@ -39,6 +42,12 @@ static constexpr int32 EventNodeSpacing = 200;
 static constexpr float KeyCapCornerRadius = 5.0f;
 static const FMargin KeyCapPadding(8.0f, 2.0f);
 static const FLinearColor KeyCapTextColor(0.04f, 0.04f, 0.05f);
+// Buttons are rounded tiles that lighten under the mouse (by this much toward white) and more while pressed.
+static constexpr float ButtonCornerRadius = 10.0f;
+static constexpr float ButtonHoverLift = 0.12f;
+static constexpr float ButtonPressLift = 0.25f;
+static const FMargin ButtonPadding(12.0f, 10.0f);
+static constexpr float ButtonContentGap = 8.0f;
 // Progress bars sit on the dark blue-grey track every bar of the crew HUD shares (UI_HUD_Display's cooked bars), so
 // they read over the game's bright and dark scenes alike.
 static const FLinearColor ProgressTrackColor(0.063f, 0.102f, 0.12f, 0.75f);
@@ -284,14 +293,27 @@ UBlueprint* FBlueprintAssetBuilder::BuildWidget(const FModWidgetSpec& Spec) {
 	}
 
 	UWidgetBlueprint* WidgetBlueprint = CastChecked<UWidgetBlueprint>(Blueprint);
-	UCanvasPanel* Canvas = WidgetBlueprint->WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(),
-		TEXT("Canvas"));
-	WidgetBlueprint->WidgetTree->RootWidget = Canvas;
+	UWidgetTree* WidgetTree = WidgetBlueprint->WidgetTree;
 
-	for (const FModWidgetElement& Element : Spec.Elements) {
-		// An element that can't be built (a missing texture) would ship a HUD with a hole in it
-		if (!AddWidgetElement(WidgetBlueprint, Canvas, Element)) {
+	// A single element as the root, sized by its content (or its fixed size), for a tile Lua places in a row
+	if (Spec.bSingleElementRoot) {
+		UWidget* Root = Spec.Elements.Num() == 1 ? ConstructSizedChild(WidgetTree, Spec.Elements[0]) : nullptr;
+		if (!Root) {
+			UE_LOG(LogSpeciesUnknownModKit, Error, TEXT("%s needs exactly one element that builds as its root"),
+				*Spec.AssetPath);
 			return nullptr;
+		}
+		WidgetTree->RootWidget = Root;
+	}
+
+	if (!Spec.bSingleElementRoot) {
+		UCanvasPanel* Canvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Canvas"));
+		WidgetTree->RootWidget = Canvas;
+		for (const FModWidgetElement& Element : Spec.Elements) {
+			// An element that can't be built (a missing texture) would ship a HUD with a hole in it
+			if (!AddWidgetElement(WidgetBlueprint, Canvas, Element)) {
+				return nullptr;
+			}
 		}
 	}
 
@@ -336,6 +358,9 @@ UWidget* FBlueprintAssetBuilder::ConstructElement(UWidgetTree* WidgetTree, const
 		{EModWidgetKind::KeyCap, &FBlueprintAssetBuilder::ConstructKeyCap},
 		{EModWidgetKind::Row, &FBlueprintAssetBuilder::ConstructRow},
 		{EModWidgetKind::Column, &FBlueprintAssetBuilder::ConstructColumn},
+		{EModWidgetKind::Button, &FBlueprintAssetBuilder::ConstructButton},
+		{EModWidgetKind::Wrap, &FBlueprintAssetBuilder::ConstructWrap},
+		{EModWidgetKind::Scroll, &FBlueprintAssetBuilder::ConstructScroll},
 	};
 
 	UWidget* Widget = ConstructorByKind[Element.Kind](WidgetTree, Element);
@@ -436,11 +461,16 @@ UWidget* FBlueprintAssetBuilder::ConstructSizedChild(UWidgetTree* WidgetTree, co
 		return ChildWidget;
 	}
 
-	// A fixed size holds the child's space even while Lua hides it, so the rest of the row or column never shifts
+	// A fixed size holds the child's space even while Lua hides it, so the rest of the row or column never shifts. An
+	// axis left at zero sizes to the content
 	USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(),
 		FName(Child.Name.ToString() + TEXT("Size")));
-	SizeBox->SetWidthOverride(Child.Size.X);
-	SizeBox->SetHeightOverride(Child.Size.Y);
+	if (Child.Size.X > 0.0) {
+		SizeBox->SetWidthOverride(Child.Size.X);
+	}
+	if (Child.Size.Y > 0.0) {
+		SizeBox->SetHeightOverride(Child.Size.Y);
+	}
 	USizeBoxSlot* Slot = Cast<USizeBoxSlot>(SizeBox->SetContent(ChildWidget));
 	Slot->SetHorizontalAlignment(Child.ContentAlignment);
 	const bool bFills = Child.ContentAlignment == HAlign_Fill;
@@ -465,6 +495,77 @@ UWidget* FBlueprintAssetBuilder::ConstructColumn(UWidgetTree* WidgetTree, const 
 		Slot->SetPadding(FMargin(0.0f, LeadingGap, 0.0f, 0.0f));
 	}
 	return Column;
+}
+
+UWidget* FBlueprintAssetBuilder::ConstructButton(UWidgetTree* WidgetTree, const FModWidgetElement& Element) {
+	UButton* Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), Element.Name);
+
+	// A rounded tile in the element's colour, lighter under the mouse and lighter still while pressed
+	FButtonStyle Style = Button->GetStyle();
+	const FLinearColor Hovered = FLinearColor::LerpUsingHSV(Element.Color, FLinearColor::White, ButtonHoverLift);
+	const FLinearColor Pressed = FLinearColor::LerpUsingHSV(Element.Color, FLinearColor::White, ButtonPressLift);
+	Style.SetNormal(MakeRoundedBrush(Element.Color, ButtonCornerRadius));
+	Style.SetHovered(MakeRoundedBrush(FLinearColor(Hovered.R, Hovered.G, Hovered.B, Element.Color.A),
+		ButtonCornerRadius));
+	Style.SetPressed(MakeRoundedBrush(FLinearColor(Pressed.R, Pressed.G, Pressed.B, Element.Color.A),
+		ButtonCornerRadius));
+	Style.SetNormalPadding(ButtonPadding);
+	Style.SetPressedPadding(ButtonPadding);
+	Button->SetStyle(Style);
+
+	UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(),
+		FName(Element.Name.ToString() + TEXT("Content")));
+	for (int32 ChildIndex = 0; ChildIndex < Element.Children.Num(); ++ChildIndex) {
+		UWidget* PlacedWidget = ConstructSizedChild(WidgetTree, Element.Children[ChildIndex]);
+
+		// The child's construction logged what was missing; a tile with a hole in it isn't worth shipping
+		if (!PlacedWidget) {
+			return nullptr;
+		}
+
+		UVerticalBoxSlot* Slot = Content->AddChildToVerticalBox(PlacedWidget);
+		Slot->SetHorizontalAlignment(HAlign_Center);
+		const float LeadingGap = ChildIndex == 0 ? 0.0f : ButtonContentGap;
+		Slot->SetPadding(FMargin(0.0f, LeadingGap, 0.0f, 0.0f));
+	}
+	Button->SetContent(Content);
+	return Button;
+}
+
+UWidget* FBlueprintAssetBuilder::ConstructWrap(UWidgetTree* WidgetTree, const FModWidgetElement& Element) {
+	UWrapBox* Wrap = WidgetTree->ConstructWidget<UWrapBox>(UWrapBox::StaticClass(), Element.Name);
+	Wrap->SetInnerSlotPadding(FVector2D(Element.Gap, Element.Gap));
+	// Wraps at the element's width when it has one, else at the space its parent gives it
+	if (Element.Size.X > 0.0) {
+		Wrap->SetExplicitWrapSize(true);
+		Wrap->SetWrapSize(static_cast<float>(Element.Size.X));
+	}
+
+	for (const FModWidgetElement& Child : Element.Children) {
+		UWidget* PlacedWidget = ConstructSizedChild(WidgetTree, Child);
+
+		// The child's construction logged what was missing
+		if (!PlacedWidget) {
+			return nullptr;
+		}
+		Wrap->AddChildToWrapBox(PlacedWidget);
+	}
+	return Wrap;
+}
+
+UWidget* FBlueprintAssetBuilder::ConstructScroll(UWidgetTree* WidgetTree, const FModWidgetElement& Element) {
+	UScrollBox* Scroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), Element.Name);
+
+	for (const FModWidgetElement& Child : Element.Children) {
+		UWidget* PlacedWidget = ConstructSizedChild(WidgetTree, Child);
+
+		// The child's construction logged what was missing
+		if (!PlacedWidget) {
+			return nullptr;
+		}
+		Scroll->AddChild(PlacedWidget);
+	}
+	return Scroll;
 }
 
 UWidget* FBlueprintAssetBuilder::ConstructRow(UWidgetTree* WidgetTree, const FModWidgetElement& Element) {

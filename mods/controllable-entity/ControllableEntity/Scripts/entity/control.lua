@@ -15,6 +15,7 @@ local hud = require("entity.hud")
 local minimap = require("entity.minimap")
 local movement = require("entity.movement")
 local objectives = require("entity.objectives")
+local picker = require("entity.picker")
 local vision = require("entity.vision")
 local game = require("entity.game")
 local links = require("entity.links")
@@ -159,9 +160,16 @@ local function registerKeys()
     end)
   end)
 
-  RegisterKeyBind(Key[config.keys.entityMode], function()
+  -- F9: the host's entity picker opens on the host's own machine; anyone else's press goes to the host, who answers
+  -- that it's the host's
+  RegisterKeyBind(Key[config.keys.picker], function()
     ExecuteInGameThread(function()
-      links.sendCommand("ToggleEntityMode", nil, nil)
+      local controller = game.localController()
+      if controller and game.isHost() then
+        picker.toggle(controller)
+        return
+      end
+      links.sendCommand("OpenPicker", nil, nil)
     end)
   end)
 

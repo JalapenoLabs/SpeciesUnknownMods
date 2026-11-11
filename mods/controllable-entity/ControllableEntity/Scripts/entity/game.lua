@@ -11,6 +11,8 @@ local game = {}
 game.modClasses = {
   link = { package = "/Game/Mods/ControllableEntity/BP_EntityLink", class = "BP_EntityLink_C" },
   hud = { package = "/Game/Mods/ControllableEntity/WBP_EntityHUD", class = "WBP_EntityHUD_C" },
+  picker = { package = "/Game/Mods/ControllableEntity/WBP_EntityPicker", class = "WBP_EntityPicker_C" },
+  pickerTile = { package = "/Game/Mods/ControllableEntity/WBP_PickerTile", class = "WBP_PickerTile_C" },
 }
 
 game.paths = {
@@ -80,6 +82,29 @@ function game.monsterDrivenBy(controller)
     return nil
   end
   return pawn
+end
+
+-- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
+-- Where we are
+-- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
+
+local function exists(className)
+  local object = FindFirstOf(className)
+  return object ~= nil and object:IsValid()
+end
+
+-- The lobby's game mode (BP_LobbyGameMode) is a subclass of the mission's (BP_PlayableGameMode), so "a playable game
+-- mode exists" is true in the lobby too; the lobby has to be ruled out by name. Game modes exist on the host only.
+function game.isLobby()
+  return exists(game.classNames.lobbyGameMode)
+end
+
+function game.isMission()
+  return not game.isLobby() and exists(game.classNames.missionGameMode)
+end
+
+function game.isMainMenu()
+  return exists(game.classNames.mainMenuGameMode)
 end
 
 -- Identifies the current world on the host: its game state is rebuilt on every map, so its address changes with the

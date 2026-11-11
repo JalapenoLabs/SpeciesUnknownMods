@@ -85,6 +85,9 @@ namespace {
 		{TEXT("Vent"), TEXT("vent")},
 		{TEXT("HeadGrab"), TEXT("head-grab")},
 		{TEXT("ViewCone"), TEXT("view-cone")},
+		{TEXT("Random"), TEXT("random")},
+		{TEXT("Player"), TEXT("player")},
+		{TEXT("AiOnly"), TEXT("ai-only")},
 	};
 
 	FString IconAssetPath(const TCHAR* IconName) {
@@ -305,6 +308,108 @@ namespace {
 		}
 		return Spec;
 	}
+
+	// ////////////////////// //
+	//    The host's picker   //
+	// ////////////////////// //
+
+	// The picker's tiles: dark like the crew HUD's tracks, lightening under the mouse; Lua tints the chosen one
+	const FLinearColor TileColor(0.063f, 0.102f, 0.12f, 0.88f);
+	const FVector2D TileSize(164.0, 0.0);
+	const FVector2D TileImageSize(96.0, 96.0);
+
+	// One clickable tile: an icon over a label, inside the button Lua polls. Lua reaches the parts as <Name>,
+	// <Name>Image and <Name>Label.
+	FModWidgetElement MakeTile(const TCHAR* Name, const TCHAR* IconName, const TCHAR* Label) {
+		FModWidgetElement Image;
+		Image.Name = FName(FString(Name) + TEXT("Image"));
+		Image.Kind = EModWidgetKind::Image;
+		Image.TexturePath = IconAssetPath(IconName);
+		Image.Size = TileImageSize;
+
+		FModWidgetElement Tile;
+		Tile.Name = Name;
+		Tile.Kind = EModWidgetKind::Button;
+		Tile.Color = TileColor;
+		Tile.Size = TileSize;
+		Tile.Children = {Image, MakeLabel(*(FString(Name) + TEXT("Label")), Label, 16, FLinearColor::White)};
+		return Tile;
+	}
+
+	// WBP_PickerTile: one tile on its own, which Lua creates for each playable entity (its codex portrait in place of
+	// the icon) and each player in the lobby, and adds to the picker's rows.
+	FModWidgetSpec MakePickerTileSpec() {
+		FModWidgetSpec Spec;
+		Spec.AssetPath = TEXT("/Game/Mods/ControllableEntity/WBP_PickerTile");
+		Spec.bSingleElementRoot = true;
+		Spec.Elements = {MakeTile(TEXT("Tile"), TEXT("Player"), TEXT(""))};
+		return Spec;
+	}
+
+	// WBP_EntityPicker: the host's picker (playtest 8), opened with F9 in the lobby. Two rows of tiles on a dark
+	// panel: the entity (Random, each playable entity, AI only) and the player who plays it (Random, each player,
+	// scrolling when the lobby is large). Lua fills the rows and marks the choices.
+	FModWidgetSpec MakeEntityPickerSpec() {
+		const FAnchors Centre(0.5f, 0.5f);
+		const FVector2D Middle(0.5f, 0.5f);
+
+		FModWidgetSpec Spec;
+		Spec.AssetPath = TEXT("/Game/Mods/ControllableEntity/WBP_EntityPicker");
+
+		FModWidgetElement Backdrop;
+		Backdrop.Name = TEXT("Backdrop");
+		Backdrop.Kind = EModWidgetKind::Box;
+		Backdrop.Color = FLinearColor(0.02f, 0.03f, 0.035f, 0.92f);
+		Backdrop.Size = FVector2D(1080.0, 680.0);
+		Spec.Elements.Add(Backdrop);
+
+		Spec.Elements.Add(MakeText(TEXT("EntityHeading"), Centre, Middle, FVector2D(0.0, -290.0), 22,
+			FLinearColor::White, TEXT("Entity")));
+
+		FModWidgetElement EntityTiles;
+		EntityTiles.Name = TEXT("EntityTiles");
+		EntityTiles.Kind = EModWidgetKind::Wrap;
+		EntityTiles.Gap = 12.0f;
+
+		FModWidgetElement EntityRow;
+		EntityRow.Name = TEXT("EntityRow");
+		EntityRow.Kind = EModWidgetKind::Row;
+		EntityRow.Position = FVector2D(0.0, -160.0);
+		EntityRow.Gap = 12.0f;
+		EntityRow.Children = {
+			MakeTile(TEXT("RandomEntity"), TEXT("Random"), TEXT("Random")),
+			EntityTiles,
+			MakeTile(TEXT("AiOnly"), TEXT("AiOnly"), TEXT("AI only")),
+		};
+		Spec.Elements.Add(EntityRow);
+
+		Spec.Elements.Add(MakeText(TEXT("PlayerHeading"), Centre, Middle, FVector2D(0.0, -20.0), 22,
+			FLinearColor::White, TEXT("Player")));
+
+		FModWidgetElement PlayerTiles;
+		PlayerTiles.Name = TEXT("PlayerTiles");
+		PlayerTiles.Kind = EModWidgetKind::Wrap;
+		PlayerTiles.Size = FVector2D(856.0, 0.0);
+		PlayerTiles.Gap = 12.0f;
+
+		FModWidgetElement PlayerScroll;
+		PlayerScroll.Name = TEXT("PlayerScroll");
+		PlayerScroll.Kind = EModWidgetKind::Scroll;
+		PlayerScroll.Size = FVector2D(870.0, 250.0);
+		PlayerScroll.Children = {PlayerTiles};
+
+		FModWidgetElement PlayerRow;
+		PlayerRow.Name = TEXT("PlayerRow");
+		PlayerRow.Kind = EModWidgetKind::Row;
+		PlayerRow.Position = FVector2D(0.0, 130.0);
+		PlayerRow.Gap = 12.0f;
+		PlayerRow.Children = {MakeTile(TEXT("RandomPlayer"), TEXT("Random"), TEXT("Random")), PlayerScroll};
+		Spec.Elements.Add(PlayerRow);
+
+		Spec.Elements.Add(MakeText(TEXT("CloseHint"), Centre, Middle, FVector2D(0.0, 305.0), 14,
+			FLinearColor(0.82f, 0.86f, 0.88f), TEXT("F9 closes")));
+		return Spec;
+	}
 }
 
 bool UModAssetBuildLibrary::BuildControllableEntityAssets() {
@@ -323,6 +428,15 @@ bool UModAssetBuildLibrary::BuildControllableEntityAssets() {
 	}
 	if (!FBlueprintAssetBuilder::BuildWidget(MakeEntityHudSpec())) {
 		UE_LOG(LogSpeciesUnknownModKit, Error, TEXT("Controllable Entity: WBP_EntityHUD failed to build"));
+		return false;
+	}
+	// The tile first: the picker's Lua creates tiles of its class
+	if (!FBlueprintAssetBuilder::BuildWidget(MakePickerTileSpec())) {
+		UE_LOG(LogSpeciesUnknownModKit, Error, TEXT("Controllable Entity: WBP_PickerTile failed to build"));
+		return false;
+	}
+	if (!FBlueprintAssetBuilder::BuildWidget(MakeEntityPickerSpec())) {
+		UE_LOG(LogSpeciesUnknownModKit, Error, TEXT("Controllable Entity: WBP_EntityPicker failed to build"));
 		return false;
 	}
 

@@ -94,8 +94,8 @@ local messageByEvent = {
   ForcedOut = "Your time in the vents is up. Out you go.",
   ShuttleNear = "Near the shuttle: no sprinting, and no kills.",
   VentsReopened = "The vents will take you again.",
-  EntityModeOn = "Entity mode: ON",
-  EntityModeOff = "Entity mode: OFF",
+  PickedByHost = "The host picked you to be the entity next mission. Only you know.",
+  PickedPlayerLeft = "The player you picked left. The entity's player is random again.",
   ["Denied.Cooldown"] = "Not yet.",
   ["Denied.NoTarget"] = "Get closer to a crew member.",
   ["Denied.NoVentEntrance"] = "Stand under a vent to climb in.",
@@ -109,8 +109,9 @@ local messageByEvent = {
   ["Denied.ShuttleZone"] = "Save your hunger: it can't kill this close to the shuttle.",
   ["Denied.NotAlone"] = "The crew turns the power on. F8 only does it when you play alone.",
   ["Denied.VentsShut"] = "The vents take you again once your vent time is half back.",
-  ["Denied.HostOnly"] = "The host turns entity mode on or off.",
-  ["Denied.EntityModeOff"] = "Entity mode is off. The host can turn it on.",
+  ["Denied.HostOnly"] = "The host picks the entity.",
+  ["Denied.EntityModeOff"] = "The host has the monster on AI only. The host's F9 picks a player entity.",
+  ["Denied.PickInLobby"] = "Pick the entity in the lobby.",
 }
 
 -- Everything the HUD knows comes from the host's events in the current world; a new world starts blank and the host
@@ -461,6 +462,10 @@ local stateChangeByEvent = {
   WaitingForSquid = function()
     state.isVolunteer = true
     state.persistentStatus = messageByEvent.WaitingForSquid
+  end,
+  PickedByHost = function()
+    state.isVolunteer = true
+    state.persistentStatus = messageByEvent.PickedByHost
   end,
   Unvolunteered = function()
     state.isVolunteer = false

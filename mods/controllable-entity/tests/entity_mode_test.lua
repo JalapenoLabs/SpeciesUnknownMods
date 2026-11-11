@@ -1,7 +1,9 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- Entity mode, as the host: only the host's F9 turns it on or off; while it's on, a co-op lobby forces the squid, and
--- with no volunteer a random player takes it, for one mission only. Playing alone, only a volunteer makes sense.
+-- The host's choices, as the host: which entity (Random by default, a playable kit, or AI only) and who plays it
+-- (Random by default, or a player the host picks). A co-op lobby forces the entity's monster; with no pick and no
+-- volunteer a random player takes it, for one mission only. Playing alone, only a volunteer or the host's pick makes
+-- sense. Only the host picks. (The picker panel itself is in picker_test.)
 -- Run from the repository root: lua mods/controllable-entity/tests/entity_mode_test.lua
 
 package.path = "mods/controllable-entity/ControllableEntity/Scripts/?.lua;mods/controllable-entity/tests/?.lua;"
@@ -76,26 +78,27 @@ end
 -- In the lobby
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
+local takeover = require("entity.takeover")
+
 fake.runLoops(1000)
+assert(takeover.choice.entity == "Random" and takeover.choice.player == "Random", "both choices start Random")
 assert(gameInstance.spawnForceSessionMonster == kits.byId.Squid.monsterType,
-  "entity mode starts on, so a co-op lobby forces the squid even with no volunteer")
+  "Random rolls among the playable entities, so a co-op lobby forces one even with no volunteer")
 
-command(crewController, "ToggleEntityMode")
-assert(lastEvent(crewController) == "Denied.HostOnly", "only the host turns entity mode on or off")
-assert(gameInstance.spawnForceSessionMonster == kits.byId.Squid.monsterType, "a client's press changes nothing")
+command(crewController, "OpenPicker")
+assert(lastEvent(crewController) == "Denied.HostOnly", "only the host picks the entity")
 
-command(hostController, "ToggleEntityMode")
-assert(lastEvent(hostController) == "EntityModeOff", "the host sees the new mode")
-assert(gameInstance.spawnForceSessionMonster == 0, "with entity mode off, the mission rolls its own monster")
+takeover.chooseEntity("AiOnly")
+assert(gameInstance.spawnForceSessionMonster == 0, "with AI only, the mission rolls its own monster")
 fake.runLoops(1000)
 assert(gameInstance.spawnForceSessionMonster == 0, "and the lobby keeps it that way")
 
 command(crewController, "Volunteer")
-assert(lastEvent(crewController) == "Denied.EntityModeOff", "nobody can volunteer while it's off")
+assert(lastEvent(crewController) == "Denied.EntityModeOff", "nobody can volunteer while it's AI only")
 
-command(hostController, "ToggleEntityMode")
-assert(lastEvent(hostController) == "EntityModeOn")
-assert(gameInstance.spawnForceSessionMonster == kits.byId.Squid.monsterType)
+takeover.chooseEntity("Squid")
+assert(gameInstance.spawnForceSessionMonster == kits.byId.Squid.monsterType, "the host's entity is forced")
+takeover.chooseEntity("Random")
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 -- A mission with no volunteer
@@ -142,9 +145,24 @@ assert(lastEvent(crewController) == "Volunteered", "the random pick doesn't hold
 command(crewController, "Volunteer")
 assert(lastEvent(crewController) == "Unvolunteered")
 
--- Alone, there is nobody to pick at random: the next mission is the game's own unless someone volunteers
+-- The host picks who plays it: only the picked player is told, and a volunteer can't take their place
+takeover.choosePlayer("lobby:1")
+assert(lastEvent(crewController) == "PickedByHost", "the picked player is told")
+command(hostController, "Volunteer")
+assert(lastEvent(hostController) == "VolunteerTaken", "volunteering doesn't override the host's pick")
+takeover.choosePlayer("lobby:0")
+assert(lastEvent(crewController) == "Unvolunteered", "a player the host stops picking goes back to the crew")
+assert(lastEvent(hostController) == "PickedByHost")
+takeover.choosePlayer("lobby:1")
+
+-- A picked player who leaves leaves the pick to chance again, and the host is told
+
 crewController.destroyed = true
 fake.runLoops(1000)
+assert(takeover.choice.player == "Random" and lastEvent(hostController) == "PickedPlayerLeft",
+  "the pick goes back to Random")
+
+-- Alone, there is nobody to pick at random: the next mission is the game's own unless someone volunteers
 assert(gameInstance.spawnForceSessionMonster == 0, "a solo lobby doesn't force the squid")
 command(hostController, "Volunteer")
 assert(gameInstance.spawnForceSessionMonster == kits.byId.Squid.monsterType, "a solo volunteer still gets the squid")

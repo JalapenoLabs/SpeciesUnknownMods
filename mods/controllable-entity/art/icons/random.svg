@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Random: two crossing arrows, the shuffle sign. -->
+  <g stroke="#000" stroke-opacity="0.4" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M18 40 H42 C62 40 66 88 86 88 H108 M96 76 L108 88 L96 100"/>
+    <path d="M18 88 H42 C62 88 66 40 86 40 H108 M96 28 L108 40 L96 52"/>
+  </g>
+  <g stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M18 40 H42 C62 40 66 88 86 88 H108 M96 76 L108 88 L96 100"/>
+    <path d="M18 88 H42 C62 88 66 40 86 40 H108 M96 28 L108 40 L96 52"/>
+  </g>
+</svg>

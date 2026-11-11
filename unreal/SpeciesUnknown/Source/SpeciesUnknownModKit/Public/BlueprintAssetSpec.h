@@ -79,6 +79,14 @@ enum class EModWidgetKind : uint8 {
 	Row,
 	// Its children, top to bottom, left-aligned and `Gap` pixels apart.
 	Column,
+	// A clickable tile: its children top to bottom, centred, on a rounded background in the element's colour that
+	// lightens under the mouse and while pressed. Lua polls it (IsHovered, IsPressed) and tints it to mark a choice.
+	Button,
+	// Its children (and any Lua adds at runtime) left to right, wrapping onto new lines at the element's width,
+	// `Gap` pixels apart both ways.
+	Wrap,
+	// Its children top to bottom, scrolling when they're taller than the element.
+	Scroll,
 };
 
 // One widget on the widget's canvas, or inside a row. Every element becomes a variable on the generated class under
@@ -93,7 +101,8 @@ struct FModWidgetElement {
 	// Offset from the anchor, in pixels.
 	FVector2D Position = FVector2D::ZeroVector;
 	// Fixed size in pixels; leave zero to size the element to its content. Inside a row, a fixed size holds its space
-	// even while the element is hidden, so the row never shifts.
+	// even while the element is hidden, so the row never shifts. Inside a row or column, an axis left at zero sizes to
+	// the content on that axis only.
 	FVector2D Size = FVector2D::ZeroVector;
 	// Inside a row or column, where an element with a fixed size sits in that space: filling it, or at its own size
 	// against one side (centred top to bottom), as a key glyph that Lua sizes to its texture does.
@@ -105,15 +114,17 @@ struct FModWidgetElement {
 	// Image: the long package path of a texture built from an FModTextureSpec, or empty for an image Lua fills (with
 	// one of the game's own textures) at runtime.
 	FString TexturePath;
-	// Row and Column: the elements they hold, and the space between them.
+	// Row, Column, Button, Wrap and Scroll: the elements they hold, and (Row, Column, Wrap) the space between them.
 	TArray<FModWidgetElement> Children;
 	float Gap = 0.0f;
 };
 
-// A user widget Blueprint made of a single canvas of elements. Lua owns all of its behaviour.
+// A user widget Blueprint: a canvas of elements, or a single element as its root (a tile Lua creates and places in a
+// row, which must size to its content). Lua owns all of its behaviour.
 struct FModWidgetSpec {
 	FString AssetPath;
 	TArray<FModWidgetElement> Elements;
+	bool bSingleElementRoot = false;
 };
 
 // ////////////////////// //

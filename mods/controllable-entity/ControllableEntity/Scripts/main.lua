@@ -19,6 +19,7 @@ local hunt = require("entity.hunt")
 local lair = require("entity.lair")
 local links = require("entity.links")
 local movement = require("entity.movement")
+local picker = require("entity.picker")
 local senses = require("entity.senses")
 local takeover = require("entity.takeover")
 local voice = require("entity.voice")
@@ -36,6 +37,7 @@ movement.register(takeover.isEntityController)
 senses.register(abilities, takeover)
 control.register()
 hud.register()
+picker.register()
 game.hookLoadedClasses()
 
 -- Host loops: links and the takeover reconcile once a second; the squid's speed, the meter and the lair's leash run
@@ -66,5 +68,5 @@ LoopInGameThreadWithDelay(200, function()
   lair.tick()
 end)
 
-game.log("Loaded. %s in the lobby volunteers to be the entity; the host's %s turns entity mode on or off.",
-  config.keys.volunteer, config.keys.entityMode)
+game.log("Loaded. %s in the lobby volunteers to be the entity; the host's %s picks the entity and its player.",
+  config.keys.volunteer, config.keys.picker)
