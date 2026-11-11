@@ -42,6 +42,18 @@ local function buttonPressed(actionValueParameter)
   return inputLibrary:Conv_InputActionValueToBool(actionValueParameter:get())
 end
 
+-- Playtest diagnostics, once each: the first values the stick and mouse produce, and whether the controller is
+-- ignoring movement or look input (an engine flag games set during cutscenes and menus).
+local reportedValues = {}
+local function reportValue(kind, controller, value)
+  if reportedValues[kind] or (value.X == 0 and value.Y == 0) then
+    return
+  end
+  reportedValues[kind] = true
+  game.log("%s value X=%.2f Y=%.2f; move input ignored: %s, look input ignored: %s", kind, value.X, value.Y,
+    tostring(controller:IsMoveInputIgnored()), tostring(controller:IsLookInputIgnored()))
+end
+
 -- Mirrors BP_Character.BPI_PlayerInput_Move: forward and right along the camera's yaw.
 local function move(controller, actionValueParameter)
   local squid = drivenSquid(controller)
@@ -49,6 +61,7 @@ local function move(controller, actionValueParameter)
     return
   end
   local value = axisValue(actionValueParameter)
+  reportValue("Move", controller, value)
   local yaw = math.rad(controller:GetControlRotation().Yaw)
   squid:AddMovementInput({ X = math.cos(yaw), Y = math.sin(yaw), Z = 0 }, value.Y, false)
   squid:AddMovementInput({ X = -math.sin(yaw), Y = math.cos(yaw), Z = 0 }, value.X, false)
@@ -61,6 +74,7 @@ local function look(controller, actionValueParameter)
     return
   end
   local value = axisValue(actionValueParameter)
+  reportValue("Look", controller, value)
   squid:AddControllerYawInput(value.X * config.look.sensitivity)
   squid:AddControllerPitchInput(value.Y * config.look.sensitivity)
 end
@@ -119,6 +133,23 @@ local function reportArrival(actionName, controller)
   game.log("Input %s arrived (pawn: %s%s)", actionName, pawnClass, drivingSquid and ", driving the squid" or "")
 end
 
+-- On the player's own machine, as they become the entity: the camera goes to the squid (the host sets it too, but
+-- that only arrives by replication), and any input the game had told the controller to ignore is let through again.
+local function onBecameEntity()
+  local controller = game.localController()
+  if not controller then
+    return
+  end
+  local squid = drivenSquid(controller)
+  if squid then
+    controller:SetViewTargetWithBlend(squid, 0, 0, 0, false)
+  end
+  game.log("Became the entity; move input ignored: %s, look input ignored: %s",
+    tostring(controller:IsMoveInputIgnored()), tostring(controller:IsLookInputIgnored()))
+  controller:ResetIgnoreMoveInput()
+  controller:ResetIgnoreLookInput()
+end
+
 function control.register()
   game.hookMatchingWhenLoaded(game.paths.controllerClass, "^InpActEvt_IA_(%w+)_K2Node_EnhancedInputActionEvent_%d+$",
     function(actionName)
@@ -133,6 +164,7 @@ function control.register()
       end
     end)
   registerKeys()
+  links.onClientEvent("BecameEntity", onBecameEntity)
 end
 
 return control

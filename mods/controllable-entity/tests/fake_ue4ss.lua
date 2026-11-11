@@ -62,6 +62,8 @@ function fake.object(className, fields, methods, alsoKnownAs)
           if key == "K2_DestroyActor" then
             self.destroyed = true
           end
+          -- One value, like a real call: Lua treats "no value" and nil differently in places such as tostring()
+          return nil
         end
       end
       return nil

@@ -223,6 +223,10 @@ local function takeControl(controller, squid)
   end
 
   controller:Possess(squid)
+  -- Possession moves the camera only when the camera manager follows the pawn on its own, which this game's doesn't:
+  -- in the first playtest the view stayed in the hidden crew body. Set on the host, the view target replicates to
+  -- the player's machine
+  controller:SetViewTargetWithBlend(squid, 0, 0, 0, false)
 
   local parkedBody = nil
   if crewBody:IsValid() and crewBody:GetAddress() ~= squid:GetAddress() then

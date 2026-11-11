@@ -12,7 +12,8 @@ local links = {}
 
 -- Command name -> function(link, controller, aim, target), run on the host.
 local commandHandlers = {}
--- Event kind -> function(value), run on the player's own machine.
+-- Event kind -> list of function(value), run on the player's own machine. Several modules react to the same event
+-- (the HUD and the controls both care that the player became the entity).
 local clientEventHandlers = {}
 local pingHandler = nil
 
@@ -26,7 +27,8 @@ function links.onCommand(command, handler)
 end
 
 function links.onClientEvent(kind, handler)
-  clientEventHandlers[kind] = handler
+  clientEventHandlers[kind] = clientEventHandlers[kind] or {}
+  table.insert(clientEventHandlers[kind], handler)
 end
 
 function links.onPing(handler)
@@ -150,12 +152,15 @@ function links.registerEvents()
   -- Runs on the owning player's machine
   RegisterCustomEvent("EntityClientEvent", function(_, kindParameter, valueParameter)
     local kind = kindParameter:get():ToString()
-    local handler = clientEventHandlers[kind]
-    if not handler then
+    local handlers = clientEventHandlers[kind]
+    if not handlers then
       game.log("Ignoring unknown client event %s", kind)
       return
     end
-    handler(valueParameter:get())
+    local value = valueParameter:get()
+    for _, handler in ipairs(handlers) do
+      handler(value)
+    end
   end)
 
   RegisterCustomEvent("EntityClientPing", function(_, locationParameter, loudnessParameter, kindParameter)
