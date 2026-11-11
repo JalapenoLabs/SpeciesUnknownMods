@@ -59,7 +59,9 @@ fake.objects[game.paths.widgetLibrary] = fake.object("WidgetBlueprintLibrary", n
   end,
 })
 
-local cameraManager = fake.object("PlayerCameraManager", { CameraStyle = fake.name("Default"), FreeCamDistance = 256 })
+-- Regression (playtest 3): UE4SS doesn't hand CameraStyle back as a readable name, so reading it crashed the takeover.
+-- The fake's starting value can't be read either; the mod must only ever write it.
+local cameraManager = fake.object("PlayerCameraManager", { CameraStyle = {}, FreeCamDistance = 256 })
 local controller = fake.object("BP_MyPlayerController_C", {
   Pawn = fake.invalid(),
   PlayerCameraManager = cameraManager,
@@ -104,7 +106,7 @@ assert(#commands == 1 and commands[1].args[1]:ToString() == "Volunteer")
 fake.keybinds.SPACE()
 assert(#fake.callsTo(link, "EntityServerCommand") == 1, "the ultimate key does nothing as crew")
 flashlightHook(fake.param(controller), fake.param({ pressed = true }))
-assert(cameraManager.CameraStyle:ToString() == "Default", "the flashlight is the crew's own as crew")
+assert(cameraManager.CameraStyle.ToString == nil, "the flashlight is the crew's own as crew")
 
 -- Entity mode: every player's F9 goes to the host, which decides whether it counts
 fake.keybinds.F9()

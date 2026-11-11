@@ -12,12 +12,13 @@ local game = require("entity.game")
 
 local camera = {}
 
+-- PlayerCameraManager.CameraStyle values. "Default" is the engine's normal view of the view target; this game's
+-- camera manager never changes the style itself. (UE4SS doesn't hand the property back as a readable name, so the mod
+-- writes it and never reads it.)
 local THIRD_PERSON_STYLE = "FreeCam"
+local FIRST_PERSON_STYLE = "Default"
 
 local isThirdPerson = true
--- The camera manager's own style, which first person returns to, by the manager it was read from (each map has a new
--- one).
-local originalStyle = nil
 
 local function apply(controller)
   local manager = controller.PlayerCameraManager
@@ -26,17 +27,12 @@ local function apply(controller)
     return
   end
 
-  local managerAddress = manager:GetAddress()
-  if not originalStyle or originalStyle.managerAddress ~= managerAddress then
-    originalStyle = { managerAddress = managerAddress, name = manager.CameraStyle:ToString() }
-  end
-
   if isThirdPerson then
     manager.FreeCamDistance = config.camera.thirdPersonDistance
     manager.CameraStyle = FName(THIRD_PERSON_STYLE)
     return
   end
-  manager.CameraStyle = FName(originalStyle.name)
+  manager.CameraStyle = FName(FIRST_PERSON_STYLE)
 end
 
 -- Starts the entity's view: third person, the easier view for a body that big.
