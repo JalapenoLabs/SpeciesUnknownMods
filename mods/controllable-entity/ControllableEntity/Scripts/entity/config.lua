@@ -61,8 +61,8 @@ return {
     exitReach = 400,
     -- A shaft more than this far above or below doesn't count: it belongs to another floor.
     verticalReach = 900,
-    -- How close across the duct floor the squid must be to the foot of a step up inside the ducts to climb it, and how
-    -- far above or below the foot it may be. A step rises 250 units, so a squid at its top is never at its foot.
+    -- How close across the duct floor the squid must be to either end of a step inside the ducts to climb it, and how
+    -- far above or below that end it may be. A step rises 250 units, so the two ends never both match.
     climbReach = 250,
     climbVerticalReach = 150,
     -- How close to a floor-level crawl opening's trigger the squid crouches into it, and how fast it must be heading

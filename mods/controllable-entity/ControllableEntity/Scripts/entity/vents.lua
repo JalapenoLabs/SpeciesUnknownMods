@@ -13,12 +13,16 @@ local game = require("entity.game")
 local vents = {}
 
 local SPOT_COMPONENT_NAMES = { "Point1Component", "Point2Component", "Point3Component", "Point4Component" }
--- The steps inside the ducts, where a duct rises 250 units like an elbow joint: the AI climbs them through these
--- navigation links (Nav_Link_VentPoint_Up250 calls BPI_Monster_ClimbVent250). BP_BaseMonster.ClimbVent250 starts a
--- climb up 75 units to the link's left, at its height, and a climb down 75 units to its right and 250 up, so the
--- step's foot is 75 units to the link's left.
+-- The steps inside the ducts, where a duct rises 250 units like an elbow joint: the AI climbs them both ways through
+-- these navigation links (Nav_Link_VentPoint_Up250 calls BPI_Monster_ClimbVent250). The step's two ends, as
+-- BP_BaseMonster.ClimbVent250 places the monster: the foot, 75 units to the link's left at its height, climbed up;
+-- and the top, 75 units to its right and 250 up, climbed down (playtest 8: only climbing up stranded the squid).
 local CLIMB_LINK_CLASS = "Nav_Link_VentPoint_Up250_C"
-local CLIMB_FOOT_OFFSET = 75
+local STEP_END_OFFSET = 75
+local stepEnds = {
+  { isFromTop = false, side = -1, rise = 0 },
+  { isFromTop = true, side = 1, rise = 250 },
+}
 
 -- Every vent shaft in the world that is showing. The game hides the shafts of map sections that aren't streamed in
 -- (BP_Vent_Up.DispatchLevelVisible_Event), and those may lead nowhere loaded.
@@ -53,25 +57,30 @@ function vents.nearest(location, reach)
   return best, bestDistance
 end
 
--- The step up whose foot is nearest a location across the duct floor, within climbReach and near the foot's height,
--- and that floor distance; nil when none is. Navigation links are hidden in game, so none is skipped for it.
+-- The step whose foot or top is nearest a location across the duct floor, within climbReach and near that end's
+-- height: the step, the floor distance, and whether it's the top (a climb down). Nil when none is. Navigation links
+-- are hidden in game, so none is skipped for it.
 function vents.nearestClimb(location)
-  local best, bestDistance = nil, config.vents.climbReach
+  local best, bestDistance, bestIsFromTop = nil, config.vents.climbReach, false
   for _, link in ipairs(FindAllOf(CLIMB_LINK_CLASS) or {}) do
     if link:IsValid() then
       local base = link:K2_GetActorLocation()
       local right = link:GetActorRightVector()
-      local footX, footY = base.X - right.X * CLIMB_FOOT_OFFSET, base.Y - right.Y * CLIMB_FOOT_OFFSET
-      local floorDistance = math.sqrt((footX - location.X) ^ 2 + (footY - location.Y) ^ 2)
-      if floorDistance <= bestDistance and math.abs(base.Z - location.Z) <= config.vents.climbVerticalReach then
-        best, bestDistance = link, floorDistance
+      for _, stepEnd in ipairs(stepEnds) do
+        local endX = base.X + right.X * STEP_END_OFFSET * stepEnd.side
+        local endY = base.Y + right.Y * STEP_END_OFFSET * stepEnd.side
+        local floorDistance = math.sqrt((endX - location.X) ^ 2 + (endY - location.Y) ^ 2)
+        local isLevel = math.abs(base.Z + stepEnd.rise - location.Z) <= config.vents.climbVerticalReach
+        if floorDistance <= bestDistance and isLevel then
+          best, bestDistance, bestIsFromTop = link, floorDistance, stepEnd.isFromTop
+        end
       end
     end
   end
   if not best then
     return nil
   end
-  return best, bestDistance
+  return best, bestDistance, bestIsFromTop
 end
 
 -- Where a shaft opens: the hole in the duct floor when seen from inside the ducts (its Box_Up trigger, at the top of

@@ -198,10 +198,19 @@ local climbs = fake.callsTo(squid, "BPI_Monster_ClimbVent250")
 assert(#climbs == 1 and climbs[1].args[1] == step and climbs[1].args[2] == false,
   "the squid climbs up the step nearer than the vent opening")
 assert(lastEvent() == "Cooldown.Vent", "even while the lair holds it")
-squid.location = location(farSpot.X, farSpot.Y, farSpot.Z + 280)
+-- Regression (playtest 8): the squid could climb a step but not back down, and was stranded above two of them. At the
+-- top, 75 units to the link's right and 250 up, venting climbs back down
+squid.location = location(farSpot.X, farSpot.Y + 150, farSpot.Z - 30 + 250)
 fake.now = 20
 command("Vent")
-assert(#fake.callsTo(squid, "BPI_Monster_ClimbVent250") == 1, "at the top of the step, there's nothing to climb")
+climbs = fake.callsTo(squid, "BPI_Monster_ClimbVent250")
+assert(#climbs == 2 and climbs[2].args[1] == step and climbs[2].args[2] == true, "at the top, the squid climbs down")
+-- Away from both ends, there's nothing to climb
+squid.location = location(farSpot.X + 2000, farSpot.Y, farSpot.Z)
+fake.now = 30
+command("Vent")
+assert(#fake.callsTo(squid, "BPI_Monster_ClimbVent250") == 2, "away from both ends, nothing to climb")
+assert(lastEvent() == "Denied.NoVentExit")
 
 -- Playing alone, F8 as the entity turns the power on, for testing past the lair
 gameState.PlayerArray = fake.array({ entityState })

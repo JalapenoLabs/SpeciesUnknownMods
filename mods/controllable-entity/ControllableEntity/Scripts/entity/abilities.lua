@@ -103,10 +103,11 @@ local function leap(squid, aim)
   return true
 end
 
--- In a room, venting climbs into the shaft above. In the ducts it takes whichever is nearer: the shaft opening below,
--- dropping out onto whoever is under it, or the foot of a step up, climbing it with the AI's own climb (playtest 6:
--- the player had no way up the elbow joints the AI climbs). Dropping out leaves the ducts, so it waits for the power
--- while the lair holds the squid; climbing stays inside them, so it doesn't.
+-- In a room, venting climbs into the shaft above. In the ducts it takes whichever is nearer: the shaft opening
+-- below, dropping out onto whoever is under it, or either end of a step, climbing it up or down with the AI's own
+-- climb (playtest 6: the player had no way up the elbow joints the AI climbs; playtest 8: nor back down). Dropping out
+-- leaves the ducts, so it waits for the power while the lair holds the squid; climbing stays inside them, so it
+-- doesn't.
 local function vent(squid)
   local location = squid:K2_GetActorLocation()
   if not squid.InVent then
@@ -122,11 +123,11 @@ local function vent(squid)
   end
 
   local exit, exitDistance = vents.nearest(location, config.vents.exitReach)
-  local climb, climbDistance = vents.nearestClimb(location)
+  local climb, climbDistance, isFromTop = vents.nearestClimb(location)
   if climb and (not exit or climbDistance < exitDistance) then
     isPeeking = false
-    -- FromUp false: the climb up, from the step's foot
-    squid:BPI_Monster_ClimbVent250(climb, false)
+    -- Up from the step's foot, or down from its top
+    squid:BPI_Monster_ClimbVent250(climb, isFromTop)
     return true
   end
   if not exit then
