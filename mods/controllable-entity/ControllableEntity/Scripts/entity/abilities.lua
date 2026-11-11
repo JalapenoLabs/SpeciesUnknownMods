@@ -142,8 +142,10 @@ local moveByCommand = {
 -- Runs a command from the entity player: checks it came from the entity and is off cooldown, then moves the squid.
 local function runCommand(command)
   return function(_, controller, aim)
+    -- Asked first: it is also what takes a reloaded mod's entity back at once
+    local isEntity = takeover.isEntityController(controller)
     local entity = takeover.activeEntity()
-    if not entity or not takeover.isEntityController(controller) then
+    if not isEntity or not entity then
       game.log("%s from a player who isn't the entity; ignored", command)
       return
     end

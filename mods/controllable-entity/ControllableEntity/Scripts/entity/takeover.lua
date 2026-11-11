@@ -66,11 +66,6 @@ local function controllerForKey(key)
   return nil
 end
 
-function takeover.isEntityController(controller)
-  return activeEntity ~= nil and controller ~= nil and controller:IsValid()
-    and activeEntity.controller:IsValid() and controller:GetAddress() == activeEntity.controller:GetAddress()
-end
-
 function takeover.activeEntity()
   if not activeEntity or not activeEntity.squid:IsValid() then
     return nil
@@ -362,6 +357,21 @@ local function adoptAfterReload(squid, worldKey)
   movement.resetHost()
   game.log("%s is driving the squid; taken back as the entity after a reload", volunteerKey)
   return true
+end
+
+-- Whether a command comes from the entity. A command from the player driving the mission's squid takes them back as
+-- the entity at once after a reload, rather than at the next reconcile: a sprint started in that second was lost
+-- (playtest 6), and Shift only sends a command when it changes.
+function takeover.isEntityController(controller)
+  if not activeEntity and controller and controller:IsValid() and isMission() then
+    local squid = missionSquid()
+    local driver = squid and game.playerControllerOf(squid)
+    if driver and driver:GetAddress() == controller:GetAddress() then
+      adoptAfterReload(squid, currentWorldKey())
+    end
+  end
+  return activeEntity ~= nil and controller ~= nil and controller:IsValid()
+    and activeEntity.controller:IsValid() and controller:GetAddress() == activeEntity.controller:GetAddress()
 end
 
 local function noticeLoss()

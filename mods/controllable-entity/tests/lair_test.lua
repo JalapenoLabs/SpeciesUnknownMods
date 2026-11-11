@@ -194,9 +194,13 @@ for name in pairs(package.loaded) do
 end
 fake.loops, fake.customEvents, fake.hooks = {}, {}, {}
 dofile("mods/controllable-entity/ControllableEntity/Scripts/main.lua")
-fake.runLoops(1000)
+-- Links come back on the first pass of the host's loops; the takeover's own second hasn't come round yet
+links = require("entity.links")
+links.reconcile()
 fake.now = 30
+-- Regression (playtest 6): a command in the first second after a reload was ignored, before the next reconcile took
+-- the player back. The command itself takes them back
 command("Attack")
-assert(lastEvent() == "Denied.NoTarget", "after a reload, the player driving the squid is still the entity")
+assert(lastEvent() == "Denied.NoTarget", "after a reload, the player driving the squid is the entity at once")
 
 print("lair test passed")
