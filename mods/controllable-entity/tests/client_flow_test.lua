@@ -13,6 +13,7 @@ fake.isHost = false
 
 local config = require("entity.config")
 local game = require("entity.game")
+local links = require("entity.links")
 
 fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
@@ -78,6 +79,10 @@ local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false })
 -- The crew HUD the player's crew body created before the takeover
 local crewHud = fake.object("UI_HUD_Display_C", nil, { GetVisibility = function() return 4 end })
 
+-- Regression (playtest 3): a module whose handler fails must not stop the others hearing the same event. Here a
+-- handler registered before everyone else's fails on the takeover; the HUD still learns the player is the entity
+links.onClientEvent("BecameEntity", function() error("a module's handler failed") end)
+
 dofile("mods/controllable-entity/ControllableEntity/Scripts/main.lua")
 
 fake.loadClass(game.paths.controllerClass, {
@@ -123,10 +128,12 @@ controller.Pawn = squid
 fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("BecameEntity")), fake.param(0))
 assert(cameraManager.CameraStyle:ToString() == "FreeCam", "the entity starts in third person")
 assert(cameraManager.FreeCamDistance == config.camera.thirdPersonDistance)
+-- Regression (playtest 3): the game's camera manager pins its default view to the parked crew body, so first person
+-- must be the engine's own FirstPerson style, never "Default"
 flashlightHook(fake.param(controller), fake.param({ pressed = true }))
-assert(cameraManager.CameraStyle:ToString() == "Default", "the flashlight switches to first person")
+assert(cameraManager.CameraStyle:ToString() == "FirstPerson", "the flashlight switches to first person")
 flashlightHook(fake.param(controller), fake.param({ pressed = false }))
-assert(cameraManager.CameraStyle:ToString() == "Default", "releasing the key changes nothing")
+assert(cameraManager.CameraStyle:ToString() == "FirstPerson", "releasing the key changes nothing")
 flashlightHook(fake.param(controller), fake.param({ pressed = true }))
 assert(cameraManager.CameraStyle:ToString() == "FreeCam", "and back to third person")
 

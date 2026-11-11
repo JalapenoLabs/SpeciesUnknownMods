@@ -157,9 +157,14 @@ function links.registerEvents()
       game.log("Ignoring unknown client event %s", kind)
       return
     end
+    -- Each module's handler runs on its own: in playtest 3 the camera's handler failed on the takeover and took the
+    -- HUD's down with it, so the HUD never learned the player was the entity
     local value = valueParameter:get()
     for _, handler in ipairs(handlers) do
-      handler(value)
+      local ok, failure = pcall(handler, value)
+      if not ok then
+        game.log("A handler for client event %s failed: %s", kind, tostring(failure))
+      end
     end
   end)
 
