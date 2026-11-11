@@ -115,8 +115,10 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
   per-species content for `MonsterToSpawn` alone: the Zombie Master's zombie bodies, and the special weapon for its
   weakness.
 - **Monsters only target the crew.** Every target check (sight in `BP_BaseMonster.CheckTarget`, hearing, damage and
-  touch) requires the `BPI_Human` interface, which no monster implements, and no monster makes an AI-audible noise
-  (`BP_ParentMonster.FootstepsNoiseReport` is false on every monster class). Melee attacks and grabs catch only
+  touch) requires the `BPI_Human` interface, which no monster class lists, and no monster makes an AI-audible noise
+  (`BP_ParentMonster.FootstepsNoiseReport` reads false on every monster class; both read from the cooked class
+  data, to confirm in play). `BPI_GameState_ForceSound`'s callers are crew-driven: the big doors' cycle
+  (`BP_BigDoor1`), the airlock alarm (`BP_Sas_Controller`) and explosive canisters. Melee attacks and grabs catch only
   `BPI_Human` actors; the Terminator's gatling and grenades damage anything they hit.
 - **Any monster's death ends the mission.** `BP_BaseMonster.FinishDeath`, a few seconds after death (the Ghost 4 s,
   the squid 15 s), calls `BPI_GameState_FinishGame` as a kill on kill, capture and extraction contracts, unless the

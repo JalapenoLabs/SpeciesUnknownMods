@@ -41,9 +41,10 @@ zombie bodies are placed only for the mission's own, so its extra entities are M
 
 ### The hunt
 
-- **The entities never hunt each other.** The game's monsters only ever pick crew as targets (every target check
-  requires the crew's `BPI_Human` interface), and in the stock game no monster makes a noise another can hear. The mod
-  needs no rule of its own for this.
+- **The entities never hunt each other.** As the game's bytecode reads, its monsters only pick crew as targets
+  (every target check requires the crew's `BPI_Human` interface, which no monster class lists), no monster makes a
+  noise the AI hears, and the game's forced noises (doors, the airlock alarm, canisters) come from what the crew does.
+  So the mod adds no rule of its own; the test plan checks it in play.
 - **Stray fire still hurts.** The Terminator's gatling and grenades damage whatever they hit, so another monster in
   the line of fire takes damage, as a crew member would. Melee attacks and grabs only ever catch crew.
 - **The mission ends with the first kill.** Killing any entity ends the mission as a kill, exactly as killing the one
@@ -131,15 +132,16 @@ The icon is the game's codex chimera (`T_UI_chimeria_icon`), so the mod needs no
 
 `BP_GameManager` (placed in each mission map, on the host) spawns and tracks the mission's one monster (`Monster`).
 Once a second the host's spawner works out how many extra entities are due (from the contract's count and the time
-since the power came on), counts the ones already in the map (every `BP_BaseMonster` but the tracked one, so a hot
-reload of the mod never spawns twice), and spawns the rest the way `BP_GameManager.SpawnMonsterEvent` does:
+since the power came on), counts the ones already in the map (the monsters carrying the mod's actor tag,
+`MultiEntityExtra`, so a hot reload of the mod never spawns twice), and spawns the rest the way
+`BP_GameManager.SpawnMonsterEvent` does:
 
 1. `GetSpawnPoint`, the manager's own choice of spawn point.
 2. `BeginDeferredActorSpawnFromClass` and `FinishSpawningActor`, with the game's arguments (adjust the spawn if it
-   collides, but always spawn).
+   collides, but always spawn). The tag goes on between the two, before the extra begins play.
 3. `SetUpBaseMonsterState`, the manager's setup of whatever its `Monster` names: difficulty, damage, the far-away
    sound, combat music and the escape route's nav modifiers. The extra stands in as `Monster` for that one
-   synchronous call, then the mission's monster is put straight back.
+   synchronous call, then the mission's monster is put straight back, even if the call fails.
 4. The extra's `Respawn Data` is cleared (the setup copies a stuck predecessor's state when there was one) and its
    stuck check is turned off (`ShouldCheckIfStuck`).
 
@@ -204,19 +206,22 @@ quick run, set both modifiers' `chance` to `1` in `config.lua` first, so every c
    the power comes on.` (4 minutes for the third). The game's own lines still select and describe as before.
 5. **The brief and the shuttle.** After accepting the contract, the shuttle's mission start screen and the Tab brief
    list both modifiers with the game's, the brief in its two columns.
-6. **The arrival.** In the mission, turn the power on: the host's log shows `The power is on; extra entities count
-   from now`. 2.5 minutes later it shows `An extra BP_Monster_..._C arrived at ...`, and 4 minutes after the power,
-   a second. Both hunt the crew and never attack or follow each other. Turning the power off and on again doesn't
-   delay them.
-7. **Power at start.** On a contract that starts with the power on, the first extra arrives 2.5 minutes after the
+6. **The arrival.** In the mission, the host's log has no `The power is on` line until the crew turns the power on;
+   then it shows `The power is on; extra entities count from now`. 2.5 minutes later it shows `An extra
+   BP_Monster_..._C arrived at ...`, and 4 minutes after the power, a second. Turning the power off and on again
+   doesn't delay them.
+7. **No hunting each other.** Watch two entities near each other (from a vent, or spectating after a death): neither
+   turns to, follows or attacks the other, and each goes on hunting the crew. A Terminator's stray fire can still
+   hit one.
+8. **Power at start.** On a contract that starts with the power on, the first extra arrives 2.5 minutes after the
    mission's monster appears.
-8. **The Zombie Master.** On a Zombie Master mission with the modifier, the extra is `BP_Monster_Michel_C` (Mike).
-9. **Stuck.** While an extra stands still for more than 20 seconds (in a duct, waiting), the mission's monster stays
+9. **The Zombie Master.** On a Zombie Master mission with the modifier, the extra is `BP_Monster_Michel_C` (Mike).
+10. **Stuck.** While an extra stands still for more than 20 seconds (in a duct, waiting), the mission's monster stays
    where it is: it never vanishes and reappears at the monster spawn point.
-10. **The payout.** Finish the mission: the score screen shows the two icons after the game's, and the additional
+11. **The payout.** Finish the mission: the score screen shows the two icons after the game's, and the additional
    conditions include the 5,000 $. A player with the mod is paid it into their wallet; a player without it isn't.
-11. **Capture.** A capture contract never shows the modifiers, and its mission never gets an extra entity.
-12. **Hot reload.** With extras in the mission, press `Ctrl+R` (UE4SS hot reload): the log shows `Picked up a
+12. **Capture.** A capture contract never shows the modifiers, and its mission never gets an extra entity.
+13. **Hot reload.** With extras in the mission, press `Ctrl+R` (UE4SS hot reload): the log shows `Picked up a
    mission in progress; extra entities already here: N`, and no extra entity spawns twice.
-13. **With Controllable Entity** (both mods installed): the entity player plays the mission's squid; the extra squids
+14. **With Controllable Entity** (both mods installed): the entity player plays the mission's squid; the extra squids
    arrive as AI and hunt the crew.
