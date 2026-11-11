@@ -90,6 +90,7 @@ fake.loadClass(game.paths.controllerClass, {
   "InpActEvt_IA_Look_K2Node_EnhancedInputActionEvent_28",
   "InpActEvt_IA_Shoot_K2Node_EnhancedInputActionEvent_37",
   "InpActEvt_IA_FlashLight_K2Node_EnhancedInputActionEvent_44",
+  "InpActEvt_IA_OpenPauseMenu_K2Node_EnhancedInputActionEvent_10",
   "InpActEvt_IA_Reload_K2Node_EnhancedInputActionEvent_32",
 })
 local controllerPath = game.paths.controllerClass .. ":"
@@ -128,6 +129,17 @@ controller.Pawn = squid
 fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("BecameEntity")), fake.param(0))
 assert(cameraManager.CameraStyle:ToString() == "FreeCam", "the entity starts in third person")
 assert(cameraManager.FreeCamDistance == config.camera.thirdPersonDistance)
+-- Regression (playtest 3): Escape did nothing as the squid, because the crew body had turned pausing off
+local pauseHook = fake.hooks[controllerPath .. "InpActEvt_IA_OpenPauseMenu_K2Node_EnhancedInputActionEvent_10"]
+controller.canPause = false
+pauseHook(fake.param(controller), fake.param({ pressed = true }))
+local pauseSetters = fake.callsTo(controller, "BPI_PlayerController_SetCanPause")
+assert(#pauseSetters == 1 and pauseSetters[1].args[1] == true, "pausing goes back on")
+assert(#fake.callsTo(controller, "OpenPauseMenu") == 1, "and the menu opens")
+controller.canPause = true
+pauseHook(fake.param(controller), fake.param({ pressed = true }))
+assert(#fake.callsTo(controller, "OpenPauseMenu") == 1, "when the game could pause, its own handler opened the menu")
+
 -- Regression (playtest 3): the game's camera manager pins its default view to the parked crew body, so first person
 -- must be the engine's own FirstPerson style, never "Default"
 flashlightHook(fake.param(controller), fake.param({ pressed = true }))

@@ -96,6 +96,19 @@ local function toggleView(controller, actionValueParameter)
   camera.toggle(controller)
 end
 
+-- The pause menu opens only while the controller's canPause is on (BP_MyPlayerController._CanOpenPauseMenu), and the
+-- crew body turns it off on its way out (BP_Character calls BPI_PlayerController_SetCanPause(false) in several
+-- states). The game's own handler has already run when this post-hook does, so when it refused, pausing goes back on
+-- through the game's own setter and the menu opens.
+local function openPauseMenu(controller, actionValueParameter)
+  if not drivenSquid(controller) or not buttonPressed(actionValueParameter) or controller.canPause then
+    return
+  end
+  game.log("Pausing was off for the entity; turning it back on")
+  controller:BPI_PlayerController_SetCanPause(true)
+  controller:OpenPauseMenu()
+end
+
 -- The handler for each game input action the entity uses, by the action's name (IA_<Name>). Buttons become a host
 -- command when pressed, except the flashlight, which the squid has no use for and which switches the view instead.
 -- The rest of the game's actions (reload, weapon slots, ...) mean nothing to the squid.
@@ -107,6 +120,7 @@ local handlerByAction = {
   Interact = button("Vent"),
   Crouch = button("Peek"),
   FlashLight = toggleView,
+  OpenPauseMenu = openPauseMenu,
 }
 
 -- The game has no jump, so the mod's own keys fill in: the ultimate, volunteering in the lobby, and entity mode (the
