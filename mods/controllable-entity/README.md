@@ -118,6 +118,10 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
   volumes, and the squid's collision never triggers them. The entity's machine tells each volume when the squid is
   inside it, through the game's own `BPI_Streaming_AddActorToTrigger`, so walls and floors appear around the squid
   as they do around crew ([docs/game-internals.md](../../docs/game-internals.md#gameplay-state-worth-knowing)).
+- **The minimap's deck:** where decks overlap, the map draws the one the local player stands on, picked from map
+  triggers the same way, and the entity's machine walks the squid through those too (`BeginOverlap` and
+  `EndOverlap` on `BP_MapManagerExtended`). When the player takes the squid, it first leaves the triggers their crew
+  body stood in, which the game would otherwise go on counting.
 - On the roadmap: seeing down into the room below while in the vents (the crew and the openings under the squid), from
   playtest 5. Then a glowing path along the ducts to the nearest opening (needs the host's navigation data sent to
   the entity), and an overlay of the duct network while inside.
@@ -223,7 +227,7 @@ create: network events and a widget layout.
   | `control.lua` | entity player | Input to movement and commands; the mod's keys |
   | `camera.lua` | entity player | Third and first person |
   | `vision.lua` | entity player | The entity's own light and the vent-opening markers |
-  | `streaming.lua` | entity player | Shows the map sections around the squid, which the game only shows around crew |
+  | `areas.lua` | entity player | The map sections and the minimap's deck around the squid, which the game only follows for crew |
   | `minimap.lua` | entity player | The game's minimap in the corner, north up, centred on the squid |
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
   | `game.lua`, `config.lua` | both | Game paths and helpers; every tunable |
@@ -283,7 +287,7 @@ kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack 
 - `tests/entity_mode_test.lua`: F9, forcing the squid from the lobby, and the random pick.
 - `tests/lair_test.lua`: the start in a vent, the leash and the power.
 - `tests/vision_test.lua`: the entity's light and the vent markers.
-- `tests/streaming_test.lua`: showing the map sections around the squid.
+- `tests/areas_test.lua`: the map sections and the minimap's deck around the squid.
 - `tests/minimap_test.lua`: the minimap, its follower, the hidden item icons and the zoom.
 - `tests/solo_flow_test.lua` and `tests/lobby_display_squid_test.lua`: playing alone, and regressions from playtests.
 

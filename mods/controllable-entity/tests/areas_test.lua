@@ -1,9 +1,9 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- Map sections around the entity, on their own machine: the squid's collision never overlaps the game's streaming
--- volumes, so the mod tells each volume's manager when the squid is inside it, and hands the volumes back when the
--- player stops driving the squid.
--- Run from the repository root: lua mods/controllable-entity/tests/streaming_test.lua
+-- The areas around the entity, on their own machine: the squid's collision never overlaps the game's trigger volumes,
+-- so the mod tells each volume's manager when the squid is inside it (the map sections, and the map's deck layer),
+-- and hands the volumes back when the player stops driving the squid.
+-- Run from the repository root: lua mods/controllable-entity/tests/areas_test.lua
 
 package.path = "mods/controllable-entity/ControllableEntity/Scripts/?.lua;mods/controllable-entity/tests/?.lua;"
   .. package.path
@@ -48,6 +48,25 @@ local function manager(trigger)
 end
 local nearManager, farManager = manager(nearVolume), manager(farVolume)
 
+-- The map's deck layers: crew quarters' trigger around X = 1500, and the safe zone's around X = 5000, where the crew
+-- start. Each trigger is an actor carrying a TriggerMap_ActorComponent
+local mapManager = fake.object("BP_MapManagerExtended_C")
+local function mapTrigger(centreX)
+  local trigger = volume(centreX)
+  fake.object("TriggerMap_ActorComponent_C", nil, { GetOwner = function() return trigger end })
+  return trigger
+end
+local crewQuartersTrigger, safeZoneTrigger = mapTrigger(1500), mapTrigger(5000)
+local function mapCalls(method, trigger)
+  local count = 0
+  for _, call in ipairs(fake.callsTo(mapManager, method)) do
+    if call.args[1] == trigger and call.args[2] == squid then
+      count = count + 1
+    end
+  end
+  return count
+end
+
 dofile("mods/controllable-entity/ControllableEntity/Scripts/main.lua")
 
 local function entries(target)
@@ -69,16 +88,27 @@ fake.runLoops(250)
 fake.runLoops(250)
 assert(#entries(nearManager) == 1 and entries(nearManager)[1] == true, "the squid's volume is entered once")
 assert(#entries(farManager) == 0, "other volumes are left alone")
+-- Regression (playtest 6): the minimap stayed on the safe zone, where the player's crew body last stood: once the
+-- player drives the squid, the body's own end-overlap no longer counts, so the squid leaves those triggers by hand
+assert(mapCalls("EndOverlap", safeZoneTrigger) == 1, "the crew body's map triggers are left when the squid is taken")
+assert(mapCalls("BeginOverlap", crewQuartersTrigger) == 0, "and no deck is entered away from its trigger")
 
 -- Moving into the far volume leaves the near one
 squid.location = { X = 1500, Y = 0, Z = 0 }
 fake.runLoops(250)
 assert(entries(nearManager)[2] == false, "the old volume is left")
 assert(entries(farManager)[1] == true, "the new one entered")
+-- Regression (playtest 6): walking into crew quarters left the minimap on the deck below
+assert(mapCalls("BeginOverlap", crewQuartersTrigger) == 1, "the minimap switches to crew quarters' deck")
+fake.runLoops(250)
+assert(mapCalls("BeginOverlap", crewQuartersTrigger) == 1, "once")
+assert(mapCalls("EndOverlap", safeZoneTrigger) == 1, "the stale triggers are left only when the squid is taken")
 
 -- Once the player stops driving the squid, the volumes are handed back
+local crewQuartersLeft = mapCalls("EndOverlap", crewQuartersTrigger)
 controller.Pawn = fake.invalid()
 fake.runLoops(250)
 assert(entries(farManager)[2] == false, "the volume is left when the player stops driving the squid")
+assert(mapCalls("EndOverlap", crewQuartersTrigger) == crewQuartersLeft + 1, "and so is the deck's trigger")
 
-print("streaming test passed")
+print("areas test passed")

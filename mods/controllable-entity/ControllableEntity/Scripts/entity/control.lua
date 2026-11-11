@@ -8,12 +8,12 @@
 -- key bindings therefore carry over unchanged. Movement, look and the view apply here, where the player's movement
 -- prediction and camera run; every other action is a command for the host.
 
+local areas = require("entity.areas")
 local camera = require("entity.camera")
 local config = require("entity.config")
 local hud = require("entity.hud")
 local minimap = require("entity.minimap")
 local movement = require("entity.movement")
-local streaming = require("entity.streaming")
 local vision = require("entity.vision")
 local game = require("entity.game")
 local links = require("entity.links")
@@ -226,18 +226,18 @@ function control.register()
     end
     minimap.forget()
   end)
-  -- The squid this machine last drove, so the map sections it was showing can be handed back once it stops
+  -- The squid this machine last drove, so the areas it stood in can be handed back once it stops
   local lastSquid = nil
   LoopInGameThreadWithDelay(250, function()
     local controller = game.localController()
     local squid = controller and drivenSquid(controller)
     if squid then
       lastSquid = squid
-      streaming.follow(squid)
+      areas.follow(squid)
       return
     end
     if lastSquid then
-      streaming.forget(lastSquid)
+      areas.forget(lastSquid)
       lastSquid = nil
     end
   end)

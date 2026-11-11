@@ -79,6 +79,13 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
   pawn overlaps one of its `TriggerVolumeList` volumes (`BP_FunctionLibrairy.GetOnlyVisualOverlap`: the pawn must be
   the local player controller's, a spectator or a death pawn). `BPI_Streaming_AddActorToTrigger(trigger, pawn, on)`
   enters or leaves a volume by hand, through the same check. Vent shafts (`BP_Vent_Up`) hide with their section.
+- **The map has deck layers.** One map image (`BP_MapManager`) plus extra layers for decks that overlap others, such
+  as crew quarters. `BP_MapManagerExtended` keeps the map triggers the local player's pawn overlaps (actors carrying a
+  `TriggerMap_ActorComponent` with a `Layer` and a `Priority`, registered at begin play), picks the highest priority
+  a tenth of a second after a change, and calls `BP_MapManager.SwitchMapExtraLayer`; no trigger means the default
+  layer. Its `BeginOverlap(trigger, actor)` and `EndOverlap(trigger, actor)` run the same `GetOnlyVisualOverlap`
+  check. It counts triggers, not actors, so a pawn that stops being the local player's pawn inside a trigger leaves
+  it counted. `UMG_MiniMap` dims the base map to 15% while an extra layer shows.
 - **Monsters respawn when stuck.** `BP_BaseMonster."Check If Stuck"` runs every second once an AI controller
   possesses the monster. After 20 seconds without moving it calls `BP_GameManager.InitMonster(false, ...)`, which
   destroys the monster and spawns a new one. `ShouldCheckIfStuck` turns the check off.
