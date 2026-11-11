@@ -11,11 +11,13 @@ Lets a host run a Species Unknown lobby with more than the stock four players: a
 
 ## Install
 
-1. Install UE4SS for the game ([docs/ue4ss.md](../../docs/ue4ss.md#installing-ue4ss)).
-2. Copy `UnlimitedLobbySize/` into
-   `Species Unknown/SpeciesUnknown/Binaries/Win64/ue4ss/Mods/`. Developers can run
-   `scripts/link-mod.sh unlimited-lobby-size` to symlink it instead.
-3. Host a game. The `enabled.txt` inside the folder turns the mod on without editing `mods.txt`.
+Only the host installs it.
+
+- **Players:** download `UnlimitedLobbySize-<version>.zip` from the
+  [Releases page](https://github.com/JalapenoLabs/SpeciesUnknownMods/releases) and follow
+  [Installing](../../README.md#installing): UE4SS once, then extract the zip into the game's folder. The
+  `enabled.txt` inside the mod's folder turns it on without editing `mods.txt`.
+- **Developers:** `scripts/link-mod.sh unlimited-lobby-size` links the mod into `Win64/ue4ss/Mods/` instead.
 
 To set a lower cap, lower `MAX_LOBBY_MEMBERS` at the top of `Scripts/main.lua`.
 

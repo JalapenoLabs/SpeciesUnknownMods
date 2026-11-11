@@ -3,8 +3,8 @@
 One player becomes the mission's monster and hunts the crew. Balanced around a kill meter instead of free instant
 kills, and around sound instead of wallhacks.
 
-- **Status:** playtested alone twice (volunteering, takeover and HUD work); moving, the lair and co-op are next
-  (see [Test plan](#test-plan)).
+- **Status:** playtested alone eight times (volunteering, the takeover, moving, the HUD, the lair, vents, the shuttle
+  rules and the cries work); co-op is next (see [Test plan](#test-plan)).
 - **Payload:** the Lua mod [`ControllableEntity/`](ControllableEntity/) plus the pak `ControllableEntity_P`, built by
   `scripts/package-mods.sh`.
 - **Who installs it:** every player (the mod adds networked gameplay and a HUD).
@@ -247,6 +247,8 @@ The HUD is laid out like the crew's own, so the top of the screen holds only the
   only once sprinting has used some, as the crew's does.
 - **Bottom centre:** the `FRENZY` banner, then the host's messages. A message stays a second plus 300 ms a word, at
   least three seconds; the volunteer's status and the lair's "wait for the power" hint stay until they change.
+- **Bottom right:** `Human respawns remaining: N`, the crew's shared respawns (`BP_MyGameState.Respawn`), live. The
+  entity wins when the crew is all dead with none left.
 - **Noise pings** as coloured markers over the world: red gunshots, blue footsteps, amber alarms, doors and
   explosions.
 - **The minimap, top right:** the game's own minimap (the screen of the crew's minimap tool, `UMG_MiniMap`), always
@@ -283,12 +285,15 @@ stamina; both machines apply the same speed (see `movement.lua`).
 
 ## Install
 
-Every player installs both halves:
+Every player installs both halves, the Lua and the pak.
 
-1. UE4SS, as for any mod ([docs/ue4ss.md](../../docs/ue4ss.md#installing-ue4ss)).
-2. The pak: `scripts/package-mods.sh --install` builds it and copies `ControllableEntity_P.{pak,utoc,ucas}` into
-   `SpeciesUnknown/Content/Paks/~mods/`. Players without the repository copy those three files there.
-3. The Lua: copy `ControllableEntity/` into `Win64/ue4ss/Mods/` (or `scripts/link-mod.sh controllable-entity`).
+- **Players:** download `ControllableEntity-<version>.zip` from the
+  [Releases page](https://github.com/JalapenoLabs/SpeciesUnknownMods/releases) and follow
+  [Installing](../../README.md#installing): UE4SS once, then extract the zip into the game's folder.
+- **Developers:** `scripts/package-mods.sh --install ControllableEntity` builds the pak and copies
+  `ControllableEntity_P.{pak,utoc,ucas}` into `SpeciesUnknown/Content/Paks/~mods/`, and
+  `scripts/link-mod.sh controllable-entity` links the Lua into `Win64/ue4ss/Mods/`, so the game runs it from the
+  repository (UE4SS's Ctrl+R reloads it).
 
 ## Architecture
 

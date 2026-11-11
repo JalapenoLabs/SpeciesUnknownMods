@@ -41,8 +41,10 @@ fake.world = fake.object("World", nil, {
     return hostLink
   end,
 })
-local gameState = fake.object("BP_MyGameState_C", { ["In Game Player State "] = fake.array({ hostState }) }, nil,
-  { "GameStateBase" })
+local gameState = fake.object("BP_MyGameState_C", {
+  ["In Game Player State "] = fake.array({ hostState }),
+  Respawn = 3,
+}, nil, { "GameStateBase" })
 
 dofile("mods/controllable-entity/ControllableEntity/Scripts/main.lua")
 

@@ -5,7 +5,8 @@
 --     bar on the right while it recharges, and the health and stamina bars under them;
 --   - top right, the minimap (minimap.lua) with a view cone over it and the key hints under it: C to peek, while
 --     peeking would work, and F for the camera;
---   - bottom centre, the frenzy banner and short messages from the host's events.
+--   - bottom centre, the frenzy banner and short messages from the host's events;
+--   - bottom right, how many respawns the crew has left (playtest 8).
 -- Keys show as the game's own glyphs (its /Game/KeyIcons textures, as in its "press E" prompts).
 -- Noise pings are drawn over the world. While the player is the squid, the crew HUD their parked body left behind is
 -- hidden. The bars, the health and the stamina come from the player's link, which the host fills (abilities.lua).
@@ -63,7 +64,7 @@ local cooldownSlots = {
 }
 
 -- What only the entity sees, hidden before the takeover (a volunteer sees only their status line).
-local ENTITY_PARTS = { "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "VentTime" }
+local ENTITY_PARTS = { "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "VentTime", "RespawnsText" }
 
 -- The game's glyph for each key slot, by the slot's name in WBP_EntityHUD: the game's default bindings for the actions
 -- the squid reuses (control.lua), so a player who rebinds them sees the defaults.
@@ -131,6 +132,8 @@ local function freshState(worldKey)
     isOverGrate = false,
     nextPeekCheckAt = 0,
     cooldownEndsAt = {},
+    -- The crew's respawns left at the last draw, so the count is written only when it changes.
+    respawnsShown = nil,
     pings = {},
     nextPingSlot = 1,
     widget = nil,
@@ -274,6 +277,18 @@ local function drawPeekHint(widget, squid, now)
   setShown(widget.PeekHint, state.isOverGrate and isRecharged)
 end
 
+-- The crew's shared respawns left (BP_MyGameState.Respawn, replicated to every machine): the entity wins when the crew
+-- is all dead with none left.
+local function drawRespawns(widget)
+  local gameState = FindFirstOf(game.classNames.gameState)
+  local respawnsLeft = gameState and gameState:IsValid() and gameState.Respawn
+  if not respawnsLeft or respawnsLeft == state.respawnsShown then
+    return
+  end
+  state.respawnsShown = respawnsLeft
+  setText(widget.RespawnsText, string.format("Human respawns remaining: %d", respawnsLeft))
+end
+
 -- Where a noise's marker goes, in widget units, and whether it is on the ring. A noise in view sits where it is, seen
 -- through walls; one behind the camera or off the screen sits on a ring around the centre, in its direction, like a
 -- hit indicator (straight ahead is up, behind is down).
@@ -407,6 +422,8 @@ local function render()
   setShown(widget.HealthBar, true)
   setShown(widget.ViewCone, true)
   setShown(widget.Hints, hintsShown)
+  setShown(widget.RespawnsText, true)
+  drawRespawns(widget)
   drawActions(widget, link, now)
   drawVitals(widget, link)
   drawPeekHint(widget, pawn, now)

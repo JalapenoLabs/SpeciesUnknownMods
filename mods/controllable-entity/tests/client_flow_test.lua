@@ -67,7 +67,7 @@ local mouseGlyph = glyph("T_input_mouse_leftClick", 64, 96)
 for _, name in ipairs({ "T_input_mouse_rightClick", "T_input_key_e", "T_input_key_c", "T_input_key_f" }) do
   glyph(name, 64, 64)
 end
-fake.object("BP_MyGameState_C", { Respawn = 2 })
+local gameState = fake.object("BP_MyGameState_C", { Respawn = 2 })
 
 local function lastArgument(element, method)
   local calls = fake.callsTo(element, method)
@@ -303,6 +303,16 @@ fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("Cool
 fake.runLoops(33)
 assert(lastArgument(widget.LashBar, "SetVisibility") == 3, "a recharging action shows its bar")
 assert(lastArgument(widget.LashBar, "SetPercent") == 0, "the bar starts empty and fills")
+
+-- Playtest 8: the crew's respawns left, live, bottom right
+assert(lastArgument(widget.RespawnsText, "SetText").text == "Human respawns remaining: 2", "the crew's respawns show")
+gameState.Respawn = 1
+fake.runLoops(33)
+assert(lastArgument(widget.RespawnsText, "SetText").text == "Human respawns remaining: 1",
+  "and follow the game's count")
+local respawnWrites = #fake.callsTo(widget.RespawnsText, "SetText")
+fake.runLoops(33)
+assert(#fake.callsTo(widget.RespawnsText, "SetText") == respawnWrites, "written only when the count changes")
 
 -- The health bar shows the pool the squid is on (playtest 6), green while it stands and red once it's down
 assert(lastArgument(widget.HealthBar, "SetPercent") == 0.8, "the health bar shows the replicated pool")

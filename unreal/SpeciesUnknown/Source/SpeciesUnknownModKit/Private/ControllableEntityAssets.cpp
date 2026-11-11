@@ -190,8 +190,8 @@ namespace {
 	// WBP_EntityHUD: the entity player's HUD, laid out like the crew's own. Bottom left: the actions stacked
 	// vertically, with the health and stamina bars below them. Top right: the minimap (the game's own widget, which Lua
 	// adds) with a view cone over it and the key hints under it. Top centre: the vent time, while the crew hunts the
-	// squid. Bottom centre: the frenzy banner and the host's messages. Noise markers are positioned over the world by
-	// Lua each frame.
+	// squid. Bottom centre: the frenzy banner and the host's messages. Bottom right: the crew's respawns left. Noise
+	// markers are positioned over the world by Lua each frame.
 	FModWidgetSpec MakeEntityHudSpec() {
 		const FLinearColor Ultimate(1.0f, 0.70f, 0.23f);
 		const FLinearColor Frenzy(1.0f, 0.29f, 0.24f);
@@ -280,13 +280,17 @@ namespace {
 		VentTime.Children = {VentTimeIcon, MakeBar(TEXT("VentTimeBar"), FVector2D(320.0, 8.0), Cooldown)};
 		Spec.Elements.Add(VentTime);
 
-
 		const FAnchors BottomCentre(0.5f, 1.0f);
 		const FVector2D SitOnEdge(0.5f, 1.0f);
 		Spec.Elements.Add(MakeText(TEXT("FrenzyText"), BottomCentre, SitOnEdge, FVector2D(0.0, -150.0), 26, Frenzy,
 			TEXT("")));
 		Spec.Elements.Add(MakeText(TEXT("StatusText"), BottomCentre, SitOnEdge, FVector2D(0.0, -110.0), 22,
 			FLinearColor::White, TEXT("")));
+
+		// Bottom right (playtest 8): how many respawns the crew has left, which Lua keeps up to date. The entity wins
+		// when the crew is all dead with none left
+		Spec.Elements.Add(MakeText(TEXT("RespawnsText"), FAnchors(1.0f, 1.0f), FVector2D(1.0f, 1.0f),
+			FVector2D(-56.0, -48.0), 20, Hint, TEXT("")));
 
 		// Markers are positioned in screen pixels from the top-left corner, so they anchor there
 		for (int32 PingIndex = 0; PingIndex < PingMarkerCount; ++PingIndex) {
