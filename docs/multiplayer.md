@@ -49,6 +49,9 @@ It needs every player when it changes:
 - The *shape* of replicated data: new replicated properties or RPCs, new actor classes, changed asset layouts.
   Mismatched layouts break the connection.
 - Assets a client must load to see the change (new meshes or textures from a pak mod).
+- What a player is paid. The score screen works out each player's bounty on their own machine and adds it to their
+  own wallet there, from the replicated contract and end-of-mission data, so a host-only mod can't change a client's
+  payout.
 
 UE4SS Lua mods change values at runtime without changing any class layout, so a server-side Lua mod is safe to
 run on the host alone.

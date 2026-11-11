@@ -77,7 +77,8 @@ Mods/<ModName>/
   remote param (`param:get()`, `param:set(value)`).
 - The `UFunction` must already be loaded when `RegisterHook` runs. Engine and plugin functions always are. A
   Blueprint function is loaded only once its asset is, so register those from a `NotifyOnNewObject` callback or a
-  `RegisterBeginPlayPostHook` once the owning actor exists.
+  `RegisterBeginPlayPostHook` once the owning actor exists. A Blueprint function library never gets instances, so
+  register its hooks when an instance of a class that calls it appears: that class's asset references the library.
 
 ### Changing what an async Blueprint node does
 
