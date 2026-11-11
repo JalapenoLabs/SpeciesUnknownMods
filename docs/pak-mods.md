@@ -26,9 +26,15 @@ Everything lives in `unreal/SpeciesUnknown/`, a UE **5.7.4** project named after
 out as `/Game/...`. 5.7.4 is the game's exact engine build (changelist 51494982). One command does the whole build:
 
 ```bash
-scripts/package-mods.sh            # writes dist/paks/<Mod>_P.{pak,utoc,ucas}
-scripts/package-mods.sh --install  # also copies them into the game's Content/Paks/~mods/ (game must be closed)
+scripts/package-mods.sh                                # writes dist/paks/<Mod>_P.{pak,utoc,ucas} for every mod
+scripts/package-mods.sh --install                      # also copies them into the game's Content/Paks/~mods/
+scripts/package-mods.sh --install ControllableEntity   # only the named mods (payload folder names)
 ```
+
+Installing needs the game closed. Each mod's assets build and its container packs on its own, so one mod failing
+still leaves the others packed and installed; the command then fails and names the mod that didn't make it. The
+asset builder is one C++ module, though, so a compile error there stops every mod, and the cook is one run for all
+of them.
 
 What it does:
 
@@ -41,8 +47,8 @@ What it does:
    desktop platforms, and IoStore containers are platform-neutral. Compressed textures would need checking first.
    `Config/DefaultGame.ini` tells the cooker to include `/Game/Mods`, which nothing else references.
 3. **Packs one container per mod** with `UnrealPak`, the packager that built the game, using the same commands UAT
-   runs for a packaged build (`-CreateGlobalContainer` with a `-Commands` file). The global container it also
-   writes is discarded; the game ships its own.
+   runs for a packaged build (`-CreateGlobalContainer` with a `-Commands` file), one run per mod. The global
+   container each run also writes is discarded; the game ships its own.
 4. **Writes an empty `.pak`** beside each container.
 
 Packages a mod ships may import only native classes that exist in the game. A container can be checked against the
