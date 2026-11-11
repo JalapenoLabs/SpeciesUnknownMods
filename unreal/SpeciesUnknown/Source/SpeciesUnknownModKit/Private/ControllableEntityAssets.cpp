@@ -66,6 +66,8 @@ namespace {
 		Spec.Variables.Add({TEXT("Health"), ModPinTypes::Float(), COND_OwnerOnly});
 		Spec.Variables.Add({TEXT("Downed"), ModPinTypes::Bool(), COND_OwnerOnly});
 		Spec.Variables.Add({TEXT("Stamina"), ModPinTypes::Float(), COND_OwnerOnly});
+		// How much of the squid's time in the vents is left, 0 to 1, once the crew holds the weapon that can kill it
+		Spec.Variables.Add({TEXT("VentTime"), ModPinTypes::Float(), COND_OwnerOnly});
 		return Spec;
 	}
 
@@ -172,9 +174,9 @@ namespace {
 
 	// WBP_EntityHUD: the entity player's HUD, laid out like the crew's own. Bottom left: the actions stacked
 	// vertically, with the health and stamina bars below them. Top right: the minimap (the game's own widget, which Lua
-	// adds) with a view cone over it and the key hints under it. Bottom centre: the frenzy banner and the host's
-	// messages. Lower centre: the peek prompt, like the game's "press E" prompt. Noise markers are positioned over the
-	// world by Lua each frame.
+	// adds) with a view cone over it and the key hints under it. Top centre: the vent time, while the crew hunts the
+	// squid. Bottom centre: the frenzy banner and the host's messages. Lower centre: the peek prompt, like the game's
+	// "press E" prompt. Noise markers are positioned over the world by Lua each frame.
 	FModWidgetSpec MakeEntityHudSpec() {
 		const FLinearColor Ultimate(1.0f, 0.70f, 0.23f);
 		const FLinearColor Frenzy(1.0f, 0.29f, 0.24f);
@@ -243,6 +245,24 @@ namespace {
 			MakeKeyCap(TEXT("ViewKey"), TEXT("F"), 11), MakeLabel(TEXT("ViewLabel"), TEXT("camera"), 12, Hint),
 		};
 		Spec.Elements.Add(Hints);
+
+		// The vent time: the vent icon and a bar, shown by Lua only while the time isn't full
+		FModWidgetElement VentTimeIcon;
+		VentTimeIcon.Name = TEXT("VentTimeIcon");
+		VentTimeIcon.Kind = EModWidgetKind::Image;
+		VentTimeIcon.TexturePath = IconAssetPath(TEXT("Vent"));
+		VentTimeIcon.Size = FVector2D(28.0, 28.0);
+
+		FModWidgetElement VentTime;
+		VentTime.Name = TEXT("VentTime");
+		VentTime.Kind = EModWidgetKind::Row;
+		VentTime.Anchors = FAnchors(0.5f, 0.0f);
+		VentTime.Alignment = FVector2D(0.5f, 0.0f);
+		VentTime.Position = FVector2D(0.0, 32.0);
+		VentTime.Gap = 10.0f;
+		VentTime.bHidden = true;
+		VentTime.Children = {VentTimeIcon, MakeBar(TEXT("VentTimeBar"), FVector2D(320.0, 8.0), Cooldown)};
+		Spec.Elements.Add(VentTime);
 
 		// The peek prompt, where the game shows its own "press E" prompt
 		FModWidgetElement PeekPrompt;

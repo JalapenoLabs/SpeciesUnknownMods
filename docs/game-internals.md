@@ -77,7 +77,12 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
   step's foot, 75 units to the link's left (or its top, 75 to the right and 250 up) and plays its `Vent250_Up` (or
   `_Down`) montage, whose root motion does the climb. The duct pieces themselves (`Vent_1m`, `Vent_Door`,
   `Vent_Hole_LowPart`, ...) are plain static meshes, and nothing but a shaft's box puts a monster in its vent state,
-  so the AI never uses the floor-level openings the crew crawl through.
+  except at the floor-level openings the crew crawl through: each has a `BP_Trigger_Crouch` (`VentEnter`, its forward
+  into the duct; six on Hawking, two in crew quarters and four in the lab). On the host only, it crouches a monster
+  heading in, but only one its AI drives (`BPI_Crouch_SetCrouch(true, VentEnter)`), and stands any monster up as it
+  leaves toward the room (`SetCrouch(false)`, then `SetInVent(false)`). A shaft's box, by contrast, sets the vent
+  state on every machine as a monster leaves it: true out of the top, false out of the bottom. The ducts' navigation
+  is marked by `NavArea_Vent` modifier volumes, which miss parts of the lab's crawl network.
 - **The camera ignores the view target.** The player camera manager (`Character_CameraBP`) overrides
   `BlueprintUpdateCamera`: while its cached crew body (`Player`) is valid, the camera sits at that body's `Camera`
   component, whatever `SetViewTarget` says. Its own `BPI_CameraPlayer_ResetPlayer(pawn)` sets the view target and
@@ -118,6 +123,34 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
 - **Any monster's death ends the mission.** `BP_BaseMonster.FinishDeath`, a few seconds after death (the Ghost 4 s,
   the squid 15 s), calls `BPI_GameState_FinishGame` as a kill on kill, capture and extraction contracts, unless the
   self destruct is armed. Every death also calls `BPI_GameState_SetMonsterOff`, which stops the monster music.
+- **The shuttle** is `BP_PlayerShip` (one per map). Its `TriggerBoxOverlap` (half extents 2500×900×400 on Hawking,
+  spanning the bay between the airlocks) is "aboard": on the host its overlaps fill `PlayersInside` and
+  `MonstersInside` and set the replicated `MonsterInside`, and `CheckForLaunch` needs the power on, no monster
+  inside, the doors closed and every player aboard seated. With `UseExteriorTrigger` (Polar) it uses the volumes
+  `ExtTriggerBase` / `ExtTriggerVisual` instead. The capture cell (`BP_Capture`) is inside it.
+- **Forbidden areas** are only the navigation area `NavArea_Forbidden`, which steers the AI's paths
+  (`QuerryFilter_CheckForbidden` excludes it and `NavArea_Obstacle`; `GameManager.CheckForbiddenPath` drops targets
+  behind it). Hawking marks the genetics lab's wing with three trigger boxes in the `Hawking_StaticMap_Laboratory`
+  section whose `CollisionComponent.AreaClass` is the forbidden area; Polar spawns a `BP_DynamicNav_Forbidden` over its
+  underground electrical area on the host. A possessed monster ignores them.
+- **The power** is restored at `BP_Screen_RestorePower` (one per map: Hawking's on the command deck): interacting with
+  it runs `ChangeLightStatut` about 2 seconds later.
+- **The AI's cries** come from its behaviour tree (`BTTask_PlayVoice` → `BPI_Monster_PlayVoiceType(type, override,
+  volume, noIfPlaying, replicate)`), so a possessed monster is silent but for its footsteps and montages. With
+  `replicate` the cry multicasts and plays on the monster's positional voice on every machine; `PlayVoiceFar(Multi)`
+  plays its far call only for listeners over 2,000 units away.
+- **Voice is the Onset VoIP plugin** (`/Script/OnsetVoip`, in the executable), voice data relayed through the host.
+  The host puts each player's talker (`OnsetVoipWorldSubsystem.GetVoipTalker(playerState)`) in channel 0, proximity
+  (3D on the speaker's pawn, `VOIPProxy` attenuation), and channel 1, radio (2D, `VOIPRadio` attenuation and the
+  `SEPC_VoIP_Radio` effect chain), through `BP_MyPlayerState.SRV_SetVOIPChannel` → `SetVoiceChannel(channel, add)`,
+  and re-adds both whenever voice is switched back on. Its proximity mute follows the player's mute setting or death
+  (`SetMutedOnVoiceChannel(muted, 0)`). Each player's own machine picks what its mic sends in
+  `BP_MyPlayerState.UpdateComChannels`: `want_use_radio` sends on channel 1
+  (`OnsetVoipLocalPlayerSubsystem.ToggleVoiceCaptureWithChannel(true, 1)`), push-to-talk or open mic on channel 0,
+  otherwise `ToggleVoiceCapture(false)`. The radio key's click
+  (`radio_static_placeholder`) plays locally in `SetUseRadio`. A listener hears a speaker only through a channel
+  both are in, and 2D radio wins when both are. Per-listener `SetMuted` and the voice volumes are reapplied every
+  second by `BP_MyGameState.OnsetVOIPInit_Scotch`, so lasting changes belong on the host's talker.
 - **The squid has two health pools** (`BP_Monster_Poulpi`; neither replicates). Hits drain `HealthTemporal`, its
   stagger pool; at zero the squid falls to the ground (`IsOnGround`) and `MaxHealthTemporal` grows by 10%. Only while
   it is down and burning (`HeatValue` above 0.15) do hits drain `Health`; at zero it breaks its eye and head and dies.

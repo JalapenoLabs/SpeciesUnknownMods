@@ -26,8 +26,12 @@ local nextAddress = 1000
 -- Objects
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
+-- A hook parameter: get reads it, and set changes it, as a pre-hook on a native function may.
 function fake.param(value)
-  return { get = function() return value end }
+  local parameter = { value = value }
+  parameter.get = function() return parameter.value end
+  parameter.set = function(_, newValue) parameter.value = newValue end
+  return parameter
 end
 
 function fake.name(text)
@@ -152,7 +156,10 @@ function fake.entityHud()
     return fake.object(name, { Slot = fake.object(name .. "Slot") })
   end
   local widget = fake.object("WBP_EntityHUD_C")
-  local parts = { "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "PeekPrompt", "FrenzyText", "StatusText" }
+  local parts = {
+    "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "PeekPrompt", "FrenzyText", "StatusText", "VentTime",
+    "VentTimeBar",
+  }
   for _, name in ipairs(parts) do
     widget[name] = element(name)
   end

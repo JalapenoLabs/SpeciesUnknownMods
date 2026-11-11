@@ -84,6 +84,69 @@ engine state change call them again); frenzy only ever escalates, so repeats cha
 - When both engines go critical, `BPI_GameState_LaunchEmergency` arms the self destruct and sets
   `LightStatut = 2`. `OnRep_LightStatut` with `LightStatut == 2` is a map-independent fallback trigger.
 
+### The hunt: the vents stop hiding the squid
+
+The AI never hides in the vents for good, but a player could. So in kill and capture contracts, once a crew member
+holds the special weapon (the same trigger as partial frenzy), the vents are only a short refuge:
+
+- The squid has 20 seconds in the vents at a time. The time drains while it's inside them and refills a second for
+  every six outside. The entity sees it at the top centre of the screen, only while it isn't full.
+- When the time runs out, the squid is forced out through the nearest shaft: straight down when one is in reach,
+  otherwise taken beside the nearest one on its floor first. The vents then stay shut to it until half the time is
+  back ("The vents won't take you yet").
+- The lair lets the squid go when the hunt starts, even with the power still off.
+- A squid still in the vents 10 seconds after being forced out (a spot the drop can't reach) is moved to the floor in
+  front of the screen that restores the power (`BP_Screen_RestorePower`, one per map, found on the navigation).
+- The hunted squid is loud: every 12 seconds it cries out, so the crew can follow it. The AI's cries come from its
+  behaviour tree, which a player's squid doesn't run, so the host plays them: the squid's own chase cry
+  (`BPI_Monster_PlayVoiceType`, replicated, heard near it) and its far call (`PlayVoiceFar(Multi)`, heard only well
+  away from it).
+
+### The shuttle and the forbidden areas
+
+The AI keeps out of the game's forbidden areas and never guards the crew's shuttle; a player would do both. So:
+
+- **The shuttle is the crew's.** The entity can't board it, except in capture contracts (below). Aboard is the
+  shuttle's own bay box, the one its launch check uses (`BP_PlayerShip.TriggerBoxOverlap`, or on Polar the volume
+  outside it, `ExtTriggerBase`). The host puts a squid that strays aboard back where it last stood outside ("Hunt
+  them away from their shuttle").
+- **Its approach is calm.** Within 15 m of the bay, which takes in Hawking's corridor from the airlock, the entity
+  can't sprint, can't use its ultimate, and its grabs never kill (frenzy included); the lash still works. Its HUD
+  says so while it's there.
+- **Forbidden areas are the game's own:** where its AI may not path (`NavArea_Forbidden`): the genetics lab's wing on
+  Hawking, the underground electrical area on Polar. The host asks the navigation whether the squid stands on
+  forbidden floor (a point projects through the game's `QuerryFilter_CheckForbidden` only outside them), so every
+  map's areas count without a list of them, and puts the squid back where it last stood outside.
+- **The entity sees the edges:** glowing posts, only on its machine, red where it may not go and amber around the
+  shuttle's approach. The forbidden areas' posts come from the trigger boxes carrying the forbidden area, which load
+  with their section of the ship, so they appear as the squid gets near.
+
+### Capture contracts: kill it off the shuttle
+
+A capture contract wants the specimen alive in the shuttle's capture cell, and killing it fails the contract. A human
+entity could keep away from the shuttle for good, so with an entity:
+
+- Killed anywhere off the shuttle, the entity counts as captured, and the crew completes the contract.
+- Killed aboard the shuttle (the shuttle's own aboard check, `BP_PlayerShip.MonsterInside`), the contract fails as the
+  game has it. So the entity wants to come aboard, where the crew may only capture it.
+- The mod finishes the mission the way a real capture does (the monster's `BPI_BasicMonster_SetIsCaptured`, then
+  `BPI_GameState_FinishGame(1)`) as the squid dies, before the game's own kill result about 15 seconds later, which
+  the game then ignores. Still to check in play: the lobby's specimen display after such a capture.
+
+### Voice: the entity has no comms
+
+- Nobody hears the entity player at all, nearby or over the radio, and their radio key does nothing (not even its
+  click). Their own machine never turns their mic on, and the host mutes them on both of the game's voice channels.
+- Once the entity has lost, its player can talk to everyone again, over the radio too: the crew finally hear the
+  thing they hunted speak.
+- The entity hears the crew only as someone standing near them would. The host takes the entity off the radio
+  channel, and every crew machine sends radio speech on the proximity channel too: the crew still hear each other
+  over the radio, and the entity hears a crew member on the radio only up close, without the radio's static.
+- The game's voice is the Onset VoIP plugin, compiled into the game: channel 0 is proximity (3D, from the speaker's
+  pawn), channel 1 is radio (2D, with the static), and a listener hears a speaker only through a channel both are
+  in, the radio winning when both are (see
+  [docs/game-internals.md](../../docs/game-internals.md#gameplay-state-worth-knowing)).
+
 ### Losing
 
 If the crew kills the entity, the entity player loses: no respawn, and their camera follows a crew member for the
@@ -109,6 +172,10 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
   climbs it instead when the step is nearer than an opening. Crouch peeks down through the grate. All four use the
   squid's own vent moves (`JumpToVent`, `AttackFromVent`, `ClimbVent250`, `LookFromVent`). Climbing stays inside the
   ducts, so the lair allows it before the power is on.
+- **Crawl openings:** the floor-level openings the crew crouch through into the ducts (six on Hawking, two in crew
+  quarters and four in the lab) take the squid too: as it moves into one, the host puts it in its crouched vent
+  state, and coming back out the game's own trigger stands it up. Only the squid crawls; an entity that doesn't use
+  the vents wouldn't.
 - **Seeing in the vents:** the ducts are unlit, and much of the network is invisible collision rather than modelled
   walls. So the entity carries a soft light (full in the ducts, faint in the rooms, which the game keeps dark on
   purpose), and glowing light-blue discs
@@ -140,6 +207,7 @@ gets a mod key of its own.
 | Aim (`IA_ADS`) | Leap where you look; a grab on landing is broken off unless the kill is ready |
 | Interact (`IA_Interact`, E) | Ultimate: with a full meter, leap (or drop) and the grab kills |
 | Crouch (`IA_Crouch`) | Peek down through the grate while in a vent |
+| Objectives (`IA_ViewPseudo`, Tab, held) | Show the entity's objectives, in the crew's own overlay |
 | Flashlight (`IA_FlashLight`) | Switch between third person (the start) and first person; in first person the squid's own mesh is hidden from its player |
 | Hold Tool (`IA_HoldTool`, Space) | Climb into the nearest vent, drop out of it onto whoever is below, or climb a step up inside the ducts |
 | F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out |
@@ -182,6 +250,11 @@ The HUD is laid out like the crew's own, so the top of the screen holds only the
   left. The widget turns its map with whatever it follows, so it follows an invisible actor that rides with the squid
   but never turns. Its item icons (the special weapons, the black box) are hidden: they stay on the map while a crew
   member carries them, which would show the entity where that player is.
+- **Objectives, while Tab is held:** the crew's own objectives overlay (`UMG_ObjectiveList`), headed "THE ENTITY"
+  instead of the contract, with the entity's objectives: kill all humans, leave them no respawns (with how many the
+  crew have left, `BP_MyGameState.Respawn`), and stay alive. The entity wins exactly when the crew is all dead with no
+  respawns left, which is when the game itself ends the mission. Nothing on it hints at the crew's contract, and the
+  crew's name tags, which their Tab also shows, stay hidden.
 - **Key hints, under the minimap, small:** `H hints` and `F camera`. H hides them and the peek prompt, and brings them
   back.
 - The crew HUD (status bars, objectives, crosshair) is hidden while the player is the squid, and so are the wall maps
@@ -228,6 +301,10 @@ create: network events and a widget layout.
   | `movement.lua` | both | The squid's speed, the vent bonus, and the sprint and its stamina |
   | `meter.lua` | host | The kill meter and frenzy rules, as plain logic (unit tested) |
   | `frenzy.lua` | host | The three frenzy triggers |
+  | `hunt.lua` | host | The vents' time limit once the crew holds the special weapon |
+  | `crawl.lua` | host | Crouching the squid into the floor-level crawl openings |
+  | `zones.lua` | both | The shuttle, its approach and the forbidden areas: where the entity may not go |
+  | `capture.lua` | host | In capture contracts, the entity killed off the shuttle counts as captured |
   | `senses.lua` | host | Noise sources to blurred pings |
   | `control.lua` | entity player | Input to movement and commands; the mod's keys |
   | `camera.lua` | entity player | Third and first person |
@@ -235,6 +312,8 @@ create: network events and a widget layout.
   | `areas.lua` | entity player | The map sections and the minimap's deck around the squid, which the game only follows for crew |
   | `minimap.lua` | entity player | The game's minimap in the corner, north up, centred on the squid |
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
+  | `objectives.lua` | entity player | The entity's objectives, in the crew's objectives overlay |
+  | `voice.lua` | both | The entity's silence, and the crew's radio heard by the entity only nearby |
   | `game.lua`, `config.lua` | both | Game paths and helpers; every tunable |
 
 - **Blueprint pak** (`ControllableEntity_P`, in `Content/Paks/~mods/`), generated from code by the asset builder
@@ -291,6 +370,12 @@ kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack 
   and as the entity player's machine, against `tests/fake_ue4ss.lua`, a stand-in for UE4SS and the game objects.
 - `tests/entity_mode_test.lua`: F9, forcing the squid from the lobby, and the random pick.
 - `tests/lair_test.lua`: the start in a vent, the leash and the power.
+- `tests/hunt_test.lua`: the vents' time limit once the crew holds the special weapon.
+- `tests/crawl_test.lua`: the squid crouching into a crawl opening only while heading in.
+- `tests/zones_test.lua`: kept off the shuttle and out of forbidden areas, the shuttle's approach, and the marked
+  boxes.
+- `tests/capture_test.lua`: the entity killed off or aboard the shuttle in capture contracts.
+- `tests/voice_test.lua`: the entity's mic and radio click, and crew radio speech sent nearby too.
 - `tests/vision_test.lua`: the entity's light and the vent markers.
 - `tests/areas_test.lua`: the map sections and the minimap's deck around the squid.
 - `tests/minimap_test.lua`: the minimap, its follower, the hidden item icons and the zoom.
@@ -438,14 +523,13 @@ makes the next mission spawn the squid, through the game's own spawn path (`GetM
   the shuttle in capture contracts; hiding the contract type from a player who knows in advance they're the entity;
   keeping the entity off the crew's radio while still hearing nearby voices; and, for the ghost later, haunting one
   player all game.
-- The floor-level openings the crew crawl through don't fit the standing squid (only a shaft puts it in its crouched
-  vent state); how it gets in is undecided.
 
 ## Test plan
 
 UE4SS writes the mod's log lines, all starting `[ControllableEntity]`, to `Win64/ue4ss/UE4SS.log` on each machine.
 
-**Testing alone** works for steps 1 to 7 (volunteering, the takeover, moving, the view, the lair and the moves).
+**Testing alone** works for steps 1 to 7 (volunteering, the takeover, moving, the view, the lair and the moves) and
+16 to 19 (the objectives, the crawl openings, the shuttle and the forbidden areas).
 There's nobody to lash, grab or hear, and the shuttle can't launch: as the only player you stay on the crew list
 (emptying it ends the mission), and the squid can't sit. Leave through the pause menu. Steps 8 to 15 need at least
 one friend.
@@ -496,3 +580,25 @@ one friend.
    re-arming after 7 s.
 14. **Launching.** The crew board the shuttle and launch without the entity; with the squid aboard, it doesn't launch.
 15. **Losing.** Kill the squid: the entity player sees "The crew got you" and watches a crew member.
+16. **Objectives (alone).** As the squid, hold Tab: the crew's objectives overlay shows "THE ENTITY" with Kill all
+    humans, Leave them no respawns (with the count), and Stay alive, and no contract icon. Letting go hides it. If it
+    shows the header but no rows, or nothing at all, send the log.
+17. **Crawl openings (alone).** In crew quarters, walk the squid into the low opening the crew crouch through: it
+    crouches and goes in. Walk back out into the room: it stands up and stays standing. The log shows `The squid
+    crouches into a crawl opening`.
+18. **The shuttle (alone).** Walk toward the shuttle: within about 15 m of its bay the HUD says "Near the shuttle: no
+    sprinting, and no kills", Shift doesn't sprint, and E answers "Save your hunger". Try to board: the squid is put
+    back with "Hunt them away from their shuttle". Amber posts glow around the approach and red ones around the bay.
+19. **Forbidden areas (alone).** Head for the genetics lab's wing: red posts stand at its edge, and stepping in puts
+    the squid back with "Hunt elsewhere". A `Put the squid back: Denied.Forbidden` line in the host's log anywhere
+    else (for example at a closed vent door) is a false positive worth reporting.
+20. **The hunt (with a friend, kill or capture contract).** Once a friend picks up the special weapon, the entity
+    sees "the vents won't hide you for long" and a vent-time bar at the top whenever it's in the vents. Stay in for
+    20 s: the squid is forced out of the nearest shaft, and Space under a vent answers "The vents take you again once
+    your vent time is half back" until about a minute outside. The squid cries out every 12 s; the friend should hear
+    it near the squid and, far away, its distant call. Report if a forced exit lands the squid in a wall.
+21. **Voice (with a friend).** The entity's voice reaches nobody, and their radio key makes no sound. The friend holds
+    the radio key and talks: the entity hears them only when close, with no radio static. A hook error in the log on
+    the first radio press names the voice call that needs fixing.
+22. **Capture (with a friend, capture contract).** Kill the squid away from the shuttle: the contract completes as
+    captured. Kill it aboard: the contract fails, as normal. Check the lobby's specimen display after the first.

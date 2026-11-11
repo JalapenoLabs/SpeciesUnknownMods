@@ -35,19 +35,6 @@ local built = nil
 -- The widget's Scale, which "." and "," change; every new minimap starts fully zoomed out.
 local zoom = config.minimap.minimumZoom
 
-local function loadWidgetClass()
-  local class = StaticFindObject(WIDGET_CLASS)
-  if not class or not class:IsValid() then
-    LoadAsset(WIDGET_CLASS)
-    class = StaticFindObject(WIDGET_CLASS)
-  end
-  if not class or not class:IsValid() then
-    game.log("Could not load the game's minimap (%s)", WIDGET_CLASS)
-    return nil
-  end
-  return class
-end
-
 -- An invisible actor that rides along with the squid but keeps a world rotation of zero, so the map stays north up.
 local function spawnFollower(world, squid)
   local follower = world:SpawnActor(StaticFindObject(FOLLOWER_CLASS), squid:K2_GetActorLocation(), {})
@@ -79,7 +66,7 @@ end
 
 local function build(controller, squid)
   removeLeftovers()
-  local widgetClass = loadWidgetClass()
+  local widgetClass = game.loadGameAsset(WIDGET_CLASS)
   if not widgetClass then
     return nil
   end

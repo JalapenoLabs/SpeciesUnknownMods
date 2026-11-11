@@ -12,6 +12,7 @@
 local config = require("entity.config")
 local game = require("entity.game")
 local links = require("entity.links")
+local objectives = require("entity.objectives")
 local vents = require("entity.vents")
 
 local hud = {}
@@ -61,7 +62,7 @@ local cooldownSlots = {
 }
 
 -- What only the entity sees, hidden before the takeover (a volunteer sees only their status line).
-local ENTITY_PARTS = { "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "PeekPrompt" }
+local ENTITY_PARTS = { "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "PeekPrompt", "VentTime" }
 
 local messageByEvent = {
   Volunteered = "You'll be the entity next mission. Only you know. F8 backs out.",
@@ -74,7 +75,10 @@ local messageByEvent = {
   Lost = "The crew got you. You're out of this mission.",
   KillStarted = "Got one.",
   FrenzyStarted = "FRENZY: every grab kills.",
-  FrenzyPartial = "They have the weapon. Your hunger grows faster.",
+  FrenzyPartial = "They have the weapon. Your hunger grows faster, and the vents won't hide you for long.",
+  ForcedOut = "Your time in the vents is up. Out you go.",
+  ShuttleNear = "Near the shuttle: no sprinting, and no kills.",
+  VentsReopened = "The vents will take you again.",
   EntityModeOn = "Entity mode: ON",
   EntityModeOff = "Entity mode: OFF",
   ["Denied.Cooldown"] = "Not yet.",
@@ -84,6 +88,11 @@ local messageByEvent = {
   ["Denied.NotInVent"] = "Peek works from inside a vent.",
   ["Denied.PowerOff"] = "The vents hold you until the power is on.",
   ["Denied.UltimateNotReady"] = "Your hunger isn't ready.",
+  ["Denied.Shuttle"] = "Hunt them away from their shuttle: you can't board it.",
+  ["Denied.Forbidden"] = "Hunt elsewhere: this area is forbidden to you.",
+  ["Denied.ShuttleNoKill"] = "Your grab can't kill this close to the shuttle.",
+  ["Denied.ShuttleZone"] = "Save your hunger: it can't kill this close to the shuttle.",
+  ["Denied.VentsShut"] = "The vents take you again once your vent time is half back.",
   ["Denied.HostOnly"] = "The host turns entity mode on or off.",
   ["Denied.EntityModeOff"] = "Entity mode is off. The host can turn it on.",
 }
@@ -210,11 +219,14 @@ local function drawActions(widget, link, now)
 end
 
 -- The health bar shows the pool the squid is on (playtest 6): its stagger while standing, its real health once a hit
--- has knocked it down. Like the crew's, the stamina bar only shows once sprinting has used some.
+-- has knocked it down. Like the crew's, the stamina bar only shows once sprinting has used some, and the vent time
+-- (top centre, once the crew hunts the squid) only once the vents have used some.
 local function drawVitals(widget, link)
   widget.HealthBar:SetPercent(link.Health)
   widget.HealthBar:SetFillColorAndOpacity(healthColorByDowned[link.Downed == true])
   drawCharge(widget.StaminaBar, link.Stamina)
+  setShown(widget.VentTime, link.VentTime < 1)
+  widget.VentTimeBar:SetPercent(link.VentTime)
 end
 
 -- The peek prompt shows while C would work, the way the game shows "press E" only while there is something to use
@@ -298,7 +310,8 @@ local function hideCrewHud(now)
   state.nextCrewHudCheckAt = now + CREW_HUD_CHECK_SECONDS
   for _, className in ipairs(game.classNames.crewHudWidgets) do
     for _, crewWidget in ipairs(FindAllOf(className) or {}) do
-      if crewWidget:IsValid() then
+      -- The entity's own objectives are the crew's overlay too (objectives.lua)
+      if crewWidget:IsValid() and not objectives.owns(crewWidget) then
         crewWidget:RemoveFromParent()
       end
     end
@@ -325,7 +338,7 @@ local function render()
   -- Only the entity drives the squid, so driving it is proof enough: the host's BecameEntity may never arrive in this
   -- run of the mod (a hot reload on either machine forgets it, playtest 6)
   local pawn = controller.Pawn
-  local drivesSquid = pawn:IsValid() and pawn:GetClass():GetFName():ToString() == game.classNames.squid
+  local drivesSquid = game.squidDrivenBy(controller) ~= nil
   if drivesSquid then
     state.isEntity = true
   end
@@ -379,6 +392,10 @@ local function showMessage(kind)
     return
   end
   local message = messageByEvent[kind]
+  -- Events that only change what the HUD shows (ShuttleLeft) have no message of their own
+  if not message then
+    return
+  end
   local _, wordCount = message:gsub("%S+", "")
   local seconds = math.max(MESSAGE_MINIMUM_SECONDS, MESSAGE_BASE_SECONDS + MESSAGE_SECONDS_PER_WORD * wordCount)
   state.message = message
@@ -411,6 +428,15 @@ local stateChangeByEvent = {
     state.isLeashed = false
     state.persistentStatus = nil
   end,
+  -- The shuttle's rules hold while the squid is near it
+  ShuttleNear = function()
+    state.persistentStatus = messageByEvent.ShuttleNear
+  end,
+  ShuttleLeft = function()
+    if state.persistentStatus == messageByEvent.ShuttleNear then
+      state.persistentStatus = nil
+    end
+  end,
   Lost = function()
     state.isEntity = false
     state.isLeashed = false
@@ -434,7 +460,15 @@ function hud.toggleHints()
 end
 
 function hud.register()
+  -- Every event with a message, and the few that only change what the HUD shows (ShuttleLeft)
+  local eventKinds = {}
   for kind in pairs(messageByEvent) do
+    eventKinds[kind] = true
+  end
+  for kind in pairs(stateChangeByEvent) do
+    eventKinds[kind] = true
+  end
+  for kind in pairs(eventKinds) do
     links.onClientEvent(kind, function()
       local controller = game.localController()
       if controller then

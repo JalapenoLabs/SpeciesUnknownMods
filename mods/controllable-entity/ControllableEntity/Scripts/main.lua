@@ -7,21 +7,29 @@
 -- checks), while each player's machine handles their own input and HUD.
 
 local abilities = require("entity.abilities")
+local capture = require("entity.capture")
+local crawl = require("entity.crawl")
 local config = require("entity.config")
 local control = require("entity.control")
 local frenzy = require("entity.frenzy")
 local game = require("entity.game")
 local hud = require("entity.hud")
+local hunt = require("entity.hunt")
 local lair = require("entity.lair")
 local links = require("entity.links")
 local movement = require("entity.movement")
 local senses = require("entity.senses")
 local takeover = require("entity.takeover")
+local voice = require("entity.voice")
+local zones = require("entity.zones")
 
 links.registerEvents()
 takeover.register()
 abilities.register()
 frenzy.register(abilities, takeover)
+hunt.register()
+voice.register(takeover)
+capture.register(takeover)
 movement.register(takeover.isEntityController)
 senses.register(abilities, takeover)
 control.register()
@@ -42,10 +50,14 @@ LoopInGameThreadWithDelay(200, function()
   if not game.isHost() then
     return
   end
-  -- The speed and stamina first, so the link the meter's tick fills carries this tick's stamina
+  -- The speed, stamina and vent time first, so the link the meter's tick fills carries this tick's values
   local entity = takeover.activeEntity()
   if entity then
-    movement.tickHost(entity, game.timeSeconds(entity.squid))
+    local now = game.timeSeconds(entity.squid)
+    movement.tickHost(entity, now)
+    hunt.tick(entity, now)
+    zones.tickHost(entity, now)
+    crawl.tickHost(entity)
   end
   abilities.tick()
   lair.tick()

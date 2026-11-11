@@ -14,6 +14,7 @@
 local config = require("entity.config")
 local game = require("entity.game")
 local links = require("entity.links")
+local zones = require("entity.zones")
 
 local movement = {}
 
@@ -46,7 +47,9 @@ function movement.tickHost(entity, now)
   local elapsed = host.lastTickAt and now - host.lastTickAt or 0
   host.lastTickAt = now
 
-  local sprinting = host.wantsToSprint and not host.isTired
+  -- No sprinting near the crew's shuttle (zones.lua), so they can get to it and away from it
+  local isNearShuttle = zones.isNearShuttle(entity.squid:K2_GetActorLocation())
+  local sprinting = host.wantsToSprint and not host.isTired and not isNearShuttle
   if sprinting then
     host.stamina = math.max(0, host.stamina - elapsed / config.movement.sprintSeconds)
     if host.stamina == 0 then
@@ -87,7 +90,8 @@ function movement.followPlayer(controller, squid)
   end
   -- The host applies the speed itself; a separate client applies the same speed for its own prediction
   if not game.isHost() then
-    movement.apply(squid, holdsSprint and not player.isTired)
+    local isNearShuttle = zones.isNearShuttle(squid:K2_GetActorLocation())
+    movement.apply(squid, holdsSprint and not player.isTired and not isNearShuttle)
   end
 end
 

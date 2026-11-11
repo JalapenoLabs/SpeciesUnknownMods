@@ -1,12 +1,16 @@
-"""Build every mod's generated Blueprint assets, from inside the Unreal editor.
+"""Build the mods' generated Blueprint assets, from inside the Unreal editor.
 
 The assets themselves are defined in C++ (Source/SpeciesUnknownModKit); this script only runs those builders.
 Run it through scripts/build-mod-assets.sh at the repository root, which starts a headless editor for it.
+
+Arguments: the file to write the names of the mods that built to, then the mods to build (every mod when none are
+named). Each mod builds on its own, so one mod failing doesn't stop the others; the caller packs those that built.
 """
 
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import unreal
 
@@ -19,19 +23,30 @@ _MOD_BUILDER_NAMES = {
 
 
 def main() -> None:
-    """Build each mod's assets, then exit non-zero if any mod failed so the calling script fails loudly."""
+    """Build each asked-for mod, record those that built, and exit non-zero if any failed or is unknown."""
+    built_list_path = Path(sys.argv[1])
+    asked_mods = sys.argv[2:] or list(_MOD_BUILDER_NAMES)
+
+    built_mods: list[str] = []
     failed_mods: list[str] = []
-    for mod_name, builder_name in _MOD_BUILDER_NAMES.items():
+    for mod_name in asked_mods:
+        builder_name = _MOD_BUILDER_NAMES.get(mod_name)
+        if builder_name is None:
+            unreal.log_error(f"[build_mod_assets] No asset builder for {mod_name}")
+            failed_mods.append(mod_name)
+            continue
         unreal.log(f"[build_mod_assets] Building {mod_name}")
         build = getattr(unreal.ModAssetBuildLibrary, builder_name)
-        if not build():
+        if build():
+            built_mods.append(mod_name)
+        else:
             failed_mods.append(mod_name)
 
+    built_list_path.write_text("".join(f"{mod_name}\n" for mod_name in built_mods))
+    unreal.log(f"[build_mod_assets] Built: {', '.join(built_mods) or 'none'}")
     if failed_mods:
         unreal.log_error(f"[build_mod_assets] Failed: {', '.join(failed_mods)}")
         sys.exit(1)
-
-    unreal.log(f"[build_mod_assets] Built {len(_MOD_BUILDER_NAMES)} mod(s)")
 
 
 main()

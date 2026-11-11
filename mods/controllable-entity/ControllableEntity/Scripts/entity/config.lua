@@ -61,6 +61,34 @@ return {
     -- far above or below the foot it may be. A step rises 250 units, so a squid at its top is never at its foot.
     climbReach = 250,
     climbVerticalReach = 150,
+    -- How close to a floor-level crawl opening's trigger the squid crouches into it, and how fast it must be heading
+    -- in (units a second along the opening): the squid is about 176 tall and an opening about 141.
+    crawlReach = 120,
+    crawlEntrySpeed = 50,
+  },
+
+  -- Once a crew member holds the weapon that can kill the specimen (kill and capture contracts), the vents stop being
+  -- a hiding place (hunt.lua).
+  hunt = {
+    -- How long the squid can stay in the vents at a time.
+    ventSeconds = 20,
+    -- Outside the vents the time refills this many times slower than it drains: a second for every six.
+    refillSlowdown = 6,
+    -- Once the time has run out, the vents stay shut until it has refilled this far.
+    reopenFraction = 0.5,
+    -- A squid still in the vents this long after being forced out is moved to the power room.
+    stuckSeconds = 10,
+    -- The hunted squid cries out this often, so the crew can follow it.
+    crySeconds = 12,
+  },
+
+  -- Where the entity may not go, and the shuttle's approach (zones.lua).
+  zones = {
+    -- How far beyond the shuttle's aboard box its approach reaches, across the floor: there the entity can't sprint,
+    -- use its ultimate, or kill. Hawking's approach corridor runs about 1,200 units from the airlock.
+    shuttleApproach = 1500,
+    -- The shortest gap between two "keep out" messages while the player pushes against a forbidden place.
+    warningInterval = 3,
   },
 
   lair = {
@@ -93,6 +121,14 @@ return {
     markerScale = { X = 0.8, Y = 0.8, Z = 0.03 },
     -- How often the markers follow the squid around.
     markerRefreshSeconds = 0.5,
+    -- The posts around the places the entity may not go (red) and the shuttle's approach (amber), one every this
+    -- many units along each edge, this thick as the engine cylinder's scale. Rebuilt this often if the places changed
+    -- (a forbidden area streams in with its section).
+    postSpacing = 400,
+    postThickness = 0.12,
+    forbiddenColor = { R = 3.0, G = 0.12, B = 0.08, A = 1 },
+    approachColor = { R = 3.0, G = 1.1, B = 0.08, A = 1 },
+    zoneRefreshSeconds = 2,
   },
 
   minimap = {

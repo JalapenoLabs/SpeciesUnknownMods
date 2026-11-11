@@ -87,8 +87,64 @@ game.contractTypes = {
   Extraction = 3,
 }
 
+-- The squid a local player controller drives, or nil while it drives anything else (or isn't this machine's).
+function game.squidDrivenBy(controller)
+  if not controller:IsLocalController() then
+    return nil
+  end
+  local pawn = controller.Pawn
+  if not pawn:IsValid() or pawn:GetClass():GetFName():ToString() ~= game.classNames.squid then
+    return nil
+  end
+  return pawn
+end
+
+-- Identifies the current world on the host: its game state is rebuilt on every map, so its address changes with the
+-- world. Nil without a game state.
+function game.currentWorldKey()
+  local gameState = FindFirstOf("GameStateBase")
+  if not gameState or not gameState:IsValid() then
+    return nil
+  end
+  return gameState:GetAddress()
+end
+
+-- The mission's contract type (game.contractTypes), from the game state's contract; nil without a game state.
+function game.contractType()
+  local gameState = FindFirstOf(game.classNames.gameState)
+  if not gameState or not gameState:IsValid() then
+    return nil
+  end
+  return gameState.Contract["ContractType_2_AD7B8E08435CF5A38556E7BA67C34760"]
+end
+
+-- Whether a weapon's grab (BP_LaserGun.BPI_Weapon_SetGrabbed, on the host) is a crew member taking the contract's
+-- objective weapon, the one that can kill the specimen, in a contract to kill or capture it. The game runs the grab
+-- again on every re-grab.
+function game.isSpecialWeaponGrab(weapon)
+  local contract = game.contractType()
+  local isHuntContract = contract == game.contractTypes.Elimination or contract == game.contractTypes.Capture
+  return weapon:HasAuthority() and isHuntContract and weapon.IsObjectiveWeapon and weapon.IsGrabbed
+end
+
 function game.log(message, ...)
   print(string.format("[ControllableEntity] " .. message .. "\n", ...))
+end
+
+-- Loads one of the game's own assets or classes by its object path. The game's assets are in its asset registry, so
+-- UE4SS's LoadAsset finds those nothing has loaded yet. Nil after logging when it can't.
+function game.loadGameAsset(path)
+  local asset = StaticFindObject(path)
+  if asset and asset:IsValid() then
+    return asset
+  end
+  LoadAsset(path)
+  asset = StaticFindObject(path)
+  if asset and asset:IsValid() then
+    return asset
+  end
+  game.log("Could not load the game's %s", path)
+  return nil
 end
 
 -- Mod classes that failed to load, so a missing pak is reported once instead of on every retry.
