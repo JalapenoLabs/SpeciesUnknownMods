@@ -333,7 +333,7 @@ local function render()
   -- Only the entity drives the squid, so driving it is proof enough: the host's BecameEntity may never arrive in this
   -- run of the mod (a hot reload on either machine forgets it, playtest 6)
   local pawn = controller.Pawn
-  local drivesSquid = pawn:IsValid() and pawn:GetClass():GetFName():ToString() == game.classNames.squid
+  local drivesSquid = game.squidDrivenBy(controller) ~= nil
   if drivesSquid then
     state.isEntity = true
   end

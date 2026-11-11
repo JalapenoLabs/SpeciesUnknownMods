@@ -98,6 +98,19 @@ holds the special weapon (the same trigger as partial frenzy), the vents are onl
 - On the roadmap: moving a squid still in the vents 10 seconds after being forced out to the power room, and making
   the squid loud while it is hunted, so the crew can follow it.
 
+### Voice: the entity has no comms
+
+- Nobody hears the entity player at all, nearby or over the radio, and their radio key does nothing (not even its
+  click). Their own machine never turns their mic on, and the host mutes them on both of the game's voice channels
+  for the rest of the mission.
+- The entity hears the crew only as someone standing near them would. The host takes the entity off the radio
+  channel, and every crew machine sends radio speech on the proximity channel too: the crew still hear each other
+  over the radio, and the entity hears a crew member on the radio only up close, without the radio's static.
+- The game's voice is the Onset VoIP plugin, compiled into the game: channel 0 is proximity (3D, from the speaker's
+  pawn), channel 1 is radio (2D, with the static), and a listener hears a speaker only through a channel both are
+  in, the radio winning when both are (see
+  [docs/game-internals.md](../../docs/game-internals.md#gameplay-state-worth-knowing)).
+
 ### Losing
 
 If the crew kills the entity, the entity player loses: no respawn, and their camera follows a crew member for the
@@ -257,6 +270,7 @@ create: network events and a widget layout.
   | `minimap.lua` | entity player | The game's minimap in the corner, north up, centred on the squid |
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
   | `objectives.lua` | entity player | The entity's objectives, in the crew's objectives overlay |
+  | `voice.lua` | both | The entity's silence, and the crew's radio heard by the entity only nearby |
   | `game.lua`, `config.lua` | both | Game paths and helpers; every tunable |
 
 - **Blueprint pak** (`ControllableEntity_P`, in `Content/Paks/~mods/`), generated from code by the asset builder
@@ -314,6 +328,7 @@ kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack 
 - `tests/entity_mode_test.lua`: F9, forcing the squid from the lobby, and the random pick.
 - `tests/lair_test.lua`: the start in a vent, the leash and the power.
 - `tests/hunt_test.lua`: the vents' time limit once the crew holds the special weapon.
+- `tests/voice_test.lua`: the entity's mic and radio click, and crew radio speech sent nearby too.
 - `tests/vision_test.lua`: the entity's light and the vent markers.
 - `tests/areas_test.lua`: the map sections and the minimap's deck around the squid.
 - `tests/minimap_test.lua`: the minimap, its follower, the hidden item icons and the zoom.

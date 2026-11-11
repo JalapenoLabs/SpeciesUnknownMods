@@ -97,6 +97,18 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
 - **Monsters respawn when stuck.** `BP_BaseMonster."Check If Stuck"` runs every second once an AI controller
   possesses the monster. After 20 seconds without moving it calls `BP_GameManager.InitMonster(false, ...)`, which
   destroys the monster and spawns a new one. `ShouldCheckIfStuck` turns the check off.
+- **Voice is the Onset VoIP plugin** (`/Script/OnsetVoip`, in the executable), voice data relayed through the host.
+  The host puts each player's talker (`OnsetVoipWorldSubsystem.GetVoipTalker(playerState)`) in channel 0, proximity
+  (3D on the speaker's pawn, `VOIPProxy` attenuation), and channel 1, radio (2D, `VOIPRadio` attenuation and the
+  `SEPC_VoIP_Radio` effect chain), through `BP_MyPlayerState.SRV_SetVOIPChannel` → `SetVoiceChannel(channel, add)`,
+  and re-adds both whenever voice is switched back on. Its proximity mute follows the player's mute setting or death
+  (`SetMutedOnVoiceChannel(muted, 0)`). Each player's own machine picks what its mic sends in
+  `BP_MyPlayerState.UpdateComChannels`: `want_use_radio` sends on channel 1
+  (`OnsetVoipLocalPlayerSubsystem.ToggleVoiceCaptureWithChannel(true, 1)`), push-to-talk or open mic on channel 0,
+  otherwise `ToggleVoiceCapture(false)`. The radio key's click
+  (`radio_static_placeholder`) plays locally in `SetUseRadio`. A listener hears a speaker only through a channel
+  both are in, and 2D radio wins when both are. Per-listener `SetMuted` and the voice volumes are reapplied every
+  second by `BP_MyGameState.OnsetVOIPInit_Scotch`, so lasting changes belong on the host's talker.
 - **The squid has two health pools** (`BP_Monster_Poulpi`; neither replicates). Hits drain `HealthTemporal`, its
   stagger pool; at zero the squid falls to the ground (`IsOnGround`) and `MaxHealthTemporal` grows by 10%. Only while
   it is down and burning (`HeatValue` above 0.15) do hits drain `Health`; at zero it breaks its eye and head and dies.

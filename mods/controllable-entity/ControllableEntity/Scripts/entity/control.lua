@@ -21,18 +21,6 @@ local links = require("entity.links")
 
 local control = {}
 
--- The squid this machine's player drives, or nil while they drive anything else.
-local function drivenSquid(controller)
-  if not controller:IsLocalController() then
-    return nil
-  end
-  local pawn = controller.Pawn
-  if not pawn:IsValid() or pawn:GetClass():GetFName():ToString() ~= game.classNames.squid then
-    return nil
-  end
-  return pawn
-end
-
 local function aimOf(controller)
   return game.rotationDirection(controller:GetControlRotation())
 end
@@ -63,7 +51,7 @@ end
 
 -- Mirrors BP_Character.BPI_PlayerInput_Move: forward and right along the camera's yaw.
 local function move(controller, actionValueParameter)
-  local squid = drivenSquid(controller)
+  local squid = game.squidDrivenBy(controller)
   if not squid then
     return
   end
@@ -76,7 +64,7 @@ end
 
 -- Mirrors BP_Character.BPI_PlayerInput_Look.
 local function look(controller, actionValueParameter)
-  local squid = drivenSquid(controller)
+  local squid = game.squidDrivenBy(controller)
   if not squid then
     return
   end
@@ -88,7 +76,7 @@ end
 
 local function button(command)
   return function(controller, actionValueParameter)
-    if not drivenSquid(controller) or not buttonPressed(actionValueParameter) then
+    if not game.squidDrivenBy(controller) or not buttonPressed(actionValueParameter) then
       return
     end
     links.sendCommand(command, aimOf(controller), nil)
@@ -96,7 +84,7 @@ local function button(command)
 end
 
 local function toggleView(controller, actionValueParameter)
-  if not drivenSquid(controller) or not buttonPressed(actionValueParameter) then
+  if not game.squidDrivenBy(controller) or not buttonPressed(actionValueParameter) then
     return
   end
   camera.toggle()
@@ -105,7 +93,7 @@ end
 -- The game's objectives key (Tab by default): shows the entity's objectives while held. The game's own handler asks
 -- the pawn to show the crew's (and the crew's name tags), which the squid ignores.
 local function viewObjectives(controller, actionValueParameter)
-  if not drivenSquid(controller) then
+  if not game.squidDrivenBy(controller) then
     return
   end
   if buttonPressed(actionValueParameter) then
@@ -120,7 +108,7 @@ end
 -- states). The game's own handler has already run when this post-hook does, so when it refused, pausing goes back on
 -- through the game's own setter and the menu opens.
 local function openPauseMenu(controller, actionValueParameter)
-  if not drivenSquid(controller) or not buttonPressed(actionValueParameter) or controller.canPause then
+  if not game.squidDrivenBy(controller) or not buttonPressed(actionValueParameter) or controller.canPause then
     return
   end
   game.log("Pausing was off for the entity; turning it back on")
@@ -152,7 +140,7 @@ local function registerKeys()
   RegisterKeyBind(Key[config.keys.hints], function()
     ExecuteInGameThread(function()
       local controller = game.localController()
-      if controller and drivenSquid(controller) then
+      if controller and game.squidDrivenBy(controller) then
         hud.toggleHints()
       end
     end)
@@ -183,7 +171,7 @@ end
 -- drives the squid, so a playtest log shows exactly where input stops.
 local reportedArrivals = {}
 local function reportArrival(actionName, controller)
-  local drivingSquid = drivenSquid(controller) ~= nil
+  local drivingSquid = game.squidDrivenBy(controller) ~= nil
   local key = actionName .. (drivingSquid and ":squid" or ":crew")
   if reportedArrivals[key] then
     return
@@ -201,7 +189,7 @@ local function onBecameEntity()
   if not controller then
     return
   end
-  local squid = drivenSquid(controller)
+  local squid = game.squidDrivenBy(controller)
   if squid then
     camera.follow(controller, squid)
   end
@@ -227,14 +215,14 @@ function control.register()
   registerKeys()
   LoopInGameThreadWithDelay(1000, function()
     local controller = game.localController()
-    local squid = controller and drivenSquid(controller)
+    local squid = controller and game.squidDrivenBy(controller)
     if squid then
       camera.follow(controller, squid)
     end
   end)
   LoopInGameThreadWithDelay(33, function()
     local controller = game.localController()
-    local squid = controller and drivenSquid(controller)
+    local squid = controller and game.squidDrivenBy(controller)
     if squid then
       minimap.follow(controller, squid)
       return
@@ -245,7 +233,7 @@ function control.register()
   local lastSquid = nil
   LoopInGameThreadWithDelay(250, function()
     local controller = game.localController()
-    local squid = controller and drivenSquid(controller)
+    local squid = controller and game.squidDrivenBy(controller)
     if squid then
       lastSquid = squid
       areas.follow(squid)
@@ -258,7 +246,7 @@ function control.register()
   end)
   LoopInGameThreadWithDelay(100, function()
     local controller = game.localController()
-    local squid = controller and drivenSquid(controller)
+    local squid = controller and game.squidDrivenBy(controller)
     if squid then
       vision.follow(controller, squid)
       movement.followPlayer(controller, squid)

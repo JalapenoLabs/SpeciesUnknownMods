@@ -87,6 +87,18 @@ game.contractTypes = {
   Extraction = 3,
 }
 
+-- The squid a local player controller drives, or nil while it drives anything else (or isn't this machine's).
+function game.squidDrivenBy(controller)
+  if not controller:IsLocalController() then
+    return nil
+  end
+  local pawn = controller.Pawn
+  if not pawn:IsValid() or pawn:GetClass():GetFName():ToString() ~= game.classNames.squid then
+    return nil
+  end
+  return pawn
+end
+
 -- Identifies the current world on the host: its game state is rebuilt on every map, so its address changes with the
 -- world. Nil without a game state.
 function game.currentWorldKey()

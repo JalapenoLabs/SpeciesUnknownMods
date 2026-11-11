@@ -125,6 +125,15 @@ crewController.Pawn = entityBody
 hostController.Pawn = crewBody
 crewList.elements = { hostState, crewState }
 
+-- The voice plugin's talkers, one per player (the crew player becomes the entity)
+local function talker(playerState)
+  return fake.object("OnsetVoipTalker", nil, { GetPlayerState = function() return playerState end })
+end
+local entityTalker, hostTalker = talker(crewState), talker(hostState)
+fake.object("OnsetVoipWorldSubsystem", nil, {
+  GetVoipTalker = function(_, playerState) return playerState == crewState and entityTalker or hostTalker end,
+})
+
 for _, classPath in ipairs({ game.paths.squidClass, game.paths.gameStateClass, game.paths.weaponClass }) do
   fake.loadClass(classPath)
 end
@@ -144,6 +153,25 @@ fake.runLoops()
 local exclusions = fake.callsTo(gameState, "UpdateInGamePlayers")
 assert(#exclusions >= 1 and exclusions[1].args[1] == crewState and exclusions[1].args[2] == false,
   "the entity is taken out of the crew list")
+
+-- Playtest 6: the entity is silent to everyone and off the crew's radio, and stays so when the game sets them again
+local mutes = fake.callsTo(entityTalker, "SetMutedOnVoiceChannel")
+assert(#mutes == 2 and mutes[1].args[1] == true and mutes[2].args[1] == true, "the entity is muted on both channels")
+local channels = fake.callsTo(entityTalker, "SetVoiceChannel")
+assert(#channels == 1 and channels[1].args[1] == 1 and channels[1].args[2] == false, "and taken off the radio")
+local talkerPath = "/Script/OnsetVoip.OnsetVoipTalker:"
+local muted = fake.param(false)
+fake.hooks[talkerPath .. "SetMutedOnVoiceChannel"](fake.param(entityTalker), muted, fake.param(0))
+assert(muted:get() == true, "the game can't unmute the entity")
+local crewMuted = fake.param(false)
+fake.hooks[talkerPath .. "SetMutedOnVoiceChannel"](fake.param(hostTalker), crewMuted, fake.param(0))
+assert(crewMuted:get() == false, "the crew's own mute settings are theirs")
+local rejoins = fake.param(true)
+fake.hooks[talkerPath .. "SetVoiceChannel"](fake.param(entityTalker), fake.param(1), rejoins)
+assert(rejoins:get() == false, "nor put the entity back on the radio")
+local proximity = fake.param(true)
+fake.hooks[talkerPath .. "SetVoiceChannel"](fake.param(entityTalker), fake.param(0), proximity)
+assert(proximity:get() == true, "the entity stays in the proximity channel, to hear the crew nearby")
 
 -- Commands
 command(crewController, "Attack", { X = 1, Y = 0, Z = 0 })

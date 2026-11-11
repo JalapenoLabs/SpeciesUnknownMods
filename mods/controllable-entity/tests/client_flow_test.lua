@@ -75,7 +75,10 @@ fake.objects[game.paths.widgetLibrary] = fake.object("WidgetBlueprintLibrary", n
   end,
 })
 
-local controller = fake.object("BP_MyPlayerController_C", { Pawn = fake.invalid() }, {
+local controller = fake.object("BP_MyPlayerController_C", {
+  Pawn = fake.invalid(),
+  PlayerState = fake.object("BP_MyPlayerState_C"),
+}, {
   IsLocalController = function() return true end,
   GetControlRotation = function() return { Pitch = 0, Yaw = 90, Roll = 0 } end,
   ProjectWorldLocationToScreen = function(_, _, screen)
