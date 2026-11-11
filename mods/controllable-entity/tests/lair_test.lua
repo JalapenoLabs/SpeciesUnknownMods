@@ -232,6 +232,27 @@ fake.runLoops(200)
 assert(squid.location == roaming and not squid.InVent, "once the power has been on, the squid may leave the ducts")
 squid.InVent = true
 
+-- Regression (playtest 8): crawling away from a peek kept the squid in its peeking pose as it moved, and the leap kept
+-- it too. Moving away ends the peek with the game's own call, and so does the leap
+squid.location = location(farSpot.X, farSpot.Y, farSpot.Z)
+fake.now = 40
+command("Peek")
+local looks = fake.callsTo(squid, "BPI_Monster_LookFromVent")
+assert(#looks == 1 and looks[1].args[1] == farVent and looks[1].args[2] == true, "C peeks through the grate")
+fake.runLoops(200)
+assert(#fake.callsTo(squid, "BPI_Monster_LookFromVent") == 1, "standing still, the peek holds")
+squid.location = location(farSpot.X + 200, farSpot.Y, farSpot.Z)
+fake.runLoops(200)
+looks = fake.callsTo(squid, "BPI_Monster_LookFromVent")
+assert(#looks == 2 and looks[2].args[1] == farVent and looks[2].args[2] == false, "crawling away ends the peek")
+fake.now = 41
+command("Peek")
+fake.now = 50
+command("Leap")
+looks = fake.callsTo(squid, "BPI_Monster_LookFromVent")
+assert(#looks == 4 and looks[4].args[2] == false, "the leap ends a peek first")
+assert(#fake.callsTo(squid, "BPI_Monster_SetSpecialAttack") == 1, "and then leaps")
+
 -- Regression (playtest 5): a hot reload of the mod (Ctrl+R) forgot who the entity was, so every move was ignored while
 -- the player still drove the squid. UE4SS drops the old scripts' hooks and loops and runs fresh copies
 for name in pairs(package.loaded) do
