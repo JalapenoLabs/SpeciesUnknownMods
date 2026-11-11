@@ -167,7 +167,8 @@ function zones.tickHost(entity, now)
   -- Only capture contracts let the entity aboard (capture.lua)
   if isAboard and game.contractType() ~= game.contractTypes.Capture then
     putBack(entity, now, "Denied.Shuttle")
-  elseif isOnForbiddenFloor(squid, location) then
+  -- The shuttle is never a forbidden area, but its closed doors lay an obstacle area the forbidden filter also excludes
+  elseif not isAboard and isOnForbiddenFloor(squid, location) then
     putBack(entity, now, "Denied.Forbidden")
   else
     held.lastAllowed = { X = location.X, Y = location.Y, Z = location.Z }

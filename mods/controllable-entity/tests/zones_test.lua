@@ -86,11 +86,15 @@ assert(zones.isNearShuttle(squid.location) and events[#events] == "ShuttleNear",
 tick(2, location(9000, 5500, -450))
 assert(squid.location.Y == 4000 and events[#events] == "Denied.Shuttle", "the squid is put back off the shuttle")
 
--- In capture contracts it may board: the crew may only capture it aboard (capture.lua)
+-- In capture contracts it may board: the crew may only capture it aboard (capture.lua). The shuttle's closed doors lay
+-- an obstacle area the forbidden filter also excludes, and that must not count as forbidden
 gameState.Contract.ContractType_2_AD7B8E08435CF5A38556E7BA67C34760 = game.contractTypes.Capture
+local inLabOnly = inLab
+inLab = function(point) return inLabOnly(point) or math.abs(point.Y - 6000) <= 900 end
 local eventsBeforeBoarding = #events
 tick(10, location(9000, 5500, -450))
 assert(squid.location.Y == 5500 and #events == eventsBeforeBoarding, "capture contracts let the entity aboard")
+inLab = inLabOnly
 gameState.Contract.ContractType_2_AD7B8E08435CF5A38556E7BA67C34760 = game.contractTypes.Elimination
 
 -- Leaving the approach clears the HUD's line

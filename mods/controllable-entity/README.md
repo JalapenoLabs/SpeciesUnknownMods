@@ -527,7 +527,8 @@ makes the next mission spawn the squid, through the game's own spawn path (`GetM
 
 UE4SS writes the mod's log lines, all starting `[ControllableEntity]`, to `Win64/ue4ss/UE4SS.log` on each machine.
 
-**Testing alone** works for steps 1 to 7 (volunteering, the takeover, moving, the view, the lair and the moves).
+**Testing alone** works for steps 1 to 7 (volunteering, the takeover, moving, the view, the lair and the moves) and
+16 to 19 (the objectives, the crawl openings, the shuttle and the forbidden areas).
 There's nobody to lash, grab or hear, and the shuttle can't launch: as the only player you stay on the crew list
 (emptying it ends the mission), and the squid can't sit. Leave through the pause menu. Steps 8 to 15 need at least
 one friend.
@@ -578,3 +579,25 @@ one friend.
    re-arming after 7 s.
 14. **Launching.** The crew board the shuttle and launch without the entity; with the squid aboard, it doesn't launch.
 15. **Losing.** Kill the squid: the entity player sees "The crew got you" and watches a crew member.
+16. **Objectives (alone).** As the squid, hold Tab: the crew's objectives overlay shows "THE ENTITY" with Kill all
+    humans, Leave them no respawns (with the count), and Stay alive, and no contract icon. Letting go hides it. If it
+    shows the header but no rows, or nothing at all, send the log.
+17. **Crawl openings (alone).** In crew quarters, walk the squid into the low opening the crew crouch through: it
+    crouches and goes in. Walk back out into the room: it stands up and stays standing. The log shows `The squid
+    crouches into a crawl opening`.
+18. **The shuttle (alone).** Walk toward the shuttle: within about 15 m of its bay the HUD says "Near the shuttle: no
+    sprinting, and no kills", Shift doesn't sprint, and E answers "Save your hunger". Try to board: the squid is put
+    back with "Hunt them away from their shuttle". Amber posts glow around the approach and red ones around the bay.
+19. **Forbidden areas (alone).** Head for the genetics lab's wing: red posts stand at its edge, and stepping in puts
+    the squid back with "Hunt elsewhere". A `Put the squid back: Denied.Forbidden` line in the host's log anywhere
+    else (for example at a closed vent door) is a false positive worth reporting.
+20. **The hunt (with a friend, kill or capture contract).** Once a friend picks up the special weapon, the entity
+    sees "the vents won't hide you for long" and a vent-time bar at the top whenever it's in the vents. Stay in for
+    20 s: the squid is forced out of the nearest shaft, and Space under a vent answers "The vents take you again once
+    your vent time is half back" until about a minute outside. The squid cries out every 12 s; the friend should hear
+    it near the squid and, far away, its distant call. Report if a forced exit lands the squid in a wall.
+21. **Voice (with a friend).** The entity's voice reaches nobody, and their radio key makes no sound. The friend holds
+    the radio key and talks: the entity hears them only when close, with no radio static. A hook error in the log on
+    the first radio press names the voice call that needs fixing.
+22. **Capture (with a friend, capture contract).** Kill the squid away from the shuttle: the contract completes as
+    captured. Kill it aboard: the contract fails, as normal. Check the lobby's specimen display after the first.
