@@ -40,8 +40,9 @@ What it does:
 
 1. **Generates the assets** from code (`scripts/build-mod-assets.sh`): an editor-only C++ module,
    `Source/SpeciesUnknownModKit`, turns each mod's asset specs into assets under `Content/Mods/<Mod>/`: network
-   actors, widgets (text, bars, images, key caps and rows of them) and UI textures imported from the mod's rendered
-   icons. Those assets are build output and are not committed; the C++ and the SVGs are the source.
+   actors, widgets (text, bars, images, key caps, clickable tiles, and rows, columns, wrapping rows and scrolling
+   lists of them; a widget can also be a single tile Lua places at runtime) and UI textures imported from the mod's
+   rendered icons. Those assets are build output and are not committed; the C++ and the SVGs are the source.
 2. **Cooks for Linux**, unversioned, in a headless editor. The Linux engine build can't cook for Windows, and it
    doesn't need to: Blueprints and uncompressed UI textures (`TC_EditorIcon`, no mips) cook the same for both
    desktop platforms, and IoStore containers are platform-neutral. Compressed textures would need checking first.
