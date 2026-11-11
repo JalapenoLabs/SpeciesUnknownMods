@@ -22,7 +22,8 @@ local abilities = {}
 
 local meter = Meter.new(config.meter)
 local readyAtByCommand = {}
-local isPeeking = false
+-- The peek through a grate in progress: { grate, location } (where the squid stood to peek), or nil.
+local peeking = nil
 
 function abilities.meter()
   return meter
@@ -90,7 +91,20 @@ end
 
 -- The AI's leap checks its own range and arc, then writes LastSpecialAttackPlayerLocation for SetSpecialAttack to
 -- warp to. The entity leaps where they aim, so the landing point is written here instead.
+-- Ends a peek with the game's own call, as C pressed again does. The pose otherwise outlasts the peek: the squid
+-- crawled and leapt still looking down (playtest 8). Dropping out of the vent ends it on its own.
+local function stopPeeking(squid)
+  if not peeking then
+    return
+  end
+  if peeking.grate:IsValid() then
+    squid:BPI_Monster_LookFromVent(peeking.grate, false, false)
+  end
+  peeking = nil
+end
+
 local function leap(squid, aim)
+  stopPeeking(squid)
   local origin = squid:K2_GetActorLocation()
   local direction = horizontal(aim)
   squid.LastSpecialAttackPlayerLocation = {
@@ -125,7 +139,7 @@ local function vent(squid)
   local exit, exitDistance = vents.nearest(location, config.vents.exitReach)
   local climb, climbDistance, isFromTop = vents.nearestClimb(location)
   if climb and (not exit or climbDistance < exitDistance) then
-    isPeeking = false
+    stopPeeking(squid)
     -- Up from the step's foot, or down from its top
     squid:BPI_Monster_ClimbVent250(climb, isFromTop)
     return true
@@ -136,22 +150,29 @@ local function vent(squid)
   if lair.isLeashed(squid) then
     return false, "PowerOff"
   end
-  isPeeking = false
+  -- The drop's own animation ends a peek
+  peeking = nil
   local target = crewInCone(squid, { X = 0, Y = 0, Z = -1 }, config.vents.exitReach, 120)
   squid:BPI_Monster_AttackFromVent(exit, target)
   return true
 end
 
+-- C: looks down through the grate under the squid, or stops looking.
 local function peek(squid)
+  if peeking then
+    stopPeeking(squid)
+    return true
+  end
   if not squid.InVent then
     return false, "NotInVent"
   end
-  local grate = vents.nearest(squid:K2_GetActorLocation(), config.vents.exitReach)
+  local location = squid:K2_GetActorLocation()
+  local grate = vents.nearest(location, config.vents.exitReach)
   if not grate then
     return false, "NoVentExit"
   end
-  isPeeking = not isPeeking
-  squid:BPI_Monster_LookFromVent(grate, isPeeking, false)
+  peeking = { grate = grate, location = { X = location.X, Y = location.Y, Z = location.Z } }
+  squid:BPI_Monster_LookFromVent(grate, true, false)
   return true
 end
 
@@ -267,6 +288,18 @@ function abilities.tick()
   meter:advance(now, lastTickAt and now - lastTickAt or 0)
   lastTickAt = now
 
+  -- Crawling away from the grate ends the peek (playtest 8); out of the ducts, the drop ended it already
+  local squid = entity.squid
+  if peeking and not squid.InVent then
+    peeking = nil
+  elseif peeking then
+    local location = squid:K2_GetActorLocation()
+    local offsetX, offsetY = location.X - peeking.location.X, location.Y - peeking.location.Y
+    if math.sqrt(offsetX * offsetX + offsetY * offsetY) > config.vents.peekBreakDistance then
+      stopPeeking(squid)
+    end
+  end
+
   local link = links.forController(entity.controller)
   if not link then
     return
@@ -280,7 +313,6 @@ function abilities.tick()
   end
 
   -- The HUD's health bar shows the pool the squid is on: stagger while standing, real health while down
-  local squid = entity.squid
   local fields = game.squidHealthFields
   local downed = squid[fields.downed] == true
   local current = downed and squid[fields.health] or squid[fields.stagger]

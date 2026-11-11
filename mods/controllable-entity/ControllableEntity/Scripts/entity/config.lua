@@ -65,6 +65,8 @@ return {
     -- far above or below that end it may be. A step rises 250 units, so the two ends never both match.
     climbReach = 250,
     climbVerticalReach = 150,
+    -- How far across the duct floor the squid may crawl from where it started peeking before the peek ends.
+    peekBreakDistance = 80,
     -- How close to a floor-level crawl opening's trigger the squid crouches into it, and how fast it must be heading
     -- in (units a second along the opening): the squid is about 176 tall and an opening about 141.
     crawlReach = 120,
