@@ -49,25 +49,25 @@ local function buildRig(squid)
   local cameraClass = StaticFindObject(CAMERA_CLASS)
   local existingArm = squid:GetComponentByClass(armClass)
   local existingView = squid:GetComponentByClass(cameraClass)
-  if existingArm and existingArm:IsValid() and existingView and existingView:IsValid() then
-    game.log("The squid already has a camera; using it")
-    return { squidAddress = squid:GetAddress(), arm = existingArm, view = existingView }
+  local arm, view = existingArm, existingView
+  local reused = arm and arm:IsValid() and view and view:IsValid()
+  if not reused then
+    arm = squid:AddComponentByClass(armClass, false, IDENTITY_TRANSFORM, false)
+    view = squid:AddComponentByClass(cameraClass, true, IDENTITY_TRANSFORM, false)
   end
-
-  local arm = squid:AddComponentByClass(armClass, false, IDENTITY_TRANSFORM, false)
-  local view = squid:AddComponentByClass(cameraClass, true, IDENTITY_TRANSFORM, false)
   if not arm or not arm:IsValid() or not view or not view:IsValid() then
     game.log("Could not give the squid a camera; the view stays as it is")
     return nil
   end
 
+  -- Set on a reused rig too, so a newer version of these settings always applies
   arm:K2_SetRelativeLocation({ X = 0, Y = 0, Z = config.camera.height }, false, {}, true)
   arm.bUsePawnControlRotation = true
   -- Much of the duct network is invisible collision, which kept pulling the camera in to the squid's head (playtest
   -- 4). Clipping through walls is fine for the entity, so the arm ignores them
   arm.bDoCollisionTest = false
   view:K2_AttachToComponent(arm, FName(ARM_END_SOCKET), SNAP_TO_TARGET, SNAP_TO_TARGET, SNAP_TO_TARGET, false)
-  game.log("Gave the squid a camera")
+  game.log(reused and "The squid already has a camera; using it" or "Gave the squid a camera")
   return { squidAddress = squid:GetAddress(), arm = arm, view = view }
 end
 

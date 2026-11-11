@@ -187,6 +187,7 @@ package.loaded["entity.camera"] = nil
 local reloadedCamera = require("entity.camera")
 reloadedCamera.follow(controller, squid)
 assert(#squidComponents == 2, "a reloaded mod reuses the squid's camera")
+assert(arm.bDoCollisionTest == false, "with the current settings applied to it")
 reloadedCamera.toggle()
 assert(arm.TargetArmLength == 0, "and the view toggle moves the arm the player sees through")
 
