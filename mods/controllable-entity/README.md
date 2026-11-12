@@ -3,9 +3,9 @@
 One player becomes the mission's monster and hunts the crew. Balanced around a kill meter instead of free instant
 kills, and around sound instead of wallhacks.
 
-- **Status:** the squid is playtested alone eight times (volunteering, the takeover, moving, the HUD, the lair,
-  vents, the shuttle rules and the cries work); co-op is next. Mike and the Terminator are untested in game (see
-  [Test plan](#test-plan), steps 23 and 24).
+- **Status:** the squid is playtested alone eight times, and once in co-op with a friend as the entity (playtest 9:
+  the takeover, the kill and voice work; its fixes are untested in game). Mike and the Terminator are untested in
+  game (see [Test plan](#test-plan), steps 23 and 24).
 - **Payload:** the Lua mod [`ControllableEntity/`](ControllableEntity/) plus the pak `ControllableEntity_P`, built by
   `scripts/package-mods.sh`.
 - **Who installs it:** every player (the mod adds networked gameplay and a HUD).
@@ -214,7 +214,9 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
 - **Map sections:** the game shows each part of the ship only while the local player stands in its streaming
   volumes, and the squid's collision never triggers them. The entity's machine tells each volume when the squid is
   inside it, through the game's own `BPI_Streaming_AddActorToTrigger`, so walls and floors appear around the squid
-  as they do around crew ([docs/game-internals.md](../../docs/game-internals.md#gameplay-state-worth-knowing)).
+  as they do around crew ([docs/game-internals.md](../../docs/game-internals.md#gameplay-state-worth-knowing)). The
+  volumes only reach as high as the crew can climb, and the ducts over the labs climb higher, where the whole ship
+  below went invisible (playtest 9), so for the entity a volume reaches 15 m above its top.
 - **The minimap's deck:** where decks overlap, the map draws the one the local player stands on, picked from map
   triggers the same way, and the entity's machine walks the squid through those too (`BeginOverlap` and
   `EndOverlap` on `BP_MapManagerExtended`). When the player takes the squid, it first leaves the triggers their crew
@@ -755,9 +757,15 @@ one friend.
     it near the squid and, far away, its distant call. Report if a forced exit lands the squid in a wall.
     Also with the friend: their first time in your view, the squid calls out on its own; when they knock it down and
     it gets back up, it roars. Your 1, 2 and 3 cries reach them from where the squid is.
-21. **Voice (with a friend).** The entity's voice reaches nobody, and their radio key makes no sound. The friend holds
-    the radio key and talks: the entity hears them only when close, with no radio static. A hook error in the log on
-    the first radio press names the voice call that needs fixing.
+21. **Voice (with a friend; passed in playtest 9).** The entity's voice reaches nobody, and their radio key makes no
+    sound. The friend holds the radio key and talks: the entity hears them only when close, with no radio static. A
+    hook error in the log on the first radio press names the voice call that needs fixing.
+26. **Playtest 9's fixes (with a friend as the entity).** The friend starts in the ducts, crouched, and stays there
+    until the power is on, without falling out of the vent. Crawl openings take them the first time. Knock the squid
+    down (a fire canister, the turrets): it stays put, every move answers "You're down", and it gets up on its own
+    once it stops burning; on both screens it lies down and gets up together. Space vents once per press, with no
+    "Not yet". High in the ducts over the labs, the ship below stays visible. Lashing a crew member fills the
+    ultimate's bar a tenth per hit.
 22. **Capture (with a friend, capture contract).** Kill the squid away from the shuttle: the contract completes as
     captured. Kill it aboard: the contract fails, as normal. Check the lobby's specimen display after the first.
 23. **Mike (alone, then with a friend).** In the picker, pick Mike and yourself, and start a contract: the specimen

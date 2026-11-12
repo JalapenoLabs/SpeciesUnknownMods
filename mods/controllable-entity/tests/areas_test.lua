@@ -104,11 +104,27 @@ fake.runLoops(250)
 assert(mapCalls("BeginOverlap", crewQuartersTrigger) == 1, "once")
 assert(mapCalls("EndOverlap", safeZoneTrigger) == 1, "the stale triggers are left only when the squid is taken")
 
+-- Regression (playtest 9): high in the ducts over the labs, above every map section's volume, the whole ship below
+-- went invisible. A section's volume reaches higher for the entity; the deck's triggers don't, or the minimap could
+-- draw the deck below
+local config = require("entity.config")
+local mapEntriesBefore = mapCalls("EndOverlap", crewQuartersTrigger)
+squid.location = { X = 1500, Y = 0, Z = 500 + config.areas.sectionHeadroom - 50 }
+fake.runLoops(250)
+assert(#entries(farManager) == 1, "high over the section, the squid is still in its volume")
+assert(mapCalls("EndOverlap", crewQuartersTrigger) == mapEntriesBefore + 1, "but out of the deck's trigger")
+squid.location = { X = 1500, Y = 0, Z = 500 + config.areas.sectionHeadroom + 50 }
+fake.runLoops(250)
+assert(entries(farManager)[2] == false, "higher still, it leaves the section")
+squid.location = { X = 1500, Y = 0, Z = 0 }
+fake.runLoops(250)
+assert(entries(farManager)[3] == true, "and back down, enters it again")
+
 -- Once the player stops driving the squid, the volumes are handed back
 local crewQuartersLeft = mapCalls("EndOverlap", crewQuartersTrigger)
 controller.Pawn = fake.invalid()
 fake.runLoops(250)
-assert(entries(farManager)[2] == false, "the volume is left when the player stops driving the squid")
+assert(entries(farManager)[4] == false, "the volume is left when the player stops driving the squid")
 assert(mapCalls("EndOverlap", crewQuartersTrigger) == crewQuartersLeft + 1, "and so is the deck's trigger")
 
 print("areas test passed")

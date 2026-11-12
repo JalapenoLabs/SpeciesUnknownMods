@@ -89,6 +89,13 @@ return {
     warningInterval = 3,
   },
 
+  -- The areas of the ship the entity stands in (areas.lua).
+  areas = {
+    -- How much higher than its top a map section's volume reaches for the entity: the ducts over the labs climb past
+    -- the volumes, which only reach as high as the crew can climb (playtest 9).
+    sectionHeadroom = 1500,
+  },
+
   -- The cries the entity makes on its own (cries.lua).
   cries = {
     -- The "seen you" call: when the entity first sees a crew member within this range and view cone (degrees, all

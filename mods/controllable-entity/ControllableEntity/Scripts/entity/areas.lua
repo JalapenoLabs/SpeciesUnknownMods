@@ -12,7 +12,13 @@
 -- GetOnlyVisualOverlap: the local player's pawn counts), so the mod tells them when the entity is inside a volume's
 -- bounding box (AActor.GetActorBounds; AVolume's exact EncompassesPoint isn't exposed to Blueprints or Lua). A rotated
 -- volume's box is a little larger than the volume, which only switches an area slightly early.
+--
+-- The map sections' volumes only reach as high as the crew can climb, and the ducts climb higher: in the vents high
+-- over the labs, the entity stood in no volume, and the whole ship below it went invisible (playtest 9). So a map
+-- section's box counts as reaching config.areas.sectionHeadroom higher. Standing in one more volume only keeps one more
+-- section showing; the map's deck is picked from exact boxes, or the minimap could draw the deck below.
 
+local config = require("entity.config")
 local game = require("entity.game")
 
 local areas = {}
@@ -51,6 +57,7 @@ end
 local managerKinds = {
   BP_StreamingVolume_Manager_C = {
     leavesStaleVolumes = false,
+    headroom = config.areas.sectionHeadroom,
     volumesOf = listedVolumes,
     setInside = function(manager, volume, monster, isInside)
       manager:BPI_Streaming_AddActorToTrigger(volume, monster, isInside)
@@ -60,6 +67,7 @@ local managerKinds = {
   -- and standing in none goes back to the default one
   BP_MapManagerExtended_C = {
     leavesStaleVolumes = true,
+    headroom = 0,
     volumesOf = mapTriggers,
     setInside = function(manager, volume, monster, isInside)
       if isInside then
@@ -98,11 +106,17 @@ local function boundsOf(volume)
   return bounds
 end
 
-local function isInside(volume, location)
+-- Whether a location is inside a volume's box, the box reaching `headroom` higher than its top.
+local function isInside(volume, location, headroom)
   local bounds = boundsOf(volume)
-  return bounds and math.abs(location.X - bounds.origin.X) <= bounds.extent.X
+  if not bounds then
+    return false
+  end
+  local bottom = bounds.origin.Z - bounds.extent.Z
+  local top = bounds.origin.Z + bounds.extent.Z + headroom
+  return math.abs(location.X - bounds.origin.X) <= bounds.extent.X
     and math.abs(location.Y - bounds.origin.Y) <= bounds.extent.Y
-    and math.abs(location.Z - bounds.origin.Z) <= bounds.extent.Z
+    and location.Z >= bottom and location.Z <= top
 end
 
 -- Runs a few times a second on the entity player's machine while they drive the entity.
@@ -117,7 +131,7 @@ function areas.follow(monster)
       if manager:IsValid() then
         for _, volume in ipairs(kind.volumesOf(manager)) do
           local key = manager:GetAddress() .. ":" .. volume:GetAddress()
-          if isInside(volume, location) then
+          if isInside(volume, location, kind.headroom) then
             stillInside[key] = { manager = manager, kind = kind, volume = volume }
             if not enteredVolumes[key] then
               kind.setInside(manager, volume, monster, true)

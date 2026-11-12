@@ -98,15 +98,18 @@ local function runCommand(command)
       return
     end
 
+    -- A move still recharging says nothing: its bar already shows it (playtest 9: "Not yet" on every vent was noise)
     local now = game.timeSeconds(entity.monster)
     if now < (readyAtByCommand[command] or 0) then
-      links.sendEvent(controller, "Denied.Cooldown")
       return
     end
 
     local ok, reason = moveByCommand[command](entity.monster, aim, now, moves.byKitId[entity.kit.id])
     if not ok then
-      links.sendEvent(controller, "Denied." .. reason)
+      -- Nor does a move that can't be made just yet (Mike's grab while he already holds someone)
+      if reason ~= "Cooldown" then
+        links.sendEvent(controller, "Denied." .. reason)
+      end
       return
     end
 

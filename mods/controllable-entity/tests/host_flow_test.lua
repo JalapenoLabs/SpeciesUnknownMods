@@ -179,8 +179,11 @@ assert(proximity:get() == true, "the entity stays in the proximity channel, to h
 -- Commands
 command(crewController, "Primary", { X = 1, Y = 0, Z = 0 })
 assert(#fake.callsTo(squid, "BPI_BasicMonster_SetSimpleAttack") == 1, "attack hits the crew member ahead")
+local eventsBeforeCooldown = #fake.callsTo(linkOf(crewController), "EntityClientEvent")
 command(crewController, "Primary", { X = 1, Y = 0, Z = 0 })
-assert(lastEvent(crewController) == "Denied.Cooldown", "attacks respect the cooldown")
+assert(#fake.callsTo(squid, "BPI_BasicMonster_SetSimpleAttack") == 1, "attacks respect the cooldown")
+-- Playtest 9: "Not yet" on every early press was noise; the move's bar already shows it recharging
+assert(#fake.callsTo(linkOf(crewController), "EntityClientEvent") == eventsBeforeCooldown, "and say nothing")
 command(hostController, "Primary")
 assert(#fake.callsTo(squid, "BPI_BasicMonster_SetSimpleAttack") == 1, "only the entity commands the squid")
 
@@ -192,7 +195,7 @@ local roars = fake.callsTo(squid, "BPI_Monster_PlayVoiceAudio")
 assert(#roars == 1 and roars[1].args[1] == roarCue and roars[1].args[6] == true, "the roar plays for everyone")
 assert(roars[1].args[4] == true, "cutting off whatever the squid was saying")
 command(crewController, "Roar")
-assert(lastEvent(crewController) == "Denied.Cooldown", "and waits its cooldown")
+assert(#fake.callsTo(squid, "BPI_Monster_PlayVoiceAudio") == 1, "and waits its cooldown")
 
 -- Regression (playtest 6): with nobody in reach the lash was refused; the squid swings at the air instead
 local swingMontage = fake.object("AnimMontage")
