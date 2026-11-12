@@ -4,7 +4,7 @@
 -- (tests/meter_test.lua). The host owns one Meter for the entity player and feeds it time and events.
 --
 -- The rules (mods/controllable-entity/README.md):
--- - The meter fills over time, faster with noise nearby and in partial frenzy.
+-- - The meter fills over time, faster with noise nearby and in partial frenzy, and with every hit that lands.
 -- - A full meter can be armed (the ultimate). While armed, the next grab kills and empties the meter.
 -- - In full frenzy every grab kills, but each kill re-arms only after a delay.
 
@@ -49,6 +49,11 @@ function Meter:advance(now, deltaSeconds)
   if self.armedUntil and now > self.armedUntil then
     self.armedUntil = nil
   end
+end
+
+-- A hit landed on a crew member: the meter fills by `amount`, up to full.
+function Meter:addCharge(amount)
+  self.value = math.min(1, self.value + amount)
 end
 
 function Meter:noteNoiseNearby(now)

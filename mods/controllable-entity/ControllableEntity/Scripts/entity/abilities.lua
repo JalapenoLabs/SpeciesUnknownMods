@@ -154,6 +154,30 @@ end
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
 local lastTickAt = nil
+-- When each crew member last charged the meter with a hit, by their address.
+local lastChargedAtByVictim = {}
+
+-- A monster's hit reaches a crew member through their HitDamageFromMonster (BP_ParentMonster.HitDamageSimple, on the
+-- host): one the entity landed charges the kill meter (playtest 9). One swing hits several times as its damage ticks,
+-- so each crew member charges it at most once every hitChargeSeconds. A shield in the way takes the hit itself, so it
+-- never charges it. Other monsters' hits don't either.
+local function onCrewHit(context, _, _, _, damageCauserParameter)
+  local entity = takeover.activeEntity()
+  local causer = damageCauserParameter:get()
+  local isEntityHit = entity and game.isHost() and causer and causer:IsValid()
+    and causer:GetAddress() == entity.monster:GetAddress()
+  if not isEntityHit then
+    return
+  end
+  local victim = context:get()
+  local now = game.timeSeconds(victim)
+  local victimKey = victim:GetAddress()
+  if now - (lastChargedAtByVictim[victimKey] or -math.huge) < config.meter.hitChargeSeconds then
+    return
+  end
+  lastChargedAtByVictim[victimKey] = now
+  meter:addCharge(config.meter.hitCharge)
+end
 
 -- The share of the pool that hits are draining, for the HUD's health bar, and whether the entity is down: the squid's
 -- stagger while it stands and its real health once a hit has knocked it down; an entity with one pool (Mike) always
@@ -227,6 +251,7 @@ function abilities.register()
   for _, kit in ipairs(kits.playable) do
     game.hookWhenLoaded(kit.classPath, kit.killGrab.functionName, onGrabStarted)
   end
+  game.hookWhenLoaded(game.paths.characterClass, "HitDamageFromMonster", onCrewHit)
 
   -- What an entity's moves do on their own between commands (the Terminator faces where its player looks): about
   -- thirty times a second, for a turn that keeps up with the mouse

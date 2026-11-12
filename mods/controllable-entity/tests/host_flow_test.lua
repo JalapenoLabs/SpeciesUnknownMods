@@ -135,7 +135,9 @@ fake.object("OnsetVoipWorldSubsystem", nil, {
   GetVoipTalker = function(_, playerState) return playerState == crewState and entityTalker or hostTalker end,
 })
 
-for _, classPath in ipairs({ kits.byId.Squid.classPath, game.paths.gameStateClass, game.paths.weaponClass }) do
+for _, classPath in ipairs({
+  kits.byId.Squid.classPath, game.paths.gameStateClass, game.paths.weaponClass, game.paths.characterClass,
+}) do
   fake.loadClass(classPath)
 end
 
@@ -215,8 +217,28 @@ local knockbacks = fake.callsTo(squid, "KnockBack (Clients)")
 assert(#knockbacks == 1 and knockbacks[1].args[1] == fake.objects[kits.byId.Squid.killGrab.breakMontage],
   "an unarmed grab is broken off with the grab-interrupted knockback")
 
--- A full meter arms the ultimate, which leaps and lets the grab kill
+-- Playtest 9: the meter filled far too fast on time alone. A hit the entity lands on a crew member charges it, once
+-- per crew member a second however many times one swing hits; another monster's hit doesn't
 local abilities = require("entity.abilities")
+abilities.meter().value = 0
+local crewHit = fake.hooks[game.paths.characterClass .. ":HitDamageFromMonster"]
+assert(crewHit, "a crew member's hit from a monster is hooked")
+local function hitCrew(causer)
+  crewHit(fake.param(crewBody), fake.param({}), fake.param(40), fake.param(nil), fake.param(causer))
+end
+fake.now = 5
+hitCrew(squid)
+assert(math.abs(abilities.meter().value - config.meter.hitCharge) < 1e-9, "a landed hit charges the meter")
+hitCrew(squid)
+assert(math.abs(abilities.meter().value - config.meter.hitCharge) < 1e-9, "the same swing's next tick doesn't")
+fake.now = 5 + config.meter.hitChargeSeconds
+hitCrew(fake.object("BP_Monster_Poulpi_C"))
+assert(math.abs(abilities.meter().value - config.meter.hitCharge) < 1e-9, "another monster's hit doesn't")
+hitCrew(squid)
+assert(math.abs(abilities.meter().value - 2 * config.meter.hitCharge) < 1e-9, "the next swing does")
+fake.now = 0
+
+-- A full meter arms the ultimate, which leaps and lets the grab kill
 abilities.meter().value = 1
 fake.now = 10
 command(crewController, "Ultimate", { X = 0, Y = 1, Z = 0 })

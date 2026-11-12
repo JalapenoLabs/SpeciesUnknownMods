@@ -71,11 +71,15 @@ kills, and around sound instead of wallhacks.
 ### Kill meter
 
 - The lash (basic attack) hurts but never kills. Every move has its own cooldown (`config.lua`).
-- The meter fills over 90 seconds, twice as fast while a noise was heard within 15 m in the last 3 seconds. When
-  full, the ultimate arms the kill for 3 seconds and leaps (or drops from a vent): the grab that follows kills and
-  empties the meter. It still has to land, and shooting the squid breaks the grab as in the base game.
+- The meter is earned by hunting (playtest 9: filling it on time alone, it was ready again far too soon):
+  - it fills over 180 seconds, 1.5 times as fast while a noise was heard within 15 m in the last 3 seconds;
+  - every hit the entity lands on a crew member adds 10%, once per crew member a second (one swing hits several
+    times). A hit a shield takes doesn't count, nor does a hit by any other monster. The gatling's bullets and the
+    grenades don't count either: only the hits of the monster's own body (its `HitDamageFromMonster`).
+- When full, the ultimate arms the kill for 3 seconds and delivers it at once (the squid leaps or drops from a vent):
+  the grab that follows kills and empties the meter. It still has to land, and shooting the squid breaks the grab as
+  in the base game.
 - Any other grab is broken off (see [The grab rule](#the-grab-rule)).
-- On the roadmap: filling the meter from landed lashes.
 
 ### Frenzy
 
@@ -723,8 +727,9 @@ one friend.
 10. **The lash and the leap.** Shoot next to a crew member: a lash, and its bar fills in the stack. Aim: a leap where
    you look; a grab on landing breaks off with "Your hunger isn't ready". Have the crew shoot the squid: the health
    bar drains, and when the squid is knocked down it turns red and shows the real health.
-11. **The kill.** Wait for the ultimate's bar to fill and disappear (90 s, faster near noise), press E facing a crew
-   member: the leap's grab kills. The bar comes back empty.
+11. **The kill.** Lash a crew member a few times: each hit that lands fills the ultimate's bar by a tenth, and a
+   shield-blocked hit doesn't. Once it fills and disappears (3 minutes alone, faster near noise and with hits), press
+   E facing a crew member: the leap's grab kills. The bar comes back empty.
 12. **Senses.** Have the crew shoot, walk and trigger doors and alarms out of sight. The entity sees fading markers
    through walls, never the players themselves.
 13. **Frenzy.** On an extraction contract, pick up the black box: `FRENZY` appears and grabs kill without meter, each

@@ -6,11 +6,16 @@
 
 return {
   meter = {
-    -- Seconds for the kill meter to fill from empty with nothing happening nearby.
-    fillSeconds = 90,
+    -- Seconds for the kill meter to fill from empty with nothing happening nearby (playtest 9: 90, with the noise
+    -- bonus at twice, filled it in under a minute of hunting, far too fast).
+    fillSeconds = 180,
     -- Fill speed multiplier while a noise was heard within `noiseNearbyDistance` in the last few seconds,
     -- so hunting where the crew is rewards the entity faster than hiding.
-    noiseNearbyMultiplier = 2.0,
+    noiseNearbyMultiplier = 1.5,
+    -- How much of the meter a hit that lands on a crew member adds, so the kill is earned by hunting: at most once
+    -- per crew member every `hitChargeSeconds`, since one swing can hit several times. A hit on a shield isn't one.
+    hitCharge = 0.1,
+    hitChargeSeconds = 1,
     noiseNearbyDistance = 1500,
     noiseNearbyMemory = 3,
     -- Fill speed multiplier during partial frenzy (kill and capture contracts, once a crew member has the special

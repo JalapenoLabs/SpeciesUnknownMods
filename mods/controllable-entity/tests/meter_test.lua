@@ -30,6 +30,15 @@ tests["fills faster while a noise was heard recently, then back to normal"] = fu
   assert(math.abs(meter.value - before - 9 / config.meter.fillSeconds) < 1e-9, "noise bonus must expire")
 end
 
+tests["a landed hit charges the meter, up to full"] = function()
+  local meter = Meter.new(config.meter)
+  meter:addCharge(config.meter.hitCharge)
+  assert(math.abs(meter.value - config.meter.hitCharge) < 1e-9, meter.value)
+  meter.value = 0.95
+  meter:addCharge(config.meter.hitCharge)
+  assert(meter.value == 1, "a hit must not overfill the meter")
+end
+
 tests["arming needs a full meter"] = function()
   local meter = Meter.new(config.meter)
   meter.value = 0.99
