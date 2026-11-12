@@ -137,7 +137,9 @@ local robot = fake.object("BP_BigRobot_C", {
   MainTarget = crewController,
   AttackSimplePlayRate = 1,
   Mesh = fake.object("SkeletalMeshComponent"),
-  CharacterMovement = fake.object("CharacterMovementComponent", { MaxWalkSpeed = 0, MaxWalkSpeedCrouched = 0 }),
+  CharacterMovement = fake.object("CharacterMovementComponent", { MaxWalkSpeed = 0, MaxWalkSpeedCrouched = 0 }, {
+    IsMovingOnGround = function() return true end,
+  }),
   CapsuleComponent = fake.object("CapsuleComponent", nil, { GetScaledCapsuleHalfHeight = function() return 120 end }),
 }, {
   -- An object property with nothing in it reads as an invalid object, as UE4SS gives it

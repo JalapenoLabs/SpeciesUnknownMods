@@ -109,7 +109,9 @@ local mike = fake.object("BP_Monster_Michel_C", {
   Health = 350,
   MaxHealth = 350,
   Electrocuted = false,
-  CharacterMovement = fake.object("CharacterMovementComponent", { MaxWalkSpeed = 0, MaxWalkSpeedCrouched = 0 }),
+  CharacterMovement = fake.object("CharacterMovementComponent", { MaxWalkSpeed = 0, MaxWalkSpeedCrouched = 0 }, {
+    IsMovingOnGround = function() return true end,
+  }),
   CapsuleComponent = fake.object("CapsuleComponent", nil, { GetScaledCapsuleHalfHeight = function() return 90 end }),
 }, {
   K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 90 } end,

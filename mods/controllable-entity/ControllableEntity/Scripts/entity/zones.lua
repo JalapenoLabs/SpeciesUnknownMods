@@ -180,7 +180,10 @@ function zones.tickHost(entity, now)
   -- The shuttle is never a forbidden area, but its closed doors lay an obstacle area the forbidden filter also excludes
   elseif not isAboard and isOnForbiddenFloor(monster, location) then
     putBack(entity, now, "Denied.Forbidden")
-  else
+  -- Only a spot the entity stands on (the ground, or the ducts) is somewhere to put it back: one remembered in mid-air,
+  -- falling down a shaft over the forbidden underground on Polar, put it back above the hole to fall in again, over
+  -- and over (playtest 9)
+  elseif monster.InVent == true or monster.CharacterMovement:IsMovingOnGround() then
     held.lastAllowed = { X = location.X, Y = location.Y, Z = location.Z }
     held.lastAllowedInVent = monster.InVent == true
   end

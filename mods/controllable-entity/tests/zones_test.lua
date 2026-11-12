@@ -63,7 +63,15 @@ fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
 })
 
-local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false, location = location(9000, 2000, -450) }, {
+-- Standing on the ground unless a test says it's in the air
+local squidMovement = fake.object("CharacterMovementComponent", { isOnGround = true }, {
+  IsMovingOnGround = function(self) return self.isOnGround end,
+})
+local squid = fake.object("BP_Monster_Poulpi_C", {
+  InVent = false,
+  location = location(9000, 2000, -450),
+  CharacterMovement = squidMovement,
+}, {
   K2_GetActorLocation = function(self) return self.location end,
   K2_GetActorRotation = function() return { Pitch = 0, Yaw = 0, Roll = 0 } end,
   K2_TeleportTo = function(self, destination)
@@ -132,6 +140,17 @@ squid.bIsCrouched = true
 fake.runFrames()
 assert(squid.location.X == -6000 and squid.location.Z == 200 and squid.InVent, "then goes back into the duct")
 squid.BPI_Monster_SetInVent = function(self, inVent) self.InVent, self.bIsCrouched = inVent, inVent end
+
+-- Regression (playtest 9): falling down a shaft over Polar's forbidden underground, the spot remembered was in mid-air,
+-- above the hole: put back there, the squid fell in again, over and over. Only a spot it stands on is remembered
+squid.InVent = false
+tick(40, location(-6000, -3550, -150))
+squidMovement.isOnGround = false
+tick(41, location(-7000, -3550, 400))
+tick(42, location(-7600, -3550, 100))
+squidMovement.isOnGround = true
+tick(43, location(-8450, -3550, -150))
+assert(squid.location.X == -6000 and squid.location.Z == -150, "put back where it last stood, not where it fell from")
 
 -- The entity's markings: the forbidden trigger boxes this machine has loaded, not the game's other trigger boxes
 local function triggerBox(areaName, centre)

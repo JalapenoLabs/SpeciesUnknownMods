@@ -144,7 +144,13 @@ function fake.giveSquidState(squid)
   squid.IsOnGround = false
   squid.BasicOverrideAnim = false
   squid.HeatValue = 0
-  squid.CharacterMovement = fake.object("CharacterMovementComponent", { MaxWalkSpeed = 0, MaxWalkSpeedCrouched = 0 })
+  squid.CharacterMovement = fake.object("CharacterMovementComponent", {
+    MaxWalkSpeed = 0,
+    MaxWalkSpeedCrouched = 0,
+    isOnGround = true,
+  }, {
+    IsMovingOnGround = function(self) return self.isOnGround end,
+  })
   -- The vent state crouches it on the host at once, as when the host plays it (calls are recorded)
   squid.BPI_Monster_SetInVent = function(self, inVent)
     table.insert(fake.calls, { object = self, method = "BPI_Monster_SetInVent", args = { inVent } })
