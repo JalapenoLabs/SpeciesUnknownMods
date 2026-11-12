@@ -183,13 +183,20 @@ function fake.entityHud()
   return widget
 end
 
--- Lets a fake actor take runtime components (AActor.AddComponentByClass), as the camera rig needs. Returns the list
--- the components are added to.
+-- Lets a fake actor take runtime components (AActor.AddComponentByClass), as the camera rig needs. Each knows its
+-- class (IsA) and what it was attached to (K2_AttachToComponent, GetAttachParent). Returns the list the components
+-- are added to.
 function fake.acceptComponents(actor)
   local components = {}
   local byClass = {}
   actor.AddComponentByClass = function(_, class)
-    local component = fake.object("Component")
+    local component = fake.object("Component", { attachParent = fake.invalid() })
+    component.IsA = function(_, otherClass) return otherClass == class end
+    component.GetAttachParent = function(self) return self.attachParent end
+    component.K2_AttachToComponent = function(self, parent, ...)
+      table.insert(fake.calls, { object = self, method = "K2_AttachToComponent", args = { parent, ... } })
+      self.attachParent = parent
+    end
     table.insert(components, component)
     byClass[class] = byClass[class] or component
     return component

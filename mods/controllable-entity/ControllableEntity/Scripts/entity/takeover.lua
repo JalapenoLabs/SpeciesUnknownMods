@@ -10,6 +10,7 @@ local game = require("entity.game")
 local kits = require("entity.kits")
 local lair = require("entity.lair")
 local links = require("entity.links")
+local moves = require("entity.moves")
 local movement = require("entity.movement")
 
 local takeover = {}
@@ -380,12 +381,18 @@ local function takeControl(controller, monster, worldKey)
   releaseParkedBody(activeEntity)
   links.sendEvent(controller, "BecameEntity")
   game.log("%s took control of the monster: %s", activeEntity.key, activeEntity.kit.displayName)
-  lair.begin(monster, controller)
+  local kitMoves = moves.byKitId[activeEntity.kit.id]
+  if kitMoves.begin then
+    kitMoves.begin(activeEntity)
+  end
+  lair.begin(activeEntity, kitMoves)
 end
 
 -- A hot reload of the mod (UE4SS's Ctrl+R) forgets who the entity is, while the player still drives the monster. Their
 -- controller is the proof: the monster's AI was destroyed at the takeover, so only the entity player can be driving it.
--- They're taken back as the entity where they are; the lair isn't rebuilt, so the leash is gone until the next mission.
+-- They're taken back as the entity where they are. The ducts' lair isn't rebuilt, so its leash is gone until the next
+-- mission (rebuilding it would move the monster into a vent); one lying powered down is still held until the power is
+-- on, or it would never wake.
 local function adoptAfterReload(monster, worldKey)
   local controller = game.playerControllerOf(monster)
   if not controller then
@@ -403,6 +410,13 @@ local function adoptAfterReload(monster, worldKey)
   }
   monster.ShouldCheckIfStuck = false
   movement.resetHost()
+  local kitMoves = moves.byKitId[activeEntity.kit.id]
+  if kitMoves.begin then
+    kitMoves.begin(activeEntity)
+  end
+  if not activeEntity.kit.usesVents then
+    lair.begin(activeEntity, kitMoves)
+  end
   game.log("%s is driving the monster; taken back as the entity after a reload", volunteerKey)
   return true
 end

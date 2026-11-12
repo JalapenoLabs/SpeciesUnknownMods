@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Gatling: a cluster of barrels seen from the side, with the shots flying from their muzzles. -->
+  <g fill="#fff" stroke="#000" stroke-opacity="0.4" stroke-width="3" paint-order="stroke">
+    <path d="M10 44 H30 V84 H10 Z"/>
+    <path d="M30 40 H78 a6 6 0 0 1 0 12 H30 Z"/>
+    <path d="M30 58 H86 a6 6 0 0 1 0 12 H30 Z"/>
+    <path d="M30 76 H78 a6 6 0 0 1 0 12 H30 Z"/>
+    <path d="M96 44 H118 a4 4 0 0 1 0 8 H96 a4 4 0 0 1 0 -8 Z"/>
+    <path d="M100 60 H122 a4 4 0 0 1 0 8 H100 a4 4 0 0 1 0 -8 Z"/>
+    <path d="M96 76 H118 a4 4 0 0 1 0 8 H96 a4 4 0 0 1 0 -8 Z"/>
+  </g>
+</svg>

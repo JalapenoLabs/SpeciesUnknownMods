@@ -4,8 +4,8 @@ One player becomes the mission's monster and hunts the crew. Balanced around a k
 kills, and around sound instead of wallhacks.
 
 - **Status:** the squid is playtested alone eight times (volunteering, the takeover, moving, the HUD, the lair,
-  vents, the shuttle rules and the cries work); co-op is next. Mike is untested in game (see
-  [Test plan](#test-plan), step 23).
+  vents, the shuttle rules and the cries work); co-op is next. Mike and the Terminator are untested in game (see
+  [Test plan](#test-plan), steps 23 and 24).
 - **Payload:** the Lua mod [`ControllableEntity/`](ControllableEntity/) plus the pak `ControllableEntity_P`, built by
   `scripts/package-mods.sh`.
 - **Who installs it:** every player (the mod adds networked gameplay and a HUD).
@@ -13,9 +13,8 @@ kills, and around sound instead of wallhacks.
 
 ## Scope
 
-- **Two playable entities: the squid** (the game's `BP_Monster_Poulpi`) **and Mike** (`BP_Monster_Michel`). Each is a
-  kit on the same framework (see [Architecture](#architecture)). The Terminator (`BP_BigRobot`) is next on the
-  roadmap.
+- **Three playable entities: the squid** (the game's `BP_Monster_Poulpi`), **Mike** (`BP_Monster_Michel`) **and the
+  Terminator** (`BP_BigRobot`). Each is a kit on the same framework (see [Architecture](#architecture)).
 - Modes stay the game's own. The entity is a fourth party inside a normal contract, not a new game mode.
 
 ## Rules
@@ -58,6 +57,10 @@ kills, and around sound instead of wallhacks.
   testing what comes after the lair.
 - Once the power is on, the squid is free for good, even if the crew turns the power off again. Contracts that
   start with the power on leave it free from the start.
+- **The Terminator can't vent,** so it has no duct lair. It lies powered down where the game spawned it, as its AI
+  does at the start: it can't move, turn or use a move ("You're powered down until the power is on"), and the HUD
+  says so. When the power comes on (alone, F8), it gets up ("The power is on. You wake."), on patrol rather than in
+  combat, which would start the action music for everyone. The hunt starting (below) wakes it too.
 - How the game represents the power and the vents:
   [docs/game-internals.md](../../docs/game-internals.md#gameplay-state-worth-knowing).
 
@@ -220,13 +223,13 @@ gets a mod key of its own.
 | Input | As the entity |
 |-------|---------------|
 | Move, Look (`IA_Move`, `IA_Look`) | Move and look |
-| Shoot (`IA_Shoot`) | The basic attack on the nearest crew member ahead, never lethal unless the kill is ready; with nobody in reach the entity swings at the air. The squid lashes; Mike swipes, and his swipe at a crouched crew member is his grab |
-| Aim (`IA_ADS`) | The squid leaps where you look (a grab on landing is broken off unless the kill is ready); Mike dodges aside, the way you are moving across your view (right when you aren't), never in the vents |
-| Interact (`IA_Interact`, E) | Ultimate: with a full meter, the grab kills. The squid leaps (or drops) to deliver it; Mike grabs the crew member just ahead at once |
+| Shoot (`IA_Shoot`) | The basic attack on the nearest crew member ahead, never lethal unless the kill is ready; with nobody in reach the entity swings at the air. The squid lashes; Mike swipes, and his swipe at a crouched crew member is his grab. The Terminator fires its gatling while Shoot is held, and punches once the crew has broken the gun |
+| Aim (`IA_ADS`) | The squid leaps where you look (a grab on landing is broken off unless the kill is ready); Mike dodges aside, the way you are moving across your view (right when you aren't), never in the vents. The Terminator lobs a grenade at the crew member along your aim, or 10 m ahead, never nearer than 4.5 m |
+| Interact (`IA_Interact`, E) | Ultimate: with a full meter, the grab kills. The squid leaps (or drops) to deliver it; Mike grabs the crew member just ahead at once; the Terminator reaches for the crew member within 3 m of your aim with its arm grab |
 | Crouch (`IA_Crouch`) | Peek down through the grate while in a vent |
 | Objectives (`IA_ViewPseudo`, Tab, held) | Show the entity's objectives, in the crew's own overlay |
 | Flashlight (`IA_FlashLight`) | Switch between third person (the start) and first person; in first person the entity's own mesh is hidden from its player |
-| Hold Tool (`IA_HoldTool`, Space) | Climb into the nearest vent, drop out of it onto whoever is below, or climb a step up inside the ducts |
+| Hold Tool (`IA_HoldTool`, Space) | Climb into the nearest vent, drop out of it onto whoever is below, or climb a step up inside the ducts. The Terminator charges forward instead, hurting whoever it runs through |
 | Weapon slots 1, 2, 3 (`IA_Slot1`–`IA_Slot3`) | Cry out, for everyone near to hear: a roar, a curious call, a long call |
 | F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out. As the entity, playing alone: turn the power on |
 | F9 (mod key, host only, in the lobby) | Open the entity picker: which entity, and who plays it (F9 again closes it) |
@@ -248,7 +251,7 @@ The HUD is laid out like the crew's own, so the top of the screen holds only the
 
 - **Actions, bottom left, stacked:** the entity's four moves, on the left mouse button, the right, E and Space, each
   with its own icon: the squid's lash, leap, ultimate (a skull) and venting; Mike's swipe (claw marks), dodge, ultimate
-  (jaws) and venting. Each row is the key, the icon, and a bar on the right while it charges, in the crew HUD's
+  (jaws) and venting; the Terminator's gatling, grenade, arm grab (a hand) and charge. Each row is the key, the icon, and a bar on the right while it charges, in the crew HUD's
   flashlight-bar colour, and nothing once it's ready; the bar's space stays reserved, so the stack never shifts. The
   ultimate's bar is the kill meter (amber), or in full frenzy the re-arm between kills (red). A move the lair holds
   back (leaving the ducts before the power is on) dims.
@@ -259,7 +262,8 @@ The HUD is laid out like the crew's own, so the top of the screen holds only the
   squid is knocked down. Down, it is the squid's real health, which only the crew's fire drains while the squid is
   down and burning. Mike has one pool, his health, which only hits to his head drain while it is open; electrocuted
   (his weakness), he is stunned and down. When his health runs out a face breaks and it refills, so the bar fills
-  again; the third time, he dies. The stamina bar shows only once sprinting has used some, as the crew's does.
+  again; the third time, he dies. The Terminator shows its gatling's pool while it holds the gun, then its body's,
+  and is down while stunned. The stamina bar shows only once sprinting has used some, as the crew's does.
 - **Bottom centre:** the `FRENZY` banner, then the host's messages. A message stays a second plus 300 ms a word, at
   least three seconds; the volunteer's status and the lair's "wait for the power" hint stay until they change.
 - **Bottom right:** `Human respawns remaining: N`, the crew's shared respawns (`BP_MyGameState.Respawn`), live. The
@@ -322,11 +326,11 @@ create: network events and a widget layout.
   | `links.lua` | both | Spawns a `BP_EntityLink` per player (host) and routes its events to the modules below |
   | `takeover.lua` | host | The host's choices, volunteering and the random pick, forcing the entity's monster, possessing it, crew exclusion, loss |
   | `picker.lua` | host | The host's entity picker: its panel of tiles, clicks, and the game's UI mode |
-  | `lair.lua` | host | The start in the ducts near the game's spawn, the ducts as the lair until the power is on, and F8's power alone |
+  | `lair.lua` | host | The start in the ducts near the game's spawn (or powered down, for an entity that can't vent), held until the power is on, and F8's power alone |
   | `cries.lua` | host | The entity's cries: on the 1, 2 and 3 keys, on spotting a crew member, and on getting back up |
   | `vents.lua` | both | Finding vent shafts, the in-duct spots beside them, and the steps up inside the ducts |
   | `abilities.lua` | host | Commands to the entity's moves, cooldowns, the ultimate's arming, the grab rule, the meter's tick |
-  | `moves.lua`, `moves/<monster>.lua` | host | Each entity's moves, one function per slot: what LMB, RMB, E and Space do |
+  | `moves.lua`, `moves/<monster>.lua` | host | Each entity's moves, one function per slot: what LMB, RMB, E and Space do, and what it does on its own (the Terminator's facing, waking and drones) |
   | `moves/ducts.lua`, `moves/shared.lua` | host | The vent moves every vent entity shares (venting and peeking), and aiming at the crew |
   | `movement.lua` | both | The entity's speed, the vent bonus, and the sprint and its stamina |
   | `meter.lua` | host | The kill meter and frenzy rules, as plain logic (unit tested) |
@@ -420,6 +424,9 @@ that finds nobody stands the kill down again, and the meter stays full.
 - `tests/lair_test.lua`: the start in the ducts near the game's spawn, the ducts as the lair, the power, and F8 alone.
 - `tests/mike_test.lua`: playing Mike: forcing him, his swipe, dodge and grab, his grab check and the shield, the
   kill rule on his grab, and his health bar.
+- `tests/terminator_test.lua`: playing the Terminator: lying powered down until the power, waking, facing the aim,
+  the held gatling, the punch, the grenade, the charge, the kill rule on its grab, its drones, its health bar, and
+  the camera rig beside its own spring arm.
 - `tests/cries_test.lua`: the cries the entity makes on its own.
 - `tests/hunt_test.lua`: the vents' time limit once the crew holds the special weapon.
 - `tests/crawl_test.lua`: the entity crouching into a crawl opening only while heading in.
@@ -505,6 +512,41 @@ squid's, inherited from `BP_BaseMonster` (`JumpToVent`, `ClimbVent250`, `LookFro
   it, so the kill spending the meter shows the hook fires for a call from Lua too. The dodge reads its landing from
   `K2_ProjectPointToNavigation`'s out parameter, as the hunt's move to the power room does; a dodge that always finds
   "no room" on open floor means that read comes back empty, for both.
+
+## How the Terminator's moves work
+
+Read from `BP_BigRobot` (the Terminator), its gatling (`BP_Gatling`) and grenade (`BP_Grenade`). It is the slowest
+monster (combat speed 250, 325 at its top speed), too big for the vents, and heavily armoured: while it holds its
+gatling the gun takes every hit (`BP_Gatling.MainHealth`), and its body only takes damage once the crew has broken it.
+
+| Move | How the AI starts it | How the mod starts it (on the host) |
+|------|----------------------|-------------------------------------|
+| Wake | It spawns powered down and lying (`IsPowered` off); mission progress, a target or combat call `BPI_Monster_SwitchBehavior` with anything but Wait (6), which powers it up (`GetUp`) | `SwitchBehavior(0)`, patrol, when the lair lets it go: combat (3) would start the action music for everyone |
+| Gatling | `BPI_BigRobot_SetFiring(true)` while it sees its target; it spins up, then fires every `FireRate` along its muzzle | The same call while Shoot is held, `SetFiring(false)` on release; the mod also stops it when the gun breaks, the robot is stunned or electrocuted (the game itself stops it only for electrocution) |
+| Punch | `BPI_BasicMonster_SetSimpleAttack`, whose pick (`GetAttackSimpleAnim`) is the gatling punch while armed and, once it isn't, `atk_front02` or `atk_front03` | `AttackSimpleAnim (Clients)` with `atk_front02` only: `atk_front03` crushes the head of whoever it lands on (`CheckCrushHead`), a kill the meter couldn't rule, so the mod never calls `SetSimpleAttack` |
+| Grenade | `BPI_BigRobot_ThrowGrenade(location, searchType)`, checked first with `BPI_BigRobot_CanThrowGrenade` | The same, plain throw (0), at the crew member along the aim (its `LastAttackedTarget`, which the throw follows) or 10 m ahead on the floor; never nearer than 4.5 m, since its blast (4 m) would hit its own gatling |
+| Arm grab | `BPI_Monster_SetSpecialAttack(target)`: a half-second windup, then the hand's sphere check grabs only that crew member (`GrabPlayer (Multi)`), and the grab montage crushes their head (`Decapitation`) while `IsGrabPlayer` is still set | The same call on the crew member within 3 m of the aim, only as the ultimate |
+| Charge | `BPI_BigRobot_SetDashAttack(target)` plays `atk_dash1` | `AttackSimpleAnim (Clients)` with `atk_dash1`, so it needs no target; it hurts whoever it runs through |
+
+- **Facing.** Its turning (`MoveFaceToTarget`, every tick on the host) faces its target or look point, and with
+  neither it falls back to its AI controller's rotation, which a player's robot doesn't have: it would swing to world
+  yaw 0. The host sets its look point (`BPI_BasicMonster_LookAtLocation`) along the player's aim about thirty times
+  a second, so it faces where they look, and its gatling fires that way. Its arm only aims at a target in combat,
+  which the player's robot never enters, so the shots fly level.
+- **The kill rule** is the squid's: the grab montage's `Decapitation` kills only while `IsGrabPlayer` is set, and its
+  light hit (`hit_light_front_Montage`) through `KnockBack (Clients)` interrupts the montage, which lets go and clears
+  it.
+- **Its health bar** shows its gatling's pool while it holds one, then its body's (`Health`). At two thirds and a
+  third of its health it goes down and can't be hurt for a while (`SetStunt`, `IsStunt`), shown as down. Its weakness
+  is electrocution, which stuns it, halves its speed and stops the gatling.
+- **Its drones** (`BP_SphereBot`) hunt crew far from it, from a timer every possession starts. The takeover turns
+  them off (`[DEBUG]NoSphereSpawn`, which the timer checks first), clears the timer, and sends drones already out
+  away (`ClearSphereBot`). A knockback can throw a grenade at its `MainTarget` on its own, so it keeps none.
+- **Its cries** are its SoldierBot voice lines.
+- **Its own spring arm** probes the ceiling so it can duck under low ones; the camera rig brings its own arm and
+  leaves that one alone.
+- **Facing is set on the host.** For a friend playing it, the host turning a pawn their machine moves may jitter.
+  Playtest.
 
 ## How the game makes noise
 
@@ -706,3 +748,14 @@ one friend.
     red while he's stunned, and his head takes damage; when a face breaks the bar fills again. Report whether the dodge
     rubber-bands on the entity's screen, whether his turning feels right, and if Aim always says "No room to dodge
     there" on open floor.
+24. **The Terminator (alone, then with a friend).** Pick the Terminator and yourself, and start a contract with the
+    power off: you lie on the floor where it spawned, not in a vent, and "You lie powered down" stays on screen. You
+    can look around but not move, and every move answers "You're powered down"; all four rows in the stack are dimmed
+    (a gatling, a grenade, a hand, a chevron). Press F8 alone (or have a friend turn the power on): it gets up, with
+    no combat music, and moves slowly. It turns to face where you look; if it swings to one fixed direction instead,
+    report it. Hold Shoot: the gatling spins up and fires where you face until you let go. Aim: a grenade lands
+    about 10 m ahead (closer than 4.5 m is refused). Space: it charges forward. No drones appear during the mission.
+    With a friend: the gatling hurts them; Aim throws at them; with a full meter, E near them reaches out and the grab
+    crushes their head, and the ultimate's bar comes back empty. Have them shoot it: the health bar drains (the gun's
+    pool first); break the gun and Shoot punches instead. When it goes down at two thirds of its health, the bar turns
+    red. Report whether its turning jitters on your screen when a friend hosts.

@@ -84,7 +84,7 @@ local function runCommand(command)
     local slotMove = entity.kit.moves[command]
     local isHeld = slotMove ~= nil and slotMove.heldByLair
     if isHeld and lair.isLeashed(entity.monster) then
-      links.sendEvent(controller, "Denied.PowerOff")
+      links.sendEvent(controller, lair.heldDenial())
       return
     end
 
@@ -185,7 +185,12 @@ function abilities.tick()
     link.Meter = meter.value
   end
 
-  link.Health, link.Downed = healthShare(entity.monster, entity.kit.healthFields)
+  local kitMoves = moves.byKitId[entity.kit.id]
+  if kitMoves.healthShare then
+    link.Health, link.Downed = kitMoves.healthShare(entity.monster)
+  else
+    link.Health, link.Downed = healthShare(entity.monster, entity.kit.healthFields)
+  end
   link.Stamina = movement.stamina()
   link.VentTime = hunt.ventTimeLeft()
 end
@@ -212,6 +217,16 @@ function abilities.register()
   for _, kit in ipairs(kits.playable) do
     game.hookWhenLoaded(kit.classPath, kit.killGrab.functionName, onGrabStarted)
   end
+
+  -- What an entity's moves do on their own between commands (the Terminator faces where its player looks): about
+  -- thirty times a second, for a turn that keeps up with the mouse
+  LoopInGameThreadWithDelay(33, function()
+    local entity = game.isHost() and takeover.activeEntity()
+    local kitMoves = entity and moves.byKitId[entity.kit.id]
+    if kitMoves and kitMoves.tick then
+      kitMoves.tick(entity)
+    end
+  end)
 end
 
 return abilities

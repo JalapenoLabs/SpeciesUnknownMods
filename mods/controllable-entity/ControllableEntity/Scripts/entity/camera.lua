@@ -44,14 +44,15 @@ end
 
 -- Gives the entity its spring arm and camera; nil after logging when the engine won't make them. A rig the entity
 -- already has is reused: the engine views through a pawn's first camera, so a second rig (after a hot reload of the
--- mod, in playtest 4) would be one the player never sees, and the view toggle would move the wrong one.
+-- mod, in playtest 4) would be one the player never sees, and the view toggle would move the wrong one. The rig's arm
+-- is the one its camera hangs from: a monster may have a spring arm of its own (the Terminator probes the ceiling with
+-- one, to duck under it), which must stay as it is.
 local function buildRig(monster)
   local armClass = StaticFindObject(SPRING_ARM_CLASS)
   local cameraClass = StaticFindObject(CAMERA_CLASS)
-  local existingArm = monster:GetComponentByClass(armClass)
-  local existingView = monster:GetComponentByClass(cameraClass)
-  local arm, view = existingArm, existingView
-  local reused = arm and arm:IsValid() and view and view:IsValid()
+  local view = monster:GetComponentByClass(cameraClass)
+  local arm = view and view:IsValid() and view:GetAttachParent()
+  local reused = arm and arm:IsValid() and arm:IsA(armClass)
   if not reused then
     arm = monster:AddComponentByClass(armClass, false, IDENTITY_TRANSFORM, false)
     view = monster:AddComponentByClass(cameraClass, true, IDENTITY_TRANSFORM, false)

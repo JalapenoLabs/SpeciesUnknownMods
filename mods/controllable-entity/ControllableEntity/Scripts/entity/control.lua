@@ -12,6 +12,7 @@ local areas = require("entity.areas")
 local camera = require("entity.camera")
 local config = require("entity.config")
 local hud = require("entity.hud")
+local kits = require("entity.kits")
 local minimap = require("entity.minimap")
 local movement = require("entity.movement")
 local objectives = require("entity.objectives")
@@ -50,10 +51,15 @@ local function reportValue(kind, controller, value)
     tostring(controller:IsMoveInputIgnored()), tostring(controller:IsLookInputIgnored()))
 end
 
--- Mirrors BP_Character.BPI_PlayerInput_Move: forward and right along the camera's yaw.
+-- Mirrors BP_Character.BPI_PlayerInput_Move: forward and right along the camera's yaw. A monster lying powered down
+-- (the Terminator, until the lair wakes it) doesn't move: nothing in the game stops movement input reaching it.
 local function move(controller, actionValueParameter)
   local monster = game.monsterDrivenBy(controller)
   if not monster then
+    return
+  end
+  local poweredFlag = kits.forMonster(monster).poweredFlag
+  if poweredFlag and not monster[poweredFlag] then
     return
   end
   local value = axisValue(actionValueParameter)

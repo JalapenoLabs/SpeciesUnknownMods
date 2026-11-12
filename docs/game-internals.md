@@ -170,6 +170,16 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
   (`ContinusSphereCheck`). The eating montage's `AnimNotify_EatFace` kills 2.18 seconds in, checking only that he
   still holds someone (`LastGrabPlayer`); interrupting the montage lets go. His drop from a vent doesn't grab, and he
   has no leap (`AllowSpecialAttack` is off).
+- **The Terminator spawns powered down** (`BP_BigRobot.IsPowered` off, lying on the floor), and wakes when anything
+  calls `BPI_Monster_SwitchBehavior` with a behaviour other than Wait (6): mission progress, a target, combat.
+  Behaviour 3 (combat) also sets `IsInCombat`, which starts the action music for everyone. Nothing in its moves checks
+  `IsPowered`, and nothing stops movement input reaching it, so a player's dormant robot must be held by the mod.
+- **The Terminator's gatling takes every hit while it holds it** (`BP_Gatling.MainHealth`; the robot reaches it
+  through its replicated `Gatling` and `HaveGatling`). At zero the gun breaks, and only then do belly hits drain the
+  body's `Health`; at two thirds and a third it goes down, unhurtable, for 6 to 15 s (`SetStunt`, `IsStunt`). Only
+  electrocution stops the gatling firing in the game's own code; a broken gun is never told to stop.
+- **The Terminator has two instant kills:** the arm grab's montage (`Decapitation`, while `IsGrabPlayer` is set) and
+  its close attack `atk_front03` (`CheckCrushHead`), which `SetSimpleAttack` picks once its gatling is gone.
 - **Contracts and their modifiers.** `ContractStruct` holds one fixed field per modifier (`PowerAtStart`,
   `EmergencyPower`, `Turret`, ...). `BP_Mission_FunctionLibrairy.GenerateContracts` builds the lobby's list on the host
   (balancing modifiers against bounty targets per tier, `ContractGenParams_DataTable`); `BP_ContractManagerTerminal`

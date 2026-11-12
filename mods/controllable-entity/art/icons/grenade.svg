@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Grenade: a round bomb with its lever and pin. The body's bands are cut out of the shape. -->
+  <path fill="#fff" fill-rule="evenodd" stroke="#000" stroke-opacity="0.4" stroke-width="3" paint-order="stroke"
+    d="M64 34 C38 34 22 56 22 78 C22 102 40 118 64 118 C88 118 106 102 106 78 C106 56 90 34 64 34 Z
+       M30 70 H98 V76 H30 Z
+       M28 88 H100 V94 H28 Z
+       M50 14 H76 V34 H50 Z
+       M76 16 C92 16 102 26 104 40 L96 42 C94 32 88 26 76 26 Z"/>
+</svg>

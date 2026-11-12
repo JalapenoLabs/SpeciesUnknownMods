@@ -7,11 +7,12 @@
 
 local mike = require("entity.kits.mike")
 local squid = require("entity.kits.squid")
+local terminator = require("entity.kits.terminator")
 
 local kits = {}
 
 -- Every kit, in the order the host's picker shows them.
-kits.playable = { squid, mike }
+kits.playable = { squid, mike, terminator }
 
 -- The moves every kit fills, one per key on the game's own actions (control.lua), in the order the HUD stacks them:
 -- Primary (LMB), Secondary (RMB), Ultimate (E) and Mobility (Space). Each kit's `moves` says, per slot, the move's

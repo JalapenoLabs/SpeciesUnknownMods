@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Arm grab, the Terminator's ultimate: a mechanical hand closing, three fingers and a thumb over a palm. -->
+  <g fill="#fff" stroke="#000" stroke-opacity="0.4" stroke-width="3" paint-order="stroke">
+    <path d="M36 72 H92 V104 a10 10 0 0 1 -10 10 H46 a10 10 0 0 1 -10 -10 Z"/>
+    <path d="M38 70 V30 a8 8 0 0 1 16 0 V70 Z"/>
+    <path d="M58 70 V20 a8 8 0 0 1 16 0 V70 Z"/>
+    <path d="M78 70 V30 a8 8 0 0 1 16 0 V70 Z"/>
+    <path d="M36 82 L14 66 a8 8 0 0 1 10 -12 L40 70 Z"/>
+  </g>
+</svg>

@@ -82,6 +82,9 @@ local messageByEvent = {
   Leashed = "Lurk in the vents until the crew turns the power on.",
   LeashedAlone = "Lurk in the vents until the power is on. Playing alone, F8 turns it on.",
   PowerRestored = "The power is on. Hunt.",
+  Dormant = "You lie powered down until the crew turns the power on.",
+  DormantAlone = "You lie powered down until the power is on. Playing alone, F8 turns it on.",
+  Awake = "The power is on. You wake. Hunt.",
   Lost = "The crew got you. You're out of this mission.",
   KillStarted = "Got one.",
   FrenzyStarted = "FRENZY: every grab kills.",
@@ -110,6 +113,10 @@ local messageByEvent = {
   ["Denied.DodgeInVent"] = "Dodge out of the vents.",
   ["Denied.NoRoom"] = "No room to dodge there.",
   ["Denied.Shielded"] = "Their shield is up: get around it.",
+  ["Denied.Dormant"] = "You're powered down until the power is on.",
+  ["Denied.CantShoot"] = "The gatling won't fire right now.",
+  ["Denied.NoThrow"] = "No clear throw there.",
+  ["Denied.TooClose"] = "Too close: the blast would hit your own gatling.",
 }
 
 -- Everything the HUD knows comes from the host's events in the current world; a new world starts blank and the host
@@ -511,6 +518,24 @@ local stateChangeByEvent = {
     state.persistentStatus = messageByEvent.LeashedAlone
   end,
   PowerRestored = function()
+    state.isLeashed = false
+    state.persistentStatus = nil
+  end,
+  -- Powered down (the Terminator) until the power is on, as the ducts hold the others
+  Dormant = function()
+    state.isLeashed = true
+    state.persistentStatus = messageByEvent.Dormant
+  end,
+  DormantAlone = function()
+    state.isLeashed = true
+    state.persistentStatus = messageByEvent.DormantAlone
+  end,
+  Awake = function()
+    state.isLeashed = false
+    state.persistentStatus = nil
+  end,
+  -- The hunt let the entity go early, with the power still off: the hunt's own message says why
+  Released = function()
     state.isLeashed = false
     state.persistentStatus = nil
   end,

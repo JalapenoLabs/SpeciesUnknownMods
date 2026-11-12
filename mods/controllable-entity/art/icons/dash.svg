@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Dash: a charge forward, a heavy chevron with speed lines behind it. -->
+  <g stroke="#000" stroke-opacity="0.4" stroke-width="16" stroke-linecap="round" fill="none">
+    <path d="M10 48 H34"/>
+    <path d="M6 80 H34"/>
+  </g>
+  <g stroke="#fff" stroke-width="10" stroke-linecap="round" fill="none">
+    <path d="M10 48 H34"/>
+    <path d="M6 80 H34"/>
+  </g>
+  <path fill="#fff" stroke="#000" stroke-opacity="0.4" stroke-width="3" paint-order="stroke"
+    d="M44 22 H72 L114 64 L72 106 H44 L86 64 Z"/>
+</svg>

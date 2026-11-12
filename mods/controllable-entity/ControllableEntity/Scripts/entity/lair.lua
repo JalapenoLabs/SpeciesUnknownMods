@@ -2,7 +2,8 @@
 
 -- Host side of where the entity starts. The entity goes straight into the ducts (its lair) and stays in them until the
 -- crew turns the power on: the game's own grace period, in which the crew is safe. Some contracts start with the power
--- on, and then the entity is free at once.
+-- on, and then the entity is free at once. An entity too big for the vents (the Terminator) lies powered down where the
+-- game spawned it instead, as its AI does at the start, and wakes when the power comes on.
 --
 -- It starts in the vent nearest where the game spawned it: the game manager's spawn point for the mission's monster
 -- (BP_GameManager.GetSpawnPoint), the one the AI would start from, skipping vents too near the crew. Inside, the
@@ -18,7 +19,8 @@ local lair = {}
 
 local POWER_SCREEN_CLASS_NAME = "BP_Screen_RestorePower_C"
 
--- The current lair: { monster, controller, lastInside, leashed, lastWarnedAt }, or nil.
+-- The current lair: { monster, controller, lastInside, leashed, lastWarnedAt, wake }, or nil. `wake` is the powered-
+-- down entity's (its moves' wake), nil for the ducts.
 local current = nil
 
 local function isPowerOff()
@@ -65,8 +67,47 @@ local function chooseStartSpot(spawnLocation)
   return nearestFarEnough or farthestSpot
 end
 
--- Starts the entity in its lair, right after the takeover.
-function lair.begin(monster, controller)
+-- Alone, nobody else can turn the power on, so the entity is told how to (onSoloPowerOn).
+local function holdEvent(baseEvent)
+  local gameState = FindFirstOf(game.classNames.gameState)
+  local isAlone = gameState:IsValid() and gameState.PlayerArray:GetArrayNum() == 1
+  return isAlone and baseEvent .. "Alone" or baseEvent
+end
+
+-- An entity too big for the vents lies powered down where the game spawned it until the power is on. One already
+-- awake (a reload of the mod mid-mission takes it back) stays awake: waking it again would push the mission on.
+local function beginPoweredDown(entity, kitMoves)
+  local monster = entity.monster
+  if monster[entity.kit.poweredFlag] then
+    current = nil
+    return
+  end
+  current = {
+    monster = monster,
+    controller = entity.controller,
+    lastInside = nil,
+    leashed = isPowerOff(),
+    lastWarnedAt = -math.huge,
+    wake = kitMoves.wake,
+  }
+  if not current.leashed then
+    current.wake(monster)
+    game.log("The entity starts where the game spawned it, awake: the power is on")
+    return
+  end
+  links.sendEvent(entity.controller, holdEvent("Dormant"))
+  game.log("The entity lies powered down where the game spawned it until the power is on")
+end
+
+-- Starts the entity in its lair, right after the takeover (and, for one that lies powered down, after a reload of the
+-- mod takes it back). `kitMoves` are its moves (moves.lua), for waking one that lies powered down.
+function lair.begin(entity, kitMoves)
+  if not entity.kit.usesVents then
+    beginPoweredDown(entity, kitMoves)
+    return
+  end
+
+  local monster, controller = entity.monster, entity.controller
   local spot = chooseStartSpot(monster:K2_GetActorLocation())
   if not spot then
     game.log("No vent on this map; the entity starts where the game spawned it")
@@ -82,23 +123,39 @@ function lair.begin(monster, controller)
     lastInside = spot,
     leashed = leashed,
     lastWarnedAt = -math.huge,
+    wake = nil,
   }
   if leashed then
-    -- Alone, nobody else can turn the power on, so the entity is told how to (onSoloPowerOn)
-    local gameState = FindFirstOf(game.classNames.gameState)
-    local isAlone = gameState:IsValid() and gameState.PlayerArray:GetArrayNum() == 1
-    links.sendEvent(controller, isAlone and "LeashedAlone" or "Leashed")
+    links.sendEvent(controller, holdEvent("Leashed"))
   end
   game.log("The entity starts in a vent at %.0f, %.0f, %.0f%s", spot.X, spot.Y, spot.Z,
     leashed and ", held in the ducts until the power is on" or "")
 end
 
+-- Lets the entity go: the power came on, or the hunt started (hunt.lua) and the vents stopped being safe for it. One
+-- lying powered down wakes.
+local function letGo(event)
+  current.leashed = false
+  if current.wake then
+    current.wake(current.monster)
+  end
+  links.sendEvent(current.controller, event)
+end
+
 -- Lets the entity out of its lair early, when the vents stop being safe for it (hunt.lua).
 function lair.release()
   if current and current.leashed then
-    current.leashed = false
+    letGo("Released")
     game.log("The lair lets the entity go: the vents are no longer safe")
   end
+end
+
+-- What a move the lair holds back is answered with: the ducts hold the entity, or it lies powered down.
+function lair.heldDenial()
+  if current and current.wake then
+    return "Denied.Dormant"
+  end
+  return "Denied.PowerOff"
 end
 
 function lair.forget()
@@ -125,9 +182,12 @@ function lair.tick()
   end
 
   if not isPowerOff() then
-    current.leashed = false
-    links.sendEvent(current.controller, "PowerRestored")
-    game.log("The power is on: the entity may leave the vents")
+    letGo(current.wake and "Awake" or "PowerRestored")
+    game.log("The power is on: the entity is free")
+    return
+  end
+  -- Powered down, it can't move: the player's own machine moves nothing (control.lua)
+  if current.wake then
     return
   end
 
