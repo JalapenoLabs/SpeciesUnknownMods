@@ -204,6 +204,10 @@ function abilities.tick()
     lastTickAt = nil
     return
   end
+  -- On its way out (main.lua), the takeover notices within the second
+  if not entity.monster:IsValid() or not entity.monster.CharacterMovement:IsValid() then
+    return
+  end
 
   local now = game.timeSeconds(entity.monster)
   meter:advance(now, lastTickAt and now - lastTickAt or 0)
@@ -260,7 +264,8 @@ function abilities.register()
   -- thirty times a second, for a turn that keeps up with the mouse
   LoopInGameThreadWithDelay(33, function()
     local entity = game.isHost() and takeover.activeEntity()
-    local kitMoves = entity and moves.byKitId[entity.kit.id]
+    local isPresent = entity and entity.monster:IsValid() and entity.monster.CharacterMovement:IsValid()
+    local kitMoves = isPresent and moves.byKitId[entity.kit.id]
     if kitMoves and kitMoves.tick then
       kitMoves.tick(entity)
     end

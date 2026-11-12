@@ -328,6 +328,23 @@ fake.now = fake.now + 0.2
 fake.runLoops(200)
 assert(squid.CharacterMovement.MaxWalkSpeed == 404, "then it sprints again")
 
+-- Regression (playtest 9): a dying squid lost its movement component a moment before the takeover noticed it was
+-- gone, and the host's speed tripped over it every tick. Its systems leave it be meanwhile
+local movementBeforeDeath = squid.CharacterMovement
+-- As UE4SS gives it: a component that's gone answers each field with an object, never a number, and keeps no writes
+squid.CharacterMovement = setmetatable({}, {
+  __index = function(_, key)
+    if key == "IsValid" then
+      return function() return false end
+    end
+    return fake.invalid()
+  end,
+  __newindex = function() end,
+})
+fake.runLoops(200)
+fake.runLoops(33)
+squid.CharacterMovement = movementBeforeDeath
+
 -- Playtest 6: once the entity has lost, its player talks to everyone again ("You kill it and then it can talk")
 squid.destroyed = true
 fake.runLoops()

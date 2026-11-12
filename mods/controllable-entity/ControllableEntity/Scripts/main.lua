@@ -56,9 +56,12 @@ LoopInGameThreadWithDelay(200, function()
   if not game.isHost() then
     return
   end
-  -- The speed, stamina and vent time first, so the link the meter's tick fills carries this tick's values
+  -- The speed, stamina and vent time first, so the link the meter's tick fills carries this tick's values. A monster
+  -- on its way out (dying, or the map ending) loses its components a moment before the takeover notices; its systems
+  -- leave it be meanwhile (playtest 9: the speed tripped over its gone movement component)
   local entity = takeover.activeEntity()
-  if entity then
+  local isPresent = entity and entity.monster:IsValid() and entity.monster.CharacterMovement:IsValid()
+  if isPresent then
     local now = game.timeSeconds(entity.monster)
     movement.tickHost(entity, now)
     hunt.tick(entity, now)
