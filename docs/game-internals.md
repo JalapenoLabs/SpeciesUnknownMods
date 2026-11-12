@@ -159,6 +159,17 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
   `AttackSimpleAnim (Clients)` multicast. Its damage is the montage's notify, a sphere check in front of the monster
   (`BP_ParentMonster.BasicSphereAttackDamage`) that runs only while the monster is attacking. `SetSimpleAttack` does
   nothing without a valid target.
+- **Mike has one health pool** (`BP_Monster_Michel.Health`, 350, set at construction over the class default's 450; it
+  doesn't replicate). Only hits to his head bones drain it, and only while his head is open (`HeadOpenValue` above
+  0.2) or a face is already broken; hitting his head with `DamageType_Electrocut` (his weakness) electrocutes him
+  (`Electrocuted`), stunning him and opening it. Each time it reaches zero a face breaks (`HeadBreak_Left`,
+  `HeadBreak_Right`, replicated) and it refills, to full after the first and 1.5 times after the second; the third
+  time he dies.
+- **Mike's grab is his only kill.** Every grab goes through `GrabPlayerVent ( Multi)`: from his swipe at a crouched
+  crew member (his `GetAttackSimpleAnim` plays `Attack_Player_Vent` at one) and the montage's sphere check
+  (`ContinusSphereCheck`). The eating montage's `AnimNotify_EatFace` kills 2.18 seconds in, checking only that he
+  still holds someone (`LastGrabPlayer`); interrupting the montage lets go. His drop from a vent doesn't grab, and he
+  has no leap (`AllowSpecialAttack` is off).
 - **Contracts and their modifiers.** `ContractStruct` holds one fixed field per modifier (`PowerAtStart`,
   `EmergencyPower`, `Turret`, ...). `BP_Mission_FunctionLibrairy.GenerateContracts` builds the lobby's list on the host
   (balancing modifiers against bounty targets per tier, `ContractGenParams_DataTable`); `BP_ContractManagerTerminal`

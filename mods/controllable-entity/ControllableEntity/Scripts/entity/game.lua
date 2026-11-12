@@ -7,12 +7,12 @@ local kits = require("entity.kits")
 
 local game = {}
 
--- The mod's own classes, from ControllableEntity_P.pak: { package, class }.
-game.modClasses = {
-  link = { package = "/Game/Mods/ControllableEntity/BP_EntityLink", class = "BP_EntityLink_C" },
-  hud = { package = "/Game/Mods/ControllableEntity/WBP_EntityHUD", class = "WBP_EntityHUD_C" },
-  picker = { package = "/Game/Mods/ControllableEntity/WBP_EntityPicker", class = "WBP_EntityPicker_C" },
-  pickerTile = { package = "/Game/Mods/ControllableEntity/WBP_PickerTile", class = "WBP_PickerTile_C" },
+-- The mod's own assets, from ControllableEntity_P.pak: { package, name }.
+game.modAssets = {
+  link = { package = "/Game/Mods/ControllableEntity/BP_EntityLink", name = "BP_EntityLink_C" },
+  hud = { package = "/Game/Mods/ControllableEntity/WBP_EntityHUD", name = "WBP_EntityHUD_C" },
+  picker = { package = "/Game/Mods/ControllableEntity/WBP_EntityPicker", name = "WBP_EntityPicker_C" },
+  pickerTile = { package = "/Game/Mods/ControllableEntity/WBP_PickerTile", name = "WBP_PickerTile_C" },
 }
 
 game.paths = {
@@ -27,6 +27,7 @@ game.paths = {
   widgetLibrary = "/Script/UMG.Default__WidgetBlueprintLibrary",
   widgetLayoutLibrary = "/Script/UMG.Default__WidgetLayoutLibrary",
   gameplayStatics = "/Script/Engine.Default__GameplayStatics",
+  navigation = "/Script/NavigationSystem.Default__NavigationSystemV1",
 }
 
 game.classNames = {
@@ -155,29 +156,29 @@ function game.loadGameAsset(path)
   return nil
 end
 
--- Mod classes that failed to load, so a missing pak is reported once instead of on every retry.
-local reportedMissingClasses = {}
+-- Mod assets that failed to load, so a missing pak is reported once instead of on every retry.
+local reportedMissingAssets = {}
 
--- Loads one of the mod's own classes (game.modClasses), or returns nil after reporting why. UE4SS's LoadAsset can't
--- do this: it only loads assets listed in the game's asset registry, and a mod pak's assets never are. Asset data
--- built by hand loads by path instead, which is how UE4SS's own BPModLoader loads mods from paks.
-function game.loadModClass(modClass)
-  local classPath = modClass.package .. "." .. modClass.class
-  local class = StaticFindObject(classPath)
-  if class and class:IsValid() then
-    return class
+-- Loads one of the mod's own assets (game.modAssets, or an icon), or returns nil after reporting why. UE4SS's LoadAsset
+-- can't do this: it only loads assets listed in the game's asset registry, and a mod pak's assets never are. Asset
+-- data built by hand loads by path instead, which is how UE4SS's own BPModLoader loads mods from paks.
+function game.loadModAsset(modAsset)
+  local assetPath = modAsset.package .. "." .. modAsset.name
+  local asset = StaticFindObject(assetPath)
+  if asset and asset:IsValid() then
+    return asset
   end
 
   local assetRegistryHelpers = StaticFindObject(game.paths.assetRegistryHelpers)
-  class = assetRegistryHelpers:GetAsset({ PackageName = FName(modClass.package), AssetName = FName(modClass.class) })
-  if class and class:IsValid() then
-    game.log("Loaded %s", classPath)
-    return class
+  asset = assetRegistryHelpers:GetAsset({ PackageName = FName(modAsset.package), AssetName = FName(modAsset.name) })
+  if asset and asset:IsValid() then
+    game.log("Loaded %s", assetPath)
+    return asset
   end
 
-  if not reportedMissingClasses[classPath] then
-    reportedMissingClasses[classPath] = true
-    game.log("Could not load %s; is ControllableEntity_P.pak in Content/Paks/~mods?", classPath)
+  if not reportedMissingAssets[assetPath] then
+    reportedMissingAssets[assetPath] = true
+    game.log("Could not load %s; is ControllableEntity_P.pak in Content/Paks/~mods?", assetPath)
   end
   return nil
 end

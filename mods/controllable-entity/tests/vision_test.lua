@@ -21,7 +21,7 @@ fake.objects["/Script/Engine.PointLightComponent"] = fake.object("PointLightComp
 fake.objects["/Script/Engine.StaticMeshActor"] = fake.object("StaticMeshActorClass")
 fake.objects["/Engine/BasicShapes/Cylinder.Cylinder"] = fake.object("StaticMesh")
 fake.objects["/Game/Blueprints/Inventory/Map/Materials/UnlitColor_MAT.UnlitColor_MAT"] = fake.object("Material")
-fake.installModPak(game.modClasses)
+fake.installModPak(game.modAssets)
 fake.object("GameStateBase")
 
 -- Everything the entity's vision spawns: the vent markers (flat discs) and the zone posts (thin and tall)

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Dodge: a sidestep, an arrow darting aside with speed lines trailing behind it. -->
+  <g stroke="#000" stroke-opacity="0.4" stroke-width="16" stroke-linecap="round" fill="none">
+    <path d="M14 44 H40"/>
+    <path d="M8 64 H40"/>
+    <path d="M14 84 H40"/>
+  </g>
+  <g stroke="#fff" stroke-width="10" stroke-linecap="round" fill="none">
+    <path d="M14 44 H40"/>
+    <path d="M8 64 H40"/>
+    <path d="M14 84 H40"/>
+  </g>
+  <path fill="#fff" stroke="#000" stroke-opacity="0.4" stroke-width="3" paint-order="stroke"
+    d="M52 50 H82 V26 L120 64 L82 102 V78 H52 Z"/>
+</svg>

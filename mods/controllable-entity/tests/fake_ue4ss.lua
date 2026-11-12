@@ -169,7 +169,7 @@ function fake.entityHud()
   for _, name in ipairs(parts) do
     widget[name] = element(name)
   end
-  for _, prefix in ipairs({ "Lash", "Leap", "Ultimate", "Vent" }) do
+  for _, prefix in ipairs({ "Primary", "Secondary", "Ultimate", "Mobility" }) do
     for _, part in ipairs({ "Slot", "Icon", "Bar" }) do
       widget[prefix .. part] = element(prefix .. part)
     end
@@ -200,14 +200,14 @@ function fake.acceptComponents(actor)
   return components
 end
 
--- Makes the mod's pak classes loadable the way the game would: through AssetRegistryHelpers.GetAsset, by package
--- and class name. Returns each class object by its mod class key.
-function fake.installModPak(modClasses)
+-- Makes the mod's pak assets loadable the way the game would: through AssetRegistryHelpers.GetAsset, by package
+-- and asset name. Returns each asset object by its mod asset key.
+function fake.installModPak(modAssets)
   local classes = {}
   local classByPackage = {}
-  for key, modClass in pairs(modClasses) do
-    classes[key] = fake.object(modClass.class .. "_Class")
-    classByPackage[modClass.package .. "." .. modClass.class] = classes[key]
+  for key, modAsset in pairs(modAssets) do
+    classes[key] = fake.object(modAsset.name .. "_Class")
+    classByPackage[modAsset.package .. "." .. modAsset.name] = classes[key]
   end
   fake.objects["/Script/AssetRegistry.Default__AssetRegistryHelpers"] = fake.object("AssetRegistryHelpers", nil, {
     GetAsset = function(_, assetData)

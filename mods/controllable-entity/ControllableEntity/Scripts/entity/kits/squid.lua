@@ -26,6 +26,17 @@ local squid = {
     downed = "IsOnGround",
   },
 
+  -- What the HUD's action stack shows for each of its moves (moves/squid.lua), the cooldown each starts, and whether
+  -- the lair holds it back until the power is on: the leap, and the ultimate that leaps, would leave the ducts.
+  moves = {
+    -- The lash lands on the crew member nearest the aim within this reach and cone.
+    Primary = { icon = "Lash", cooldown = 1.2, reach = 350, coneDegrees = 60 },
+    -- The game's own leap lands 300 to 500 units ahead; the entity always leaps this far along their aim.
+    Secondary = { icon = "Leap", cooldown = 6, heldByLair = true, distance = 450 },
+    Ultimate = { icon = "HeadGrab", cooldown = 6, heldByLair = true },
+    Mobility = { icon = "Vent", cooldown = 1 },
+  },
+
   -- Its cries (cries.lua), among the cues its Blueprint brings with it, by the name the mod gives each.
   cries = {
     Roar = "/Game/Monster_SoundFX_Pack1/Wav/Monsters/Monster06/Roar/Monster6_Chase_Wav_Cue.Monster6_Chase_Wav_Cue",

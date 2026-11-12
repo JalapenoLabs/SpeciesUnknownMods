@@ -1,18 +1,19 @@
 -- Copyright © 2026 Jalapeno Labs
 
 -- The entity player's HUD (WBP_EntityHUD), on their own machine, laid out like the crew's own (playtests 6 and 7):
---   - bottom left, the actions stacked (the lash, the leap, the ultimate and venting), each its key, its icon and a
---     bar on the right while it recharges, and the health and stamina bars under them;
+--   - bottom left, the entity's four moves stacked (kits.slots: LMB, RMB, E and Space), each its key, the move's icon
+--     (its kit's) and a bar on the right while it recharges, and the health and stamina bars under them;
 --   - top right, the minimap (minimap.lua) with a view cone over it and the key hints under it: C to peek, while
 --     peeking would work, and F for the camera;
 --   - bottom centre, the frenzy banner and short messages from the host's events;
 --   - bottom right, how many respawns the crew has left (playtest 8).
 -- Keys show as the game's own glyphs (its /Game/KeyIcons textures, as in its "press E" prompts).
--- Noise pings are drawn over the world. While the player is the squid, the crew HUD their parked body left behind is
+-- Noise pings are drawn over the world. While the player is the entity, the crew HUD their parked body left behind is
 -- hidden. The bars, the health and the stamina come from the player's link, which the host fills (abilities.lua).
 
 local config = require("entity.config")
 local game = require("entity.game")
+local kits = require("entity.kits")
 local links = require("entity.links")
 local objectives = require("entity.objectives")
 local vents = require("entity.vents")
@@ -47,40 +48,34 @@ local pingColorByKind = {
 local UNUSABLE_OPACITY = 0.35
 local ultimateColor = { R = 1.0, G = 0.70, B = 0.23, A = 1 }
 local frenzyColor = { R = 1.0, G = 0.29, B = 0.24, A = 1 }
--- The health bar is the crew HUD's own green while the squid stands, so hits only stagger it, and red once it is down,
--- when the crew's fire can kill it.
+-- The health bar is the crew HUD's own green while the entity stands, and red once it is down, when the crew's fire
+-- can kill it (the squid only drains its stagger while standing; Mike, stunned, opens his head to their fire).
 local healthColorByDowned = {
   [false] = { R = 0.025, G = 0.25, B = 0.119, A = 0.75 },
   [true] = { R = 0.8, G = 0.06, B = 0.04, A = 0.75 },
 }
 
--- The actions in the stack that recharge on a cooldown, by their prefix in WBP_EntityHUD, and the host command whose
--- cooldown their bar shows. Their key labels are built in: the game's default bindings for the actions the squid
--- reuses (control.lua), so a player who rebinds them sees the defaults.
-local cooldownSlots = {
-  { prefix = "Vent", command = "Vent" },
-  { prefix = "Leap", command = "Leap" },
-  { prefix = "Lash", command = "Attack" },
-}
+-- The mod's icons for the moves (T_Icon_<name>, built from art/icons): each slot shows its kit's move's icon.
+local ICON_FOLDER = "/Game/Mods/ControllableEntity/Icons/"
 
 -- What only the entity sees, hidden before the takeover (a volunteer sees only their status line).
 local ENTITY_PARTS = { "Actions", "HealthBar", "StaminaBar", "ViewCone", "Hints", "VentTime", "RespawnsText" }
 
 -- The game's glyph for each key slot, by the slot's name in WBP_EntityHUD: the game's default bindings for the actions
--- the squid reuses (control.lua), so a player who rebinds them sees the defaults.
+-- the entity reuses (control.lua), so a player who rebinds them sees the defaults.
 local GLYPH_FOLDER = "/Game/KeyIcons/Custom/Keyboard/"
 local glyphBySlot = {
-  LashKey = "T_input_mouse_leftClick",
-  LeapKey = "T_input_mouse_rightClick",
+  PrimaryKey = "T_input_mouse_leftClick",
+  SecondaryKey = "T_input_mouse_rightClick",
   UltimateKey = "T_input_key_e",
-  VentKey = "T_input_key_space",
+  MobilityKey = "T_input_key_space",
   PeekHintKey = "T_input_key_c",
   ViewHintKey = "T_input_key_f",
 }
 
 local messageByEvent = {
   Volunteered = "You'll be the entity next mission. Only you know. F8 backs out.",
-  WaitingForSquid = "You're the entity. You take the squid once the crew leaves the shuttle.",
+  WaitingForMonster = "You're the entity. You take the monster once the crew leaves the shuttle.",
   Unvolunteered = "You're crew again.",
   VolunteerTaken = "Someone else already claimed the entity.",
   BecameEntity = "You are the entity. Hunt by sound.",
@@ -112,6 +107,9 @@ local messageByEvent = {
   ["Denied.HostOnly"] = "The host picks the entity.",
   ["Denied.EntityModeOff"] = "The host has the monster on AI only. The host's F9 picks a player entity.",
   ["Denied.PickInLobby"] = "Pick the entity in the lobby.",
+  ["Denied.DodgeInVent"] = "Dodge out of the vents.",
+  ["Denied.NoRoom"] = "No room to dodge there.",
+  ["Denied.Shielded"] = "Their shield took the grab.",
 }
 
 -- Everything the HUD knows comes from the host's events in the current world; a new world starts blank and the host
@@ -132,7 +130,10 @@ local function freshState(worldKey)
     -- Whether the squid is in a vent over a grate it could peek through, rechecked every PEEK_CHECK_SECONDS.
     isOverGrate = false,
     nextPeekCheckAt = 0,
-    cooldownEndsAt = {},
+    -- Each command's cooldown in progress, by command: { endsAt, seconds }, as the host started it.
+    cooldowns = {},
+    -- The kit whose move icons the stack shows, so they're set again only when the entity changes.
+    kitShown = nil,
     -- The crew's respawns left at the last draw, so the count is written only when it changes.
     respawnsShown = nil,
     pings = {},
@@ -182,14 +183,14 @@ local function ensureWidget(controller)
     return state.widget
   end
 
-  local widgetClass = game.loadModClass(game.modClasses.hud)
+  local widgetClass = game.loadModAsset(game.modAssets.hud)
   if not widgetClass then
     return nil
   end
 
   -- There is only ever one entity HUD. One already on screen was left by an earlier run of the mod: a hot reload
   -- forgets the mod's state but not its widgets (playtest 6), and the old one would sit there frozen
-  for _, leftover in ipairs(FindAllOf(game.modClasses.hud.class) or {}) do
+  for _, leftover in ipairs(FindAllOf(game.modAssets.hud.name) or {}) do
     if leftover:IsValid() then
       leftover:RemoveFromParent()
     end
@@ -237,22 +238,46 @@ local function drawCharge(bar, charge)
   end
 end
 
+-- How far a command has recharged, 0 to 1: full when it hasn't been used.
+local function charge(command, now)
+  local cooldown = state.cooldowns[command]
+  if not cooldown then
+    return 1
+  end
+  return 1 - math.max(0, cooldown.endsAt - now) / cooldown.seconds
+end
+
+-- The stack shows the entity's own moves: each slot's icon is its kit's move's.
+local function showMoveIcons(widget, kit)
+  if state.kitShown == kit then
+    return
+  end
+  state.kitShown = kit
+  for _, slot in ipairs(kits.slots) do
+    local iconName = "T_Icon_" .. kit.moves[slot].icon
+    local icon = game.loadModAsset({ package = ICON_FOLDER .. iconName, name = iconName })
+    if icon then
+      widget[slot .. "Icon"]:SetBrushFromTexture(icon, false)
+    end
+  end
+end
+
 -- Every action shows the same way, the ultimate included (playtest 6): a bar while it charges, nothing once ready.
--- The ultimate's bar is the kill meter, or in full frenzy the re-arm between kills, in the frenzy's red.
-local function drawActions(widget, link, now)
-  for _, slot in ipairs(cooldownSlots) do
-    local remaining = math.max(0, (state.cooldownEndsAt[slot.command] or 0) - now)
-    drawCharge(widget[slot.prefix .. "Bar"], 1 - remaining / config.cooldowns[slot.command])
-    local isHeld = state.isLeashed and config.lair.heldMoves[slot.command]
-    widget[slot.prefix .. "Slot"]:SetRenderOpacity(isHeld and UNUSABLE_OPACITY or 1)
+-- The ultimate's bar is the kill meter, or in full frenzy the re-arm between kills, in the frenzy's red. A move the
+-- lair holds back dims while it does.
+local function drawActions(widget, link, kit, now)
+  for _, slot in ipairs(kits.slots) do
+    if slot ~= "Ultimate" then
+      drawCharge(widget[slot .. "Bar"], charge(slot, now))
+    end
+    local isHeld = state.isLeashed and kit.moves[slot].heldByLair
+    widget[slot .. "Slot"]:SetRenderOpacity(isHeld and UNUSABLE_OPACITY or 1)
   end
 
   local inFrenzy = link.Frenzy
   drawCharge(widget.UltimateBar, link.Meter)
   widget.UltimateBar:SetFillColorAndOpacity(inFrenzy and frenzyColor or ultimateColor)
   setText(widget.FrenzyText, inFrenzy and "FRENZY" or "")
-  local isUltimateHeld = state.isLeashed and config.lair.heldMoves.Ultimate
-  widget.UltimateSlot:SetRenderOpacity(isUltimateHeld and UNUSABLE_OPACITY or 1)
 end
 
 -- The health bar shows the pool the squid is on (playtest 6): its stagger while standing, its real health once a hit
@@ -274,7 +299,7 @@ local function drawPeekHint(widget, monster, now)
     state.isOverGrate = monster.InVent == true
       and vents.nearest(monster:K2_GetActorLocation(), config.vents.exitReach) ~= nil
   end
-  local isRecharged = now >= (state.cooldownEndsAt.Peek or 0)
+  local isRecharged = charge("Peek", now) >= 1
   setShown(widget.PeekHint, state.isOverGrate and isRecharged)
 end
 
@@ -425,7 +450,9 @@ local function render()
   setShown(widget.Hints, hintsShown)
   setShown(widget.RespawnsText, true)
   drawRespawns(widget)
-  drawActions(widget, link, now)
+  local kit = kits.forMonster(pawn)
+  showMoveIcons(widget, kit)
+  drawActions(widget, link, kit, now)
   drawVitals(widget, link)
   drawPeekHint(widget, pawn, now)
   -- The cone turns with the player's look, the way the minimap's player icon turns with the squid (minimap.lua)
@@ -459,9 +486,9 @@ local stateChangeByEvent = {
     state.isVolunteer = true
     state.persistentStatus = messageByEvent.Volunteered
   end,
-  WaitingForSquid = function()
+  WaitingForMonster = function()
     state.isVolunteer = true
-    state.persistentStatus = messageByEvent.WaitingForSquid
+    state.persistentStatus = messageByEvent.WaitingForMonster
   end,
   PickedByHost = function()
     state.isVolunteer = true
@@ -541,11 +568,19 @@ function hud.register()
     end)
   end
 
-  for command, seconds in pairs(config.cooldowns) do
-    links.onClientEvent("Cooldown." .. command, function()
+  -- The host says how long each cooldown it starts lasts: an entity's own moves have their own
+  local commands = {}
+  for _, slot in ipairs(kits.slots) do
+    table.insert(commands, slot)
+  end
+  for command in pairs(config.cooldowns) do
+    table.insert(commands, command)
+  end
+  for _, command in ipairs(commands) do
+    links.onClientEvent("Cooldown." .. command, function(seconds)
       local controller = game.localController()
-      if controller then
-        state.cooldownEndsAt[command] = game.timeSeconds(controller) + seconds
+      if controller and seconds > 0 then
+        state.cooldowns[command] = { endsAt = game.timeSeconds(controller) + seconds, seconds = seconds }
       end
     end)
   end

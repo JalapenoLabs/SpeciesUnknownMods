@@ -23,7 +23,6 @@ local vents = require("entity.vents")
 local hunt = {}
 
 local POWER_SCREEN_CLASS_NAME = "BP_Screen_RestorePower_C"
-local NAVIGATION = "/Script/NavigationSystem.Default__NavigationSystemV1"
 -- How far in front of the power screen the squid is put, and how far around that spot the navigation may look for
 -- floor.
 local POWER_SCREEN_STANDOFF = 150
@@ -80,7 +79,7 @@ local function moveToPowerRoom(entity)
     Z = base.Z,
   }
   local floor = {}
-  local navigation = StaticFindObject(NAVIGATION)
+  local navigation = StaticFindObject(game.paths.navigation)
   if navigation:K2_ProjectPointToNavigation(monster, spot, floor, nil, nil, FLOOR_SEARCH_EXTENT) and floor.Z then
     spot = { X = floor.X, Y = floor.Y, Z = floor.Z + monster.CapsuleComponent:GetScaledCapsuleHalfHeight() }
   else

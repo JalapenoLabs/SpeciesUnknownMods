@@ -3,8 +3,9 @@
 One player becomes the mission's monster and hunts the crew. Balanced around a kill meter instead of free instant
 kills, and around sound instead of wallhacks.
 
-- **Status:** playtested alone eight times (volunteering, the takeover, moving, the HUD, the lair, vents, the shuttle
-  rules and the cries work); co-op is next (see [Test plan](#test-plan)).
+- **Status:** the squid is playtested alone eight times (volunteering, the takeover, moving, the HUD, the lair,
+  vents, the shuttle rules and the cries work); co-op is next. Mike is untested in game (see
+  [Test plan](#test-plan), step 23).
 - **Payload:** the Lua mod [`ControllableEntity/`](ControllableEntity/) plus the pak `ControllableEntity_P`, built by
   `scripts/package-mods.sh`.
 - **Who installs it:** every player (the mod adds networked gameplay and a HUD).
@@ -12,8 +13,9 @@ kills, and around sound instead of wallhacks.
 
 ## Scope
 
-- **One entity to start: the squid** (the game's `BP_Monster_Poulpi`). More monsters come later, each as its own
-  kit on the same framework.
+- **Two playable entities: the squid** (the game's `BP_Monster_Poulpi`) **and Mike** (`BP_Monster_Michel`). Each is a
+  kit on the same framework (see [Architecture](#architecture)). The Terminator (`BP_BigRobot`) is next on the
+  roadmap.
 - Modes stay the game's own. The entity is a fourth party inside a normal contract, not a new game mode.
 
 ## Rules
@@ -218,12 +220,12 @@ gets a mod key of its own.
 | Input | As the entity |
 |-------|---------------|
 | Move, Look (`IA_Move`, `IA_Look`) | Move and look |
-| Shoot (`IA_Shoot`) | Lash: a basic attack on the nearest crew member ahead, never lethal; with nobody in reach the squid swings at the air |
-| Aim (`IA_ADS`) | Leap where you look; a grab on landing is broken off unless the kill is ready |
-| Interact (`IA_Interact`, E) | Ultimate: with a full meter, leap (or drop) and the grab kills |
+| Shoot (`IA_Shoot`) | The basic attack on the nearest crew member ahead, never lethal unless the kill is ready; with nobody in reach the entity swings at the air. The squid lashes; Mike swipes, and his swipe at a crouched crew member is his grab |
+| Aim (`IA_ADS`) | The squid leaps where you look (a grab on landing is broken off unless the kill is ready); Mike dodges aside, the way you are moving across your view (right when you aren't), never in the vents |
+| Interact (`IA_Interact`, E) | Ultimate: with a full meter, the grab kills. The squid leaps (or drops) to deliver it; Mike grabs the crew member just ahead at once |
 | Crouch (`IA_Crouch`) | Peek down through the grate while in a vent |
 | Objectives (`IA_ViewPseudo`, Tab, held) | Show the entity's objectives, in the crew's own overlay |
-| Flashlight (`IA_FlashLight`) | Switch between third person (the start) and first person; in first person the squid's own mesh is hidden from its player |
+| Flashlight (`IA_FlashLight`) | Switch between third person (the start) and first person; in first person the entity's own mesh is hidden from its player |
 | Hold Tool (`IA_HoldTool`, Space) | Climb into the nearest vent, drop out of it onto whoever is below, or climb a step up inside the ducts |
 | Weapon slots 1, 2, 3 (`IA_Slot1`–`IA_Slot3`) | Cry out, for everyone near to hear: a roar, a curious call, a long call |
 | F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out. As the entity, playing alone: turn the power on |
@@ -244,17 +246,20 @@ limit.
 
 The HUD is laid out like the crew's own, so the top of the screen holds only the minimap:
 
-- **Actions, bottom left, stacked:** the lash (left mouse button), the leap (right), the ultimate (a skull and E)
-  and venting (Space). Each row is the key, the icon, and a bar on the right while it charges, in the crew HUD's
+- **Actions, bottom left, stacked:** the entity's four moves, on the left mouse button, the right, E and Space, each
+  with its own icon: the squid's lash, leap, ultimate (a skull) and venting; Mike's swipe (claw marks), dodge, ultimate
+  (jaws) and venting. Each row is the key, the icon, and a bar on the right while it charges, in the crew HUD's
   flashlight-bar colour, and nothing once it's ready; the bar's space stays reserved, so the stack never shifts. The
   ultimate's bar is the kill meter (amber), or in full frenzy the re-arm between kills (red). A move the lair holds
   back (leaving the ducts before the power is on) dims.
 - **Keys are the game's own glyphs** (its `/Game/KeyIcons` textures, as in its "press E" prompts), each as large as
   fits its slot without stretching: the space bar's glyph is wide, the mouse's tall.
-- **Health and stamina, under the actions:** the health bar shows the pool the squid is on. Standing, that is its
-  stagger pool, in the crew HUD's green: hits drain it, and at zero the squid is knocked down. Down, it is the squid's
-  real health, in red, which only the crew's fire drains while the squid is down and burning. The stamina bar shows
-  only once sprinting has used some, as the crew's does.
+- **Health and stamina, under the actions:** the health bar shows the pool hits are draining, in the crew HUD's
+  green, and red while the entity is down. The squid standing shows its stagger pool: hits drain it, and at zero the
+  squid is knocked down. Down, it is the squid's real health, which only the crew's fire drains while the squid is
+  down and burning. Mike has one pool, his health, which only hits to his head drain while it is open; electrocuted
+  (his weakness), he is stunned and down. When his health runs out a face breaks and it refills, so the bar fills
+  again; the third time, he dies. The stamina bar shows only once sprinting has used some, as the crew's does.
 - **Bottom centre:** the `FRENZY` banner, then the host's messages. A message stays a second plus 300 ms a word, at
   least three seconds; the volunteer's status and the lair's "wait for the power" hint stay until they change.
 - **Bottom right:** `Human respawns remaining: N`, the crew's shared respawns (`BP_MyGameState.Respawn`), live. The
@@ -318,27 +323,29 @@ create: network events and a widget layout.
   | `takeover.lua` | host | The host's choices, volunteering and the random pick, forcing the entity's monster, possessing it, crew exclusion, loss |
   | `picker.lua` | host | The host's entity picker: its panel of tiles, clicks, and the game's UI mode |
   | `lair.lua` | host | The start in the ducts near the game's spawn, the ducts as the lair until the power is on, and F8's power alone |
-  | `cries.lua` | host | The squid's cries: on the 1, 2 and 3 keys, on spotting a crew member, and on getting back up |
+  | `cries.lua` | host | The entity's cries: on the 1, 2 and 3 keys, on spotting a crew member, and on getting back up |
   | `vents.lua` | both | Finding vent shafts, the in-duct spots beside them, and the steps up inside the ducts |
-  | `abilities.lua` | host | Commands to squid moves, cooldowns, the grab rule, the meter's tick |
-  | `movement.lua` | both | The squid's speed, the vent bonus, and the sprint and its stamina |
+  | `abilities.lua` | host | Commands to the entity's moves, cooldowns, the ultimate's arming, the grab rule, the meter's tick |
+  | `moves.lua`, `moves/<monster>.lua` | host | Each entity's moves, one function per slot: what LMB, RMB, E and Space do |
+  | `moves/ducts.lua`, `moves/shared.lua` | host | The vent moves every vent entity shares (venting and peeking), and aiming at the crew |
+  | `movement.lua` | both | The entity's speed, the vent bonus, and the sprint and its stamina |
   | `meter.lua` | host | The kill meter and frenzy rules, as plain logic (unit tested) |
   | `frenzy.lua` | host | The three frenzy triggers |
   | `hunt.lua` | host | The vents' time limit once the crew holds the special weapon |
-  | `crawl.lua` | host | Crouching the squid into the floor-level crawl openings |
+  | `crawl.lua` | host | Crouching the entity into the floor-level crawl openings |
   | `zones.lua` | both | The shuttle, its approach and the forbidden areas: where the entity may not go |
   | `capture.lua` | host | In capture contracts, the entity killed off the shuttle counts as captured |
   | `senses.lua` | host | Noise sources to blurred pings |
   | `control.lua` | entity player | Input to movement and commands; the mod's keys |
   | `camera.lua` | entity player | Third and first person |
   | `vision.lua` | entity player | The entity's own light and the vent-opening markers |
-  | `areas.lua` | entity player | The map sections and the minimap's deck around the squid, which the game only follows for crew |
-  | `minimap.lua` | entity player | The game's minimap in the corner, north up, centred on the squid |
+  | `areas.lua` | entity player | The map sections and the minimap's deck around the entity, which the game only follows for crew |
+  | `minimap.lua` | entity player | The game's minimap in the corner, north up, centred on the entity |
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
   | `objectives.lua` | entity player | The entity's objectives, in the crew's objectives overlay |
   | `voice.lua` | both | The entity's silence, and the crew's radio heard by the entity only nearby |
-  | `kits.lua`, `kits/<monster>.lua` | both | The playable entities: each monster's class, MonsterList value, health pools, cries and moves' assets, and the lookups by class and value |
-  | `game.lua`, `config.lua` | both | Game paths and helpers; every tunable |
+  | `kits.lua`, `kits/<monster>.lua` | both | The playable entities, as data: each monster's class, MonsterList value, health pools, cries, its moves' icons, cooldowns and numbers, and the lookups by class and value |
+  | `game.lua`, `config.lua` | both | Game paths and helpers; the tunables every entity shares |
 
 - **Blueprint pak** (`ControllableEntity_P`, in `Content/Paks/~mods/`), generated from code by the asset builder
   in `unreal/SpeciesUnknown/Source/SpeciesUnknownModKit` (see [docs/pak-mods.md](../../docs/pak-mods.md)):
@@ -346,9 +353,12 @@ create: network events and a widget layout.
     them alone. Its events, `EntityServerCommand` (player to host), `EntityClientPing` and `EntityClientEvent`
     (host to player), have no logic of their own: UE4SS's `RegisterCustomEvent` runs Lua when each one executes,
     on the machine it executes on. Its replicated `Meter`, `Frenzy`, `Health`, `Downed` and `Stamina` feed the HUD:
-    the squid's own health doesn't replicate, so the host sends the pool it is on.
-  - `WBP_EntityHUD`: the HUD's layout, and its five icons as UI textures (the four actions and the view cone). Lua
-    fills in every value and places what sits on the minimap.
+    a monster's own health doesn't replicate, so the host sends the pool hits are draining.
+  - `WBP_EntityHUD`: the HUD's layout. Its action stack has a slot per move (`Primary`, `Secondary`, `Ultimate`,
+    `Mobility`), and Lua fills each slot's icon with the move the entity being played has there. Lua fills in every
+    value and places what sits on the minimap.
+  - The icons, as UI textures (`Icons/T_Icon_<name>`): every entity's moves, the view cone, and the picker's tiles.
+  - `WBP_EntityPicker` and `WBP_PickerTile`: the host's entity picker and its tiles.
 - **Runtime Blueprint only, by necessity.** Unreal projects normally put systems in C++, but a pak mod cannot ship
   C++: the game's executable does not contain our modules. Any C++ stays in editor-only tooling.
 - **Built with UE 5.7.4** (changelist 51494982, the game's exact engine build), so cooked assets match the game.
@@ -372,18 +382,30 @@ the player drives the squid the handlers do nothing, and Lua post-hooks on them 
 ### Flow of one action
 
 1. The entity player presses Shoot. `InpActEvt_IA_Shoot_*` runs on their machine; the Lua post-hook sees it.
-2. Lua calls `BP_EntityLink.EntityServerCommand("Attack", aim, nil)`, a server event, so it runs on the host.
+2. Lua calls `BP_EntityLink.EntityServerCommand("Primary", aim, nil)`, a server event, so it runs on the host.
 3. On the host, `RegisterCustomEvent("EntityServerCommand")` runs Lua, which checks the sender is the entity and
-   the move is off cooldown, then calls the squid's own function (`BPI_BasicMonster_SetSimpleAttack`).
-4. The host answers with `EntityClientEvent("Cooldown.Attack", 1.2)`, which the HUD shows.
+   the move is off cooldown, then runs the entity's own move for the slot (`moves/<monster>.lua`), which calls the
+   monster's own function (`BPI_BasicMonster_SetSimpleAttack`).
+4. The host answers with `EntityClientEvent("Cooldown.Primary", 1.2)`, the entity's own cooldown for the move, which
+   the HUD shows.
 
 ### The grab rule
 
-Every grab starts in the squid's `GrabHeadPlayer`, whether from a leap or a vent drop, and the game's decapitation
-later kills only while the squid's `IsGrabPlayer` is still set. When a grab starts and the meter says it may not
-kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack (Clients)` with
-`Poulpi_Hit_DuringGrab_Front_Montage`) a frame later. That releases the player on every machine and clears
-`IsGrabPlayer`, the same way the game breaks a grab when the crew shoots the squid.
+Every kill is a grab, and every grab starts in one function per entity, its kit's `killGrab`, which the host hooks.
+When a grab starts and the meter says it may not kill, the host plays the monster's own hit montage through
+`KnockBack (Clients)` a frame later, which interrupts the grab on every machine before the kill lands:
+
+- **The squid:** every grab starts in `GrabHeadPlayer`, from a leap or a vent drop. The decapitation later kills only
+  while `IsGrabPlayer` is still set, and the knockback (`Poulpi_Hit_DuringGrab_Front_Montage`) releases the player
+  and clears it, the same way the game breaks a grab when the crew shoots the squid.
+- **Mike:** every grab starts in `GrabPlayerVent ( Multi)` (hooked under that name, spaces and all): his swipe at a
+  crouched crew member, and his ultimate. His eating montage kills 2.18 seconds in (`AnimNotify_EatFace`), checking
+  only that he still holds someone, so clearing a flag wouldn't stop it. The knockback
+  (`BossMichel_Anim_Hit_Front_1_Montage`) interrupts the montage, whose own interrupt lets go and clears what he
+  holds.
+
+The ultimate arms the meter before its move runs, so a grab the move starts at once (Mike's) already kills; a move
+that finds nobody stands the kill down again, and the meter stays full.
 
 ### Tests
 
@@ -396,15 +418,17 @@ kill, the host plays the squid's own "hit while grabbing" knockback (`KnockBack 
   a player, and the random pick.
 - `tests/picker_test.lua`: the host's picker panel: its tiles, clicks, players joining, and the UI mode.
 - `tests/lair_test.lua`: the start in the ducts near the game's spawn, the ducts as the lair, the power, and F8 alone.
-- `tests/cries_test.lua`: the cries the squid makes on its own.
+- `tests/mike_test.lua`: playing Mike: forcing him, his swipe, dodge and grab, his grab check and the shield, the
+  kill rule on his grab, and his health bar.
+- `tests/cries_test.lua`: the cries the entity makes on its own.
 - `tests/hunt_test.lua`: the vents' time limit once the crew holds the special weapon.
-- `tests/crawl_test.lua`: the squid crouching into a crawl opening only while heading in.
+- `tests/crawl_test.lua`: the entity crouching into a crawl opening only while heading in.
 - `tests/zones_test.lua`: kept off the shuttle and out of forbidden areas, the shuttle's approach, and the marked
   boxes.
 - `tests/capture_test.lua`: the entity killed off or aboard the shuttle in capture contracts.
 - `tests/voice_test.lua`: the entity's mic and radio click, and crew radio speech sent nearby too.
 - `tests/vision_test.lua`: the entity's light and the vent markers.
-- `tests/areas_test.lua`: the map sections and the minimap's deck around the squid.
+- `tests/areas_test.lua`: the map sections and the minimap's deck around the entity.
 - `tests/minimap_test.lua`: the minimap, its follower, the hidden item icons and the zoom.
 - `tests/solo_flow_test.lua` and `tests/lobby_display_squid_test.lua`: playing alone, and regressions from playtests.
 
@@ -434,10 +458,8 @@ damage, sphere checks and the kill only run where `IsServer` is true.
 - **The leap itself does no damage.** It only grabs on contact; a shield takes 25 damage and fails the leap.
 - **Vents are navmesh.** Entering switches the squid to flying for the jump and makes it invulnerable while it plays.
   Inside, `SetInVent` crouches it automatically, and it walks crouched along the ducts. There are no splines.
-- **For the kill meter:** the meter has to gate the head grab, because the head grab is the only instant kill. So
-  without meter, the leap and the vent drop must not grab: the mod can end the attack (clear `IsAttacking`) before
-  the sphere check grabs, or let the grab start and release it with `StopGrabPlayer` before the decapitation notify.
-  To be decided when building.
+- **For the kill meter:** the head grab is the squid's only instant kill, so the meter gates it (see
+  [The grab rule](#the-grab-rule)).
 
 Possession notes:
 
@@ -451,6 +473,34 @@ Possession notes:
   (`OutOfNavCheckEvent` -> `TeleportToNavigationPoint`). What triggers it is untraced.
 - Motion warping targets are set only on the host, so the leap and vent jumps may rubber-band on the squid
   player's screen. Playtest.
+
+## How Mike's moves work
+
+Read from `BP_Monster_Michel` (Mike) and the monster classes he inherits from, as for the squid. He is a fast vent
+ambusher: combat speed 585 (the squid's is 450), 650 at his top speed, slower in the vents. His vent moves are the
+squid's, inherited from `BP_BaseMonster` (`JumpToVent`, `ClimbVent250`, `LookFromVent`, `SetInVent`,
+`AttackFromVent`), so venting and peeking are shared (`moves/ducts.lua`).
+
+| Move | How the AI starts it | How the mod starts it (on the host) |
+|------|----------------------|-------------------------------------|
+| Swipe | `BTService_CheckBasicAttack` -> `BPI_BasicMonster_SetSimpleAttack(target, location, distance)`; his `GetAttackSimpleAnim` picks `Attack_1` or `Attack_2` at a standing target, and his grab (`Attack_Player_Vent`) at a crouched one | Same call, with the aimed actor; at nobody, `AttackSimpleAnim (Clients)` with `Attack_1`, which sets him attacking, so it hurts whoever it sweeps |
+| Dodge | `BTService_CheckDodging` projects a capsule to his side and calls `BPI_Monster_SetDodging(finalTransform, targetPoint, speed)`; root motion is warped to `finalTransform`, and his `GetDodgeAnim` plays left or right by where it lies against his facing | Turn him to the aim, then the same call, to the floor 300 units aside as the navigation finds it (`K2_ProjectPointToNavigation`), the way the player moves across their view |
+| Grab | The grab montage's `CheckSphereForward` (radius 30, 80 ahead) -> his `ContinusSphereCheck`: not already holding someone, a crew member alive and `BPI_Human_CanBeGrabbed(false)`, and no shield in the way (`CheckShieldBeforeTarget`) -> `GrabPlayerVent ( Multi)(player)` | The same checks on the crew member nearest the aim within 220 units, then `GrabPlayerVent ( Multi)` at once. A shield in the way takes his 100-damage punch instead (`BPI_BasicMonster_SetHitDamageShield`, forced, as his check deals it only mid-attack) |
+| Vent drop | `BTService_CheckPlayerDownVent` -> `BPI_Monster_AttackFromVent(vent, player)` | Same call as the squid's. It doesn't grab: Mike doesn't override the drop the way the squid does |
+
+- **No leap.** His class defaults switch `AllowSpecialAttack` off, and his `CanSpecialAttack` says no.
+- **The eating kills.** `GrabPlayerVent` holds the crew member (`SetGrabbedHard`), pulls them in front of him each
+  tick, and plays `Eat_player_Vent`, whose `AnimNotify_EatFace` calls `BPI_Human_CustomDeath` 2.18 seconds in.
+- **His health** is one pool, 350, drained only by hits to his head while it is open. Electrocution (his weakness)
+  stuns him and opens it. Each time it runs out a face breaks (`HeadBreak_Left`, `HeadBreak_Right`) and it refills
+  (to 1.5 times after the second); the third time, he dies.
+- **His cries** are his own voice slots (`MonsterPack2_Monster07_*`, several of them plain sound waves); his far call
+  is the base monster's `PlayVoiceFar(Multi)`.
+- **Possession notes.** His stuck check is turned off as the squid's is. His AI turns him by hand in the vents
+  (`HandleInVent`, through `CharacterMovement.RotationRate`), only while it has an AI controller, so the takeover
+  puts his turn rate back to his class's own. With no target he breathes audibly, which gives him away. His
+  `GetUp (Multi)` plays the squid's get-up animation, a leftover, so the mod never calls it.
+- The dodge's warp target is set only on the host, so it may rubber-band on his player's screen, like the leap.
 
 ## How the game makes noise
 
@@ -514,7 +564,7 @@ it appears:
    A respawn after a capture goes through `InitMonster` too, from `BP_MyGameState`.
 
 The game instance survives map travel, so setting `spawnForceSessionMonster` on the host while still in the lobby
-makes the next mission spawn the squid, through the game's own spawn path (`GetMonsterSoftClass` ->
+makes the next mission spawn the entity's monster, through the game's own spawn path (`GetMonsterSoftClass` ->
 `SpawnMonsterEvent`). Nothing in the game sets the variable itself; it reads like a leftover debug override.
 
 `MonsterList` values (from `BP_Lobby_FunctionLibrairy.GetMonsterSoftClass`):
@@ -568,7 +618,7 @@ one friend.
    mission". Pressing F8 again backs out; a second player pressing F8 while someone is signed up sees "Someone else
    already claimed the entity".
 3. **The squid is forced and taken.** Start a contract. The mission's specimen is the squid, the volunteer sees
-   "You are the entity" and controls it, and the host's log shows `took control of the squid` then
+   "You are the entity" and controls it, and the host's log shows `took control of the monster: Squid` then
    `The squid starts in a vent at ...`. The volunteer's crew body is gone. On Hawking the squid only spawns once a
    crew member steps out of the shuttle, so until then the volunteer plays as crew; alone, walk out yourself (see
    [How the mission's monster is chosen](#how-the-missions-monster-is-chosen)).
@@ -595,7 +645,8 @@ one friend.
    and the hint goes while peek recharges. Away from a grate there's no hint. Shoot with nobody near: the squid swings
    at the air. Press 1, 2 and 3: a roar, a curious call and a long call, each with a short cooldown.
 8. **The host's picker (alone works too).** In the lobby the host presses F9: a panel opens with the cursor showing
-   and the character standing still. The entity row shows Random, the squid with its codex portrait, and AI only;
+   and the character standing still. The entity row shows Random, the squid and Mike with their codex portraits, and
+   AI only;
    the player row shows Random and a tile per player. Both rows start on Random (marked amber). Click the squid, then
    your own player tile: both are marked, and the log shows `The host picked the entity: Squid`. F9 closes it. Start
    a contract alone: you become the squid without volunteering. Back in the lobby, pick AI only: the next mission's
@@ -639,3 +690,14 @@ one friend.
     the first radio press names the voice call that needs fixing.
 22. **Capture (with a friend, capture contract).** Kill the squid away from the shuttle: the contract completes as
     captured. Kill it aboard: the contract fails, as normal. Check the lobby's specimen display after the first.
+23. **Mike (alone, then with a friend).** In the picker, pick Mike and yourself, and start a contract: the specimen
+    is Mike, the host's log shows `took control of the monster: Mike`, and you start in the ducts. The stack shows his
+    icons: claw marks, a sidestep arrow, jaws, then the vent. Alone: Space and Crouch work as the squid's; Shoot with
+    nobody near swings his claw; out of the vents, Aim sidesteps (holding A dodges left, D or nothing right) onto
+    floor, never through a wall; in the vents, Aim answers "Dodge out of the vents". The 1, 2 and 3 keys are his own
+    cries. With a friend: Shoot next to them swipes; with them crouched in a crawl opening, the swipe grabs them and
+    breaks off with "Your hunger isn't ready". With a full meter, E facing them within about 2 m grabs and eats them;
+    with their shield up between you, E punches the shield and says "Their shield took the grab", and the meter stays
+    full. Electrocute Mike: his health bar turns red while he's stunned, and his head takes damage; when a face breaks
+    the bar fills again. Report whether the dodge rubber-bands on the entity's screen and whether his turning feels
+    right.

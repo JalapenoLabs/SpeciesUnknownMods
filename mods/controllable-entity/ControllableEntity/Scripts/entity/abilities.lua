@@ -1,185 +1,41 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- Host side of playing the squid: each command from the entity player becomes the squid's own move, the kill meter
--- decides whether a grab kills, and the meter's state goes back to the player's HUD.
+-- Host side of playing the entity: each command from the entity player becomes one of its monster's own moves
+-- (moves/<name>.lua), the kill meter decides whether a grab kills, and the meter's state goes back to the player's HUD.
 --
--- Every move calls the same squid function its AI uses (mods/controllable-entity/README.md, "How the squid's moves
+-- Every move calls the same function the monster's AI uses (mods/controllable-entity/README.md, "How the moves
 -- work"), so animations, damage and networking stay the game's own.
 
 local config = require("entity.config")
 local cries = require("entity.cries")
+local ducts = require("entity.moves.ducts")
 local game = require("entity.game")
 local hunt = require("entity.hunt")
 local kits = require("entity.kits")
 local lair = require("entity.lair")
 local links = require("entity.links")
 local Meter = require("entity.meter")
+local moves = require("entity.moves")
 local movement = require("entity.movement")
 local takeover = require("entity.takeover")
-local vents = require("entity.vents")
 local zones = require("entity.zones")
 
 local abilities = {}
 
 local meter = Meter.new(config.meter)
 local readyAtByCommand = {}
--- The peek through a grate in progress: { grate, location } (where the squid stood to peek), or nil.
-local peeking = nil
 
 function abilities.meter()
   return meter
 end
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
--- Targets
+-- Commands
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
--- The crew member nearest the squid inside a cone around the aim, within reach; nil when nobody qualifies.
-local function crewInCone(monster, aim, reach, coneDegrees)
-  local origin = monster:K2_GetActorLocation()
-  local minimumAlignment = math.cos(math.rad(coneDegrees / 2))
-  local best, bestDistance = nil, reach
-
-  for _, crewMember in ipairs(FindAllOf(game.classNames.crewCharacter) or {}) do
-    if crewMember:IsValid() then
-      local location = crewMember:K2_GetActorLocation()
-      local distance = game.distance(origin, location)
-      if distance > 0 and distance <= bestDistance then
-        local alignment = ((location.X - origin.X) * aim.X + (location.Y - origin.Y) * aim.Y
-          + (location.Z - origin.Z) * aim.Z) / distance
-        if alignment >= minimumAlignment then
-          best, bestDistance = crewMember, distance
-        end
-      end
-    end
-  end
-  return best, bestDistance
-end
-
--- The aim flattened onto the ground, for moves that travel along the floor.
-local function horizontal(aim)
-  local length = math.sqrt(aim.X * aim.X + aim.Y * aim.Y)
-  if length < 1e-6 then
-    return { X = 1, Y = 0, Z = 0 }
-  end
-  return { X = aim.X / length, Y = aim.Y / length, Z = 0 }
-end
-
--- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
--- Moves
--- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
-
--- With a crew member in reach, the AI's own attack on them. With nobody, the squid swings at the air anyway, like a
--- sword swung at nothing (playtest 6): the AI's attack needs a target (BP_BaseMonster.SetSimpleAttack does nothing
--- without one), so the swing's montage is played through the same multicast the attack ends in. Its damage comes
--- from the montage's sphere check in front of the squid (BP_ParentMonster.BasicSphereAttackDamage), which runs only
--- while the squid is attacking, so a swing at nothing hurts nobody.
-local function attack(monster, aim)
-  local target, distance = crewInCone(monster, aim, config.attack.reach, config.attack.coneDegrees)
-  if target then
-    monster:BPI_BasicMonster_SetSimpleAttack(target, target:K2_GetActorLocation(), distance)
-    return true
-  end
-
-  local swingPath = kits.forMonster(monster).swingMontage
-  local swing = StaticFindObject(swingPath)
-  if not swing or not swing:IsValid() then
-    game.log("No swing montage at %s; the lash only lands on a crew member in reach", swingPath)
-    return false, "NoTarget"
-  end
-  monster["AttackSimpleAnim (Clients)"](monster, swing, monster.AttackSimplePlayRate, nil)
-  return true
-end
-
--- The AI's leap checks its own range and arc, then writes LastSpecialAttackPlayerLocation for SetSpecialAttack to
--- warp to. The entity leaps where they aim, so the landing point is written here instead.
--- Ends a peek with the game's own call, as C pressed again does. The pose otherwise outlasts the peek: the squid
--- crawled and leapt still looking down (playtest 8). Dropping out of the vent ends it on its own.
-local function stopPeeking(monster)
-  if not peeking then
-    return
-  end
-  if peeking.grate:IsValid() then
-    monster:BPI_Monster_LookFromVent(peeking.grate, false, false)
-  end
-  peeking = nil
-end
-
-local function leap(monster, aim)
-  stopPeeking(monster)
-  local origin = monster:K2_GetActorLocation()
-  local direction = horizontal(aim)
-  monster.LastSpecialAttackPlayerLocation = {
-    X = origin.X + direction.X * config.leap.distance,
-    Y = origin.Y + direction.Y * config.leap.distance,
-    Z = origin.Z,
-  }
-  local target = crewInCone(monster, aim, config.leap.distance + 150, config.attack.coneDegrees)
-  monster:BPI_Monster_SetSpecialAttack(target or monster)
-  return true
-end
-
--- In a room, venting climbs into the shaft above. In the ducts it takes whichever is nearer: the shaft opening
--- below, dropping out onto whoever is under it, or either end of a step, climbing it up or down with the AI's own
--- climb (playtest 6: the player had no way up the elbow joints the AI climbs; playtest 8: nor back down). Dropping out
--- leaves the ducts, so it waits for the power while the lair holds the squid; climbing stays inside them, so it
--- doesn't.
-local function vent(monster)
-  local location = monster:K2_GetActorLocation()
-  if not monster.InVent then
-    if hunt.areVentsShut() then
-      return false, "VentsShut"
-    end
-    local entrance = vents.nearest(location, config.vents.enterReach)
-    if not entrance then
-      return false, "NoVentEntrance"
-    end
-    monster:BPI_Monster_JumpToVent(entrance, true)
-    return true
-  end
-
-  local exit, exitDistance = vents.nearest(location, config.vents.exitReach)
-  local climb, climbDistance, isFromTop = vents.nearestClimb(location)
-  if climb and (not exit or climbDistance < exitDistance) then
-    stopPeeking(monster)
-    -- Up from the step's foot, or down from its top
-    monster:BPI_Monster_ClimbVent250(climb, isFromTop)
-    return true
-  end
-  if not exit then
-    return false, "NoVentExit"
-  end
-  if lair.isLeashed(monster) then
-    return false, "PowerOff"
-  end
-  -- The drop's own animation ends a peek
-  peeking = nil
-  local target = crewInCone(monster, { X = 0, Y = 0, Z = -1 }, config.vents.exitReach, 120)
-  monster:BPI_Monster_AttackFromVent(exit, target)
-  return true
-end
-
--- C: looks down through the grate under the squid, or stops looking.
-local function peek(monster)
-  if peeking then
-    stopPeeking(monster)
-    return true
-  end
-  if not monster.InVent then
-    return false, "NotInVent"
-  end
-  local location = monster:K2_GetActorLocation()
-  local grate = vents.nearest(location, config.vents.exitReach)
-  if not grate then
-    return false, "NoVentExit"
-  end
-  peeking = { grate = grate, location = { X = location.X, Y = location.Y, Z = location.Z } }
-  monster:BPI_Monster_LookFromVent(grate, true, false)
-  return true
-end
-
--- The ultimate arms the guaranteed kill, then leaps (or drops from the vent) at once to deliver it.
-local function ultimate(monster, aim, now)
+-- The ultimate arms the guaranteed kill, then the entity's own ultimate delivers it at once: armed first, so a grab
+-- the move starts right away already kills. A move that finds nobody stands the kill down again, unspent.
+local function ultimate(monster, aim, now, kitMoves)
   -- Before arming, so the meter isn't spent on a kill the shuttle's approach won't allow
   if zones.isNearShuttle(monster:K2_GetActorLocation()) then
     return false, "ShuttleZone"
@@ -187,25 +43,34 @@ local function ultimate(monster, aim, now)
   if not meter:arm(now) then
     return false, "UltimateNotReady"
   end
-  if monster.InVent then
-    return vent(monster, aim)
+  local ok, reason = kitMoves.Ultimate(monster, aim, now)
+  if not ok then
+    meter:standDown()
   end
-  return leap(monster, aim)
+  return ok, reason
 end
 
+-- What each command does, given the entity's own moves. The four slots are the entity's (kits.slots); peeking is for
+-- an entity that lives in the vents; the cries, which everyone near the entity hears, are a choice to give itself
+-- away.
 local moveByCommand = {
-  Attack = attack,
-  Leap = leap,
-  Vent = vent,
-  Peek = peek,
+  Primary = function(monster, aim, now, kitMoves) return kitMoves.Primary(monster, aim, now) end,
+  Secondary = function(monster, aim, now, kitMoves) return kitMoves.Secondary(monster, aim, now) end,
   Ultimate = ultimate,
-  -- The squid's cries, which everyone near it hears: a choice to give itself away
+  Mobility = function(monster, aim, now, kitMoves) return kitMoves.Mobility(monster, aim, now) end,
+  Peek = function(monster, _, _, kitMoves)
+    if not kitMoves.Peek then
+      return false, "NotInVent"
+    end
+    return kitMoves.Peek(monster)
+  end,
   Roar = function(monster) return cries.play(monster, "Roar", true) end,
   Curious = function(monster) return cries.play(monster, "Curious", true) end,
   Call = function(monster) return cries.play(monster, "Call", true) end,
 }
 
--- Runs a command from the entity player: checks it came from the entity and is off cooldown, then moves the squid.
+-- Runs a command from the entity player: checks it came from the entity and is off cooldown, then moves the monster.
+-- A slot's cooldown, and whether the lair holds it back, are the entity's own (its kit's moves); the rest are shared.
 local function runCommand(command)
   return function(_, controller, aim)
     -- Asked first: it is also what takes a reloaded mod's entity back at once
@@ -216,7 +81,9 @@ local function runCommand(command)
       return
     end
 
-    if config.lair.heldMoves[command] and lair.isLeashed(entity.monster) then
+    local slotMove = entity.kit.moves[command]
+    local isHeld = slotMove ~= nil and slotMove.heldByLair
+    if isHeld and lair.isLeashed(entity.monster) then
       links.sendEvent(controller, "Denied.PowerOff")
       return
     end
@@ -227,14 +94,15 @@ local function runCommand(command)
       return
     end
 
-    local ok, reason = moveByCommand[command](entity.monster, aim, now)
+    local ok, reason = moveByCommand[command](entity.monster, aim, now, moves.byKitId[entity.kit.id])
     if not ok then
       links.sendEvent(controller, "Denied." .. reason)
       return
     end
 
-    readyAtByCommand[command] = now + config.cooldowns[command]
-    links.sendEvent(controller, "Cooldown." .. command, config.cooldowns[command])
+    local cooldown = slotMove and slotMove.cooldown or config.cooldowns[command]
+    readyAtByCommand[command] = now + cooldown
+    links.sendEvent(controller, "Cooldown." .. command, cooldown)
   end
 end
 
@@ -242,9 +110,9 @@ end
 -- The kill
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
--- Every grab starts in GrabHeadPlayer, from the leap or the vent drop. A grab the meter doesn't allow is broken off
--- with the game's own "hit while grabbing" knockback, which releases the player on every machine and clears the
--- squid's IsGrabPlayer, the flag its decapitation checks before killing.
+-- Every grab that kills starts in the kit's kill grab (the squid's GrabHeadPlayer, Mike's GrabPlayerVent), whichever
+-- move led to it. A grab the meter doesn't allow is broken off with the monster's own "hit while grabbing" knockback,
+-- which interrupts the grab on every machine: the monster lets go before the kill lands.
 local function onGrabStarted(context)
   local monster = context:get()
   local entity = takeover.activeEntity()
@@ -277,6 +145,20 @@ end
 
 local lastTickAt = nil
 
+-- The share of the pool that hits are draining, for the HUD's health bar, and whether the entity is down: the squid's
+-- stagger while it stands and its real health once a hit has knocked it down; an entity with one pool (Mike) always
+-- shows that. Mike's refills past its maximum after his second face breaks, so the share is clamped.
+local function healthShare(monster, fields)
+  local downed = monster[fields.downed] == true
+  local onStagger = fields.stagger ~= nil and not downed
+  local current = onStagger and monster[fields.stagger] or monster[fields.health]
+  local maximum = onStagger and monster[fields.maxStagger] or monster[fields.maxHealth]
+  if not maximum or maximum <= 0 then
+    return 1, downed
+  end
+  return math.min(1, current / maximum), downed
+end
+
 -- Runs about five times a second on the host. Meter reads "how ready the kill is": the meter outside full frenzy,
 -- the re-arm progress inside it.
 function abilities.tick()
@@ -289,18 +171,7 @@ function abilities.tick()
   local now = game.timeSeconds(entity.monster)
   meter:advance(now, lastTickAt and now - lastTickAt or 0)
   lastTickAt = now
-
-  -- Crawling away from the grate ends the peek (playtest 8); out of the ducts, the drop ended it already
-  local monster = entity.monster
-  if peeking and not monster.InVent then
-    peeking = nil
-  elseif peeking then
-    local location = monster:K2_GetActorLocation()
-    local offsetX, offsetY = location.X - peeking.location.X, location.Y - peeking.location.Y
-    if math.sqrt(offsetX * offsetX + offsetY * offsetY) > config.vents.peekBreakDistance then
-      stopPeeking(monster)
-    end
-  end
+  ducts.tick(entity.monster)
 
   local link = links.forController(entity.controller)
   if not link then
@@ -314,13 +185,7 @@ function abilities.tick()
     link.Meter = meter.value
   end
 
-  -- The HUD's health bar shows the pool the squid is on: stagger while standing, real health while down
-  local fields = entity.kit.healthFields
-  local downed = monster[fields.downed] == true
-  local current = downed and monster[fields.health] or monster[fields.stagger]
-  local maximum = downed and monster[fields.maxHealth] or monster[fields.maxStagger]
-  link.Downed = downed
-  link.Health = (maximum and maximum > 0) and current / maximum or 1
+  link.Health, link.Downed = healthShare(entity.monster, entity.kit.healthFields)
   link.Stamina = movement.stamina()
   link.VentTime = hunt.ventTimeLeft()
 end

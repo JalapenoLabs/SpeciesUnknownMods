@@ -19,7 +19,7 @@ local kits = require("entity.kits")
 fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
 })
-fake.installModPak(game.modClasses)
+fake.installModPak(game.modAssets)
 local gameInstance = fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })
 
 local function playerState(lobbyId)
@@ -82,7 +82,7 @@ local takeover = require("entity.takeover")
 
 fake.runLoops(1000)
 assert(takeover.choice.entity == "Random" and takeover.choice.player == "Random", "both choices start Random")
-assert(gameInstance.spawnForceSessionMonster == kits.byId.Squid.monsterType,
+assert(kits.byMonsterType[gameInstance.spawnForceSessionMonster] ~= nil,
   "Random rolls among the playable entities, so a co-op lobby forces one even with no volunteer")
 
 command(crewController, "OpenPicker")
@@ -163,8 +163,8 @@ assert(takeover.choice.player == "Random" and lastEvent(hostController) == "Pick
   "the pick goes back to Random")
 
 -- Alone, there is nobody to pick at random: the next mission is the game's own unless someone volunteers
-assert(gameInstance.spawnForceSessionMonster == 0, "a solo lobby doesn't force the squid")
+assert(gameInstance.spawnForceSessionMonster == 0, "a solo lobby doesn't force an entity")
 command(hostController, "Volunteer")
-assert(gameInstance.spawnForceSessionMonster == kits.byId.Squid.monsterType, "a solo volunteer still gets the squid")
+assert(kits.byMonsterType[gameInstance.spawnForceSessionMonster] ~= nil, "a solo volunteer still gets one")
 
 print("entity mode test passed")

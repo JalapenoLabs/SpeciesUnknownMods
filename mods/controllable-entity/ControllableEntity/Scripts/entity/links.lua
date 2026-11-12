@@ -42,7 +42,7 @@ end
 -- Spawns a link for every player controller that has none. Called every second on the host: players join, leave
 -- and travel at any time, and a reconcile pass catches every case without hooking the game's travel code.
 function links.reconcile()
-  local linkClass = game.loadModClass(game.modClasses.link)
+  local linkClass = game.loadModAsset(game.modAssets.link)
   if not linkClass then
     return
   end

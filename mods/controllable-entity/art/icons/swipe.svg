@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Swipe: three claw marks raked down and across. Each tapers to a point at both ends. -->
+  <g fill="#fff" stroke="#000" stroke-opacity="0.4" stroke-width="3" paint-order="stroke">
+    <path d="M14 30 C44 46 58 74 52 116 C40 84 26 58 14 30 Z"/>
+    <path d="M44 12 C78 32 90 68 84 116 C72 76 58 44 44 12 Z"/>
+    <path d="M78 10 C108 28 120 62 114 104 C104 70 92 40 78 10 Z"/>
+  </g>
+</svg>

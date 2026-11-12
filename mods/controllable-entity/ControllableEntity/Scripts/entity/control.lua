@@ -118,17 +118,17 @@ local function openPauseMenu(controller, actionValueParameter)
 end
 
 -- The handler for each game input action the entity uses, by the action's name (IA_<Name>). Buttons become a host
--- command when pressed, except the flashlight, which the squid has no use for and which switches the view instead.
--- Interact (E) fires the ultimate and HoldTool (Space) vents (playtest 6); the weapon slots cry out (playtest 7).
--- The rest of the game's actions (reload, weapon slots, ...) mean nothing to the squid.
+-- command when pressed, except the flashlight, which the entity has no use for and which switches the view instead.
+-- The entity's four moves (kits.slots) are Shoot (LMB), ADS (RMB), Interact (E, playtest 6) and HoldTool (Space,
+-- playtest 6); the weapon slots cry out (playtest 7). The rest of the game's actions (reload, ...) mean nothing to it.
 local handlerByAction = {
   Move = move,
   Look = look,
-  Shoot = button("Attack"),
-  ADS = button("Leap"),
+  Shoot = button("Primary"),
+  ADS = button("Secondary"),
   Interact = button("Ultimate"),
-  HoldTool = button("Vent"),
-  -- The crew's weapon-slot keys (1, 2 and 3) are the squid's cries (cries.lua)
+  HoldTool = button("Mobility"),
+  -- The crew's weapon-slot keys (1, 2 and 3) are the entity's cries (cries.lua)
   Slot1 = button("Roar"),
   Slot2 = button("Curious"),
   Slot3 = button("Call"),

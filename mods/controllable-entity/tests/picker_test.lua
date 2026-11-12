@@ -18,7 +18,7 @@ local kits = require("entity.kits")
 fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
 })
-local modClasses = fake.installModPak(game.modClasses)
+local modAssets = fake.installModPak(game.modAssets)
 fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })
 
 -- The game's UI-mode switch, as its pause menu uses
@@ -51,10 +51,10 @@ local panel = fake.object("WBP_EntityPicker_C", {
 })
 fake.objects[game.paths.widgetLibrary] = fake.object("WidgetBlueprintLibrary", nil, {
   Create = function(_, _, class)
-    if class == modClasses.picker then
+    if class == modAssets.picker then
       return panel
     end
-    if class == modClasses.pickerTile then
+    if class == modAssets.pickerTile then
       return fake.object("WBP_PickerTile_C", {
         Tile = button("Tile"),
         TileImage = fake.object("Image"),

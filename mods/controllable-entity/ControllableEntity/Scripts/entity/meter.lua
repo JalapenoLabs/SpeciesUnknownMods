@@ -64,6 +64,12 @@ function Meter:arm(now)
   return true
 end
 
+-- Stands an armed kill down without spending it, when the move that was to deliver it found nobody: the meter stays
+-- full for the next try.
+function Meter:standDown()
+  self.armedUntil = nil
+end
+
 function Meter:isArmed(now)
   return self.armedUntil ~= nil and now <= self.armedUntil
 end

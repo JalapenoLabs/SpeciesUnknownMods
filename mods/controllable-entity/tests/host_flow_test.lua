@@ -21,7 +21,7 @@ local kits = require("entity.kits")
 fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
 })
-fake.installModPak(game.modClasses)
+fake.installModPak(game.modAssets)
 fake.objects[kits.byId.Squid.killGrab.breakMontage] = fake.object("AnimMontage")
 
 local gameInstance = fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })
@@ -100,7 +100,7 @@ fake.runLoops()
 assert(#spawnedLinks == 2, "links are spawned once")
 
 command(crewController, "Volunteer")
-assert(gameInstance.spawnForceSessionMonster == kits.byId.Squid.monsterType, "volunteering forces the squid")
+assert(kits.byMonsterType[gameInstance.spawnForceSessionMonster] ~= nil, "volunteering forces a playable entity")
 assert(lastEvent(crewController) == "Volunteered")
 assert(#fake.callsTo(linkOf(hostController), "EntityClientEvent") == 0, "nobody else hears about it")
 
@@ -175,11 +175,11 @@ fake.hooks[talkerPath .. "SetVoiceChannel"](fake.param(entityTalker), fake.param
 assert(proximity:get() == true, "the entity stays in the proximity channel, to hear the crew nearby")
 
 -- Commands
-command(crewController, "Attack", { X = 1, Y = 0, Z = 0 })
+command(crewController, "Primary", { X = 1, Y = 0, Z = 0 })
 assert(#fake.callsTo(squid, "BPI_BasicMonster_SetSimpleAttack") == 1, "attack hits the crew member ahead")
-command(crewController, "Attack", { X = 1, Y = 0, Z = 0 })
+command(crewController, "Primary", { X = 1, Y = 0, Z = 0 })
 assert(lastEvent(crewController) == "Denied.Cooldown", "attacks respect the cooldown")
-command(hostController, "Attack")
+command(hostController, "Primary")
 assert(#fake.callsTo(squid, "BPI_BasicMonster_SetSimpleAttack") == 1, "only the entity commands the squid")
 
 -- Playtest 7: the 1, 2 and 3 keys cry out, on every machine, each with its own cooldown
@@ -196,7 +196,7 @@ assert(lastEvent(crewController) == "Denied.Cooldown", "and waits its cooldown")
 local swingMontage = fake.object("AnimMontage")
 fake.objects[kits.byId.Squid.swingMontage] = swingMontage
 fake.now = 5
-command(crewController, "Attack", { X = -1, Y = 0, Z = 0 })
+command(crewController, "Primary", { X = -1, Y = 0, Z = 0 })
 local swings = fake.callsTo(squid, "AttackSimpleAnim (Clients)")
 assert(#swings == 1 and swings[1].args[1] == swingMontage and swings[1].args[3] == nil, "a lash at nobody still swings")
 assert(#fake.callsTo(squid, "BPI_BasicMonster_SetSimpleAttack") == 1, "without picking a target")

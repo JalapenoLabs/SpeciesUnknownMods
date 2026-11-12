@@ -5,12 +5,19 @@
 -- game manager spawns), whether it lives in the vents, its health pools, its cries, and what its moves need. The
 -- mission's monster decides which kit drives it.
 
+local mike = require("entity.kits.mike")
 local squid = require("entity.kits.squid")
 
 local kits = {}
 
 -- Every kit, in the order the host's picker shows them.
-kits.playable = { squid }
+kits.playable = { squid, mike }
+
+-- The moves every kit fills, one per key on the game's own actions (control.lua), in the order the HUD stacks them:
+-- Primary (LMB), Secondary (RMB), Ultimate (E) and Mobility (Space). Each kit's `moves` says, per slot, the move's
+-- HUD icon, its cooldown, whether the lair holds it back until the power is on, and the numbers it plays by; what
+-- the move does is in moves/<name>.lua.
+kits.slots = { "Primary", "Secondary", "Ultimate", "Mobility" }
 
 kits.byId = {}
 kits.byClassName = {}

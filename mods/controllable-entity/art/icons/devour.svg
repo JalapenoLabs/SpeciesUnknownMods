@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Devour, Mike's ultimate: jaws opened wide, fangs above and below. The mouth is cut out of the shape. -->
+  <path fill="#fff" fill-rule="evenodd" stroke="#000" stroke-opacity="0.4" stroke-width="3" paint-order="stroke"
+    d="M64 10 C30 10 10 34 10 64 C10 94 30 118 64 118 C98 118 118 94 118 64 C118 34 98 10 64 10 Z
+       M24 52 C36 40 92 40 104 52 L96 64 L88 54 L80 66 L72 54 L64 68 L56 54 L48 66 L40 54 L32 64 Z
+       M24 76 L32 66 L40 78 L48 66 L56 80 L64 66 L72 80 L80 66 L88 78 L96 66 L104 76 C92 90 36 90 24 76 Z"/>
+</svg>

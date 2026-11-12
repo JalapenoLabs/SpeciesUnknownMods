@@ -39,7 +39,7 @@ end
 
 -- One of the mod's tiles, added to a row of the panel: its label, and in place of its icon a material when given.
 local function createTile(row, label, portrait)
-  local tileClass = game.loadModClass(game.modClasses.pickerTile)
+  local tileClass = game.loadModAsset(game.modAssets.pickerTile)
   if not tileClass then
     return nil
   end
@@ -159,7 +159,7 @@ function picker.toggle(controller)
     links.sendEvent(controller, "Denied.PickInLobby")
     return
   end
-  local pickerClass = game.loadModClass(game.modClasses.picker)
+  local pickerClass = game.loadModAsset(game.modAssets.picker)
   local library = uiLibrary()
   if not pickerClass or not library then
     return

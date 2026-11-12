@@ -31,7 +31,7 @@ fake.objects[game.paths.widgetLayoutLibrary] = fake.object("WidgetLayoutLibrary"
   GetViewportSize = function() return { X = 1920, Y = 1080 } end,
   SlotAsVerticalBoxSlot = function() return fake.object("VerticalBoxSlot") end,
 })
-fake.installModPak(game.modClasses)
+fake.installModPak(game.modAssets)
 fake.object("GameStateBase")
 fake.world = fake.object("World")
 
@@ -217,14 +217,14 @@ local commandsBeforeShooting = #fake.callsTo(link, "EntityServerCommand")
 shootHook(fake.param(controller), fake.param({ pressed = true }))
 shootHook(fake.param(controller), fake.param({ pressed = false }))
 commands = fake.callsTo(link, "EntityServerCommand")
-assert(#commands == commandsBeforeShooting + 1 and commands[#commands].args[1]:ToString() == "Attack",
+assert(#commands == commandsBeforeShooting + 1 and commands[#commands].args[1]:ToString() == "Primary",
   "a press sends one command, a release none")
 assert(math.abs(commands[#commands].args[2].Y - 1) < 1e-9, "the command carries the aim")
 
 -- HoldTool (Space) vents and Interact (E) fires the ultimate (playtest 6), through the game's own bindings
 holdToolHook(fake.param(controller), fake.param({ pressed = true }))
 commands = fake.callsTo(link, "EntityServerCommand")
-assert(commands[#commands].args[1]:ToString() == "Vent", "Space vents")
+assert(commands[#commands].args[1]:ToString() == "Mobility", "Space vents")
 interactHook(fake.param(controller), fake.param({ pressed = true }))
 commands = fake.callsTo(link, "EntityServerCommand")
 assert(commands[#commands].args[1]:ToString() == "Ultimate", "Interact fires the ultimate")
@@ -284,10 +284,10 @@ assert(capsuleScreen.Pseudo.text == "?????", "a name written later is masked at 
 assert(lastArgument(widget.Actions, "SetVisibility") == 3, "the actions show once the player is the entity")
 -- Regression (playtest 7): the key boxes spelled out SPACE where the game has its own glyph for the key. Each key
 -- shows the game's glyph, as large as fits its slot without stretching
-assert(lastArgument(widget.VentKey, "SetBrushFromTexture") == spaceGlyph, "Space shows the game's space bar glyph")
-local fitted = lastArgument(widget.VentKey, "SetDesiredSizeOverride")
+assert(lastArgument(widget.MobilityKey, "SetBrushFromTexture") == spaceGlyph, "Space shows the game's space bar glyph")
+local fitted = lastArgument(widget.MobilityKey, "SetDesiredSizeOverride")
 assert(fitted.X == 72 and fitted.Y == 24, "the wide glyph fills its slot's width, keeping its shape")
-assert(lastArgument(widget.LashKey, "SetBrushFromTexture") == mouseGlyph, "the lash shows the left mouse button")
+assert(lastArgument(widget.PrimaryKey, "SetBrushFromTexture") == mouseGlyph, "the lash shows the left mouse button")
 assert(lastArgument(widget.UltimateBar, "SetPercent") == 0.5, "the ultimate's bar shows the replicated meter")
 assert(lastArgument(widget.UltimateBar, "SetVisibility") == 3, "while it charges")
 
@@ -298,11 +298,11 @@ fake.runLoops(33)
 assert(lastArgument(widget.UltimateBar, "SetVisibility") == 2, "a ready ultimate shows no bar")
 
 -- A cooldown fills its bar; a ready action hides it
-assert(lastArgument(widget.LashBar, "SetVisibility") == 2, "a ready action shows no bar")
-fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("Cooldown.Attack")), fake.param(0))
+assert(lastArgument(widget.PrimaryBar, "SetVisibility") == 2, "a ready action shows no bar")
+fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("Cooldown.Primary")), fake.param(1.2))
 fake.runLoops(33)
-assert(lastArgument(widget.LashBar, "SetVisibility") == 3, "a recharging action shows its bar")
-assert(lastArgument(widget.LashBar, "SetPercent") == 0, "the bar starts empty and fills")
+assert(lastArgument(widget.PrimaryBar, "SetVisibility") == 3, "a recharging action shows its bar")
+assert(lastArgument(widget.PrimaryBar, "SetPercent") == 0, "the bar starts empty and fills")
 
 -- Playtest 8: the crew's respawns left, live, bottom right
 assert(lastArgument(widget.RespawnsText, "SetText").text == "Human respawns remaining: 2", "the crew's respawns show")
@@ -353,7 +353,7 @@ squid.InVent = true
 fake.now = 1
 fake.runLoops(33)
 assert(lastArgument(widget.PeekHint, "SetVisibility") == 3, "the hint shows in a vent over a grate")
-fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("Cooldown.Peek")), fake.param(0))
+fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("Cooldown.Peek")), fake.param(0.5))
 fake.runLoops(33)
 assert(lastArgument(widget.PeekHint, "SetVisibility") == 2, "and hides while peek recharges")
 fake.now = 2
@@ -393,10 +393,10 @@ fake.now = 60
 fake.runLoops(33)
 statusTexts = fake.callsTo(widget.StatusText, "SetText")
 assert(statusTexts[#statusTexts].args[1].text:find("power"), "the lair hint stays")
-assert(lastArgument(widget.LeapSlot, "SetRenderOpacity") < 1, "the leap is dimmed while the lair holds")
+assert(lastArgument(widget.SecondarySlot, "SetRenderOpacity") < 1, "the leap is dimmed while the lair holds")
 assert(lastArgument(widget.UltimateSlot, "SetRenderOpacity") < 1, "and so is the ultimate")
-assert(lastArgument(widget.VentSlot, "SetRenderOpacity") == 1, "venting stays usable: the steps inside the ducts")
-assert(lastArgument(widget.LashSlot, "SetRenderOpacity") == 1, "the lash stays usable")
+assert(lastArgument(widget.MobilitySlot, "SetRenderOpacity") == 1, "venting stays usable: the steps inside the ducts")
+assert(lastArgument(widget.PrimarySlot, "SetRenderOpacity") == 1, "the lash stays usable")
 fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("PowerRestored")), fake.param(0))
 fake.now = 120
 fake.runLoops(33)

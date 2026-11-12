@@ -1,6 +1,7 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- Every balance and control tunable in one place, so playtests change numbers here and nowhere else.
+-- Every balance and control tunable the entities share, in one place, so playtests change numbers here. Each entity's
+-- own numbers (its moves' cooldowns, reaches and distances) are in its kit (kits/<name>.lua).
 -- Times are seconds, distances Unreal units (1 unit = 1 cm).
 
 return {
@@ -21,13 +22,10 @@ return {
     frenzyRearm = 7,
   },
 
+  -- The commands every entity shares; its four slots' cooldowns are its kit's.
   cooldowns = {
-    Attack = 1.2,
-    Leap = 6,
-    Ultimate = 6,
-    Vent = 1,
     Peek = 0.5,
-    -- The squid's cries on the 1, 2 and 3 keys (cries.lua)
+    -- The entity's cries on the 1, 2 and 3 keys (cries.lua)
     Roar = 6,
     Curious = 3,
     Call = 6,
@@ -41,17 +39,6 @@ return {
     staminaRefillSeconds = 10,
     -- Out of breath, the squid sprints again once the stamina is back to this fraction.
     staminaToSprintAgain = 0.3,
-  },
-
-  attack = {
-    -- A basic attack picks the crew member closest to the aim within this reach and cone.
-    reach = 350,
-    coneDegrees = 60,
-  },
-
-  leap = {
-    -- The game's own leap lands 300 to 500 units ahead; the entity always leaps this far along their aim.
-    distance = 450,
   },
 
   vents = {
@@ -112,9 +99,6 @@ return {
     minimumCrewDistance = 2500,
     -- The shortest gap between two "the vents hold you" messages while the player tries to leave the ducts.
     warningInterval = 3,
-    -- The moves that would leave the ducts, which wait until the power is on. Venting decides for itself: dropping
-    -- out of the ducts waits, climbing inside them doesn't (abilities.lua).
-    heldMoves = { Leap = true, Ultimate = true },
   },
 
   vision = {

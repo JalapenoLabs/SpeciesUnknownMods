@@ -23,7 +23,7 @@ namespace {
 		// Each player's link reaches only that player: the entity's meter and pings stay private
 		Spec.bOnlyRelevantToOwner = true;
 
-		// Player -> host: one action (e.g. "Attack", "Leap", "Vent", "Volunteer") and where the player is looking
+		// Player -> host: one action (e.g. "Primary", "Ultimate", "Peek", "Volunteer") and where the player is looking
 		Spec.Events.Add({
 			TEXT("EntityServerCommand"),
 			EModNetworkEventTarget::Server,
@@ -35,7 +35,7 @@ namespace {
 			},
 		});
 
-		// Host -> entity player: a noise the squid heard. Unreliable: a dropped ping is better than a late one
+		// Host -> entity player: a noise the entity heard. Unreliable: a dropped ping is better than a late one
 		Spec.Events.Add({
 			TEXT("EntityClientPing"),
 			EModNetworkEventTarget::OwningClient,
@@ -47,7 +47,8 @@ namespace {
 			},
 		});
 
-		// Host -> player: a one-off moment for the HUD (e.g. "Cooldown", "FrenzyStarted", "Denied", "Volunteered")
+		// Host -> player: a one-off moment for the HUD (e.g. "Cooldown.Primary" with its seconds, "FrenzyStarted",
+		// "Denied.NoTarget", "Volunteered")
 		Spec.Events.Add({
 			TEXT("EntityClientEvent"),
 			EModNetworkEventTarget::OwningClient,
@@ -59,14 +60,14 @@ namespace {
 		});
 
 		// Continuous state the HUD reads every frame; the host is the only writer. Health is the fraction left of the pool
-		// the squid is on: its stagger pool while standing, its real health while Downed (knocked to the ground). The
-		// squid's own health doesn't replicate, so the host sends it here
+		// hits are draining (the squid's stagger pool while standing, its real health while Downed; Mike's one pool). A
+		// monster's own health doesn't replicate, so the host sends it here
 		Spec.Variables.Add({TEXT("Meter"), ModPinTypes::Float(), COND_OwnerOnly});
 		Spec.Variables.Add({TEXT("Frenzy"), ModPinTypes::Bool(), COND_OwnerOnly});
 		Spec.Variables.Add({TEXT("Health"), ModPinTypes::Float(), COND_OwnerOnly});
 		Spec.Variables.Add({TEXT("Downed"), ModPinTypes::Bool(), COND_OwnerOnly});
 		Spec.Variables.Add({TEXT("Stamina"), ModPinTypes::Float(), COND_OwnerOnly});
-		// How much of the squid's time in the vents is left, 0 to 1, once the crew holds the weapon that can kill it
+		// How much of the entity's time in the vents is left, 0 to 1, once the crew holds the weapon that can kill it
 		Spec.Variables.Add({TEXT("VentTime"), ModPinTypes::Float(), COND_OwnerOnly});
 		return Spec;
 	}
@@ -75,6 +76,8 @@ namespace {
 
 	// The HUD's icons, by asset name and SVG source (mods/controllable-entity/art/icons/<source>.svg), which
 	// scripts/build-mod-assets.sh renders to Saved/ModArt/controllable-entity/<source>.png before the editor starts.
+	// Every entity's moves have one, by the name its kit gives (kits/<name>.lua, moves.<slot>.icon), which Lua loads
+	// into the action stack's slots for the entity being played.
 	struct FIconSource {
 		const TCHAR* Name;
 		const TCHAR* SourceName;
@@ -84,6 +87,9 @@ namespace {
 		{TEXT("Leap"), TEXT("leap")},
 		{TEXT("Vent"), TEXT("vent")},
 		{TEXT("HeadGrab"), TEXT("head-grab")},
+		{TEXT("Swipe"), TEXT("swipe")},
+		{TEXT("Dodge"), TEXT("dodge")},
+		{TEXT("Devour"), TEXT("devour")},
 		{TEXT("ViewCone"), TEXT("view-cone")},
 		{TEXT("Random"), TEXT("random")},
 		{TEXT("Player"), TEXT("player")},
@@ -145,7 +151,8 @@ namespace {
 
 	// One action in the stack (playtest 7): its key, its icon, and a bar on the right that Lua shows while the action
 	// recharges (its space stays reserved, so the stack never shifts). Lua reaches the parts as <Prefix>Key,
-	// <Prefix>Icon and <Prefix>Bar, and dims the whole <Prefix>Slot while the action can't be used.
+	// <Prefix>Icon and <Prefix>Bar, and dims the whole <Prefix>Slot while the action can't be used. The icon built in
+	// is the squid's; Lua swaps in the icon of the move the entity being played has in that slot.
 	FModWidgetElement MakeActionSlot(const TCHAR* Prefix, const TCHAR* IconName, FLinearColor BarColor) {
 		FModWidgetElement Icon;
 		Icon.Name = FName(FString(Prefix) + TEXT("Icon"));
@@ -190,11 +197,11 @@ namespace {
 	}
 
 
-	// WBP_EntityHUD: the entity player's HUD, laid out like the crew's own. Bottom left: the actions stacked
-	// vertically, with the health and stamina bars below them. Top right: the minimap (the game's own widget, which Lua
-	// adds) with a view cone over it and the key hints under it. Top centre: the vent time, while the crew hunts the
-	// squid. Bottom centre: the frenzy banner and the host's messages. Bottom right: the crew's respawns left. Noise
-	// markers are positioned over the world by Lua each frame.
+	// WBP_EntityHUD: the entity player's HUD, laid out like the crew's own. Bottom left: the entity's four moves
+	// stacked vertically (its slots, kits.slots), with the health and stamina bars below them. Top right: the minimap
+	// (the game's own widget, which Lua adds) with a view cone over it and the key hints under it. Top centre: the vent
+	// time, while the crew hunts the entity. Bottom centre: the frenzy banner and the host's messages. Bottom right:
+	// the crew's respawns left. Noise markers are positioned over the world by Lua each frame.
 	FModWidgetSpec MakeEntityHudSpec() {
 		const FLinearColor Ultimate(1.0f, 0.70f, 0.23f);
 		const FLinearColor Frenzy(1.0f, 0.29f, 0.24f);
@@ -219,10 +226,10 @@ namespace {
 		Actions.Position = FVector2D(56.0, -92.0);
 		Actions.Gap = 10.0f;
 		Actions.Children = {
-			MakeActionSlot(TEXT("Lash"), TEXT("Lash"), Cooldown),
-			MakeActionSlot(TEXT("Leap"), TEXT("Leap"), Cooldown),
+			MakeActionSlot(TEXT("Primary"), TEXT("Lash"), Cooldown),
+			MakeActionSlot(TEXT("Secondary"), TEXT("Leap"), Cooldown),
 			MakeActionSlot(TEXT("Ultimate"), TEXT("HeadGrab"), Ultimate),
-			MakeActionSlot(TEXT("Vent"), TEXT("Vent"), Cooldown),
+			MakeActionSlot(TEXT("Mobility"), TEXT("Vent"), Cooldown),
 		};
 		Spec.Elements.Add(Actions);
 

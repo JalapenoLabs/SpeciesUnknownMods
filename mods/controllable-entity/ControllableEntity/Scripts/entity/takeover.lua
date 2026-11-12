@@ -354,8 +354,19 @@ local function takeControl(controller, monster, worldKey)
 
   -- The AI's stuck check (BP_BaseMonster."Check If Stuck", every second) respawns a monster that hasn't moved for 20
   -- seconds, through BP_GameManager.InitMonster, which destroys it. A player lying in wait stands still for longer
-  -- than that, and losing the squid would end their game
+  -- than that, and losing the monster would end their game
   monster.ShouldCheckIfStuck = false
+
+  -- The AI may have left the monster turning at another rate (Mike's AI turns him by hand in the vents, through his
+  -- CharacterMovement.RotationRate); the player's monster turns at its class's own
+  local defaultMovement = monster:GetClass():GetCDO().CharacterMovement
+  if defaultMovement and defaultMovement:IsValid() then
+    local rate = defaultMovement.RotationRate
+    monster.CharacterMovement.RotationRate = { Pitch = rate.Pitch, Yaw = rate.Yaw, Roll = rate.Roll }
+  else
+    game.log("No class default movement for %s; it keeps the turn rate its AI left",
+      kits.forMonster(monster).displayName)
+  end
 
   activeEntity = {
     key = playerKey(controller.PlayerState),
@@ -368,7 +379,7 @@ local function takeControl(controller, monster, worldKey)
   }
   releaseParkedBody(activeEntity)
   links.sendEvent(controller, "BecameEntity")
-  game.log("%s took control of the %s", activeEntity.key, activeEntity.kit.displayName)
+  game.log("%s took control of the monster: %s", activeEntity.key, activeEntity.kit.displayName)
   lair.begin(monster, controller)
 end
 
@@ -437,7 +448,7 @@ local function announceVolunteer(controller, worldKey)
     return
   end
   announcedWorldKey = worldKey
-  links.sendEvent(controller, game.isMission() and "WaitingForSquid" or "Volunteered")
+  links.sendEvent(controller, game.isMission() and "WaitingForMonster" or "Volunteered")
 end
 
 -- Runs every second on the host.

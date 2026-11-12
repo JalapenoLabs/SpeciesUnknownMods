@@ -17,7 +17,7 @@ local game = require("entity.game")
 fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
 })
-fake.installModPak(game.modClasses)
+fake.installModPak(game.modAssets)
 fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })
 
 local function playerState(lobbyId)
@@ -181,7 +181,7 @@ assert(lastEvent() == "Denied.PowerOff")
 -- ultimate
 fake.now = 10
 squid.location = location(farSpot.X, farSpot.Y, farSpot.Z)
-for _, move in ipairs({ "Vent", "Leap", "Ultimate" }) do
+for _, move in ipairs({ "Mobility", "Secondary", "Ultimate" }) do
   command(move)
   assert(lastEvent() == "Denied.PowerOff", move .. " waits for the power")
 end
@@ -193,22 +193,22 @@ local step = fake.object("Nav_Link_VentPoint_Up250_C", nil, {
   K2_GetActorLocation = function() return location(farSpot.X, farSpot.Y + 75, farSpot.Z - 30) end,
   GetActorRightVector = function() return location(0, 1, 0) end,
 })
-command("Vent")
+command("Mobility")
 local climbs = fake.callsTo(squid, "BPI_Monster_ClimbVent250")
 assert(#climbs == 1 and climbs[1].args[1] == step and climbs[1].args[2] == false,
   "the squid climbs up the step nearer than the vent opening")
-assert(lastEvent() == "Cooldown.Vent", "even while the lair holds it")
+assert(lastEvent() == "Cooldown.Mobility", "even while the lair holds it")
 -- Regression (playtest 8): the squid could climb a step but not back down, and was stranded above two of them. At the
 -- top, 75 units to the link's right and 250 up, venting climbs back down
 squid.location = location(farSpot.X, farSpot.Y + 150, farSpot.Z - 30 + 250)
 fake.now = 20
-command("Vent")
+command("Mobility")
 climbs = fake.callsTo(squid, "BPI_Monster_ClimbVent250")
 assert(#climbs == 2 and climbs[2].args[1] == step and climbs[2].args[2] == true, "at the top, the squid climbs down")
 -- Away from both ends, there's nothing to climb
 squid.location = location(farSpot.X + 2000, farSpot.Y, farSpot.Z)
 fake.now = 30
-command("Vent")
+command("Mobility")
 assert(#fake.callsTo(squid, "BPI_Monster_ClimbVent250") == 2, "away from both ends, nothing to climb")
 assert(lastEvent() == "Denied.NoVentExit")
 
@@ -248,7 +248,7 @@ assert(#looks == 2 and looks[2].args[1] == farVent and looks[2].args[2] == false
 fake.now = 41
 command("Peek")
 fake.now = 50
-command("Leap")
+command("Secondary")
 looks = fake.callsTo(squid, "BPI_Monster_LookFromVent")
 assert(#looks == 4 and looks[4].args[2] == false, "the leap ends a peek first")
 assert(#fake.callsTo(squid, "BPI_Monster_SetSpecialAttack") == 1, "and then leaps")
@@ -268,7 +268,7 @@ links.reconcile()
 fake.now = 30
 -- Regression (playtest 6): a command in the first second after a reload was ignored, before the next reconcile took
 -- the player back. The command itself takes them back
-command("Attack")
+command("Primary")
 assert(lastEvent() == "Denied.NoTarget", "after a reload, the player driving the squid is the entity at once")
 
 print("lair test passed")

@@ -18,7 +18,7 @@ local kits = require("entity.kits")
 fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
 })
-fake.installModPak(game.modClasses)
+fake.installModPak(game.modAssets)
 fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })
 
 local function location(x, y, z)
@@ -189,12 +189,12 @@ assert(squid.location.X == farVent.Point1Component:K2_GetComponentLocation().X, 
 squid.InVent = false
 squid.location = location(300, 0, 0)
 runSeconds(80.4, 100)
-command("Vent")
+command("Mobility")
 assert(lastEvent() == "Denied.VentsShut", "the vents won't take the squid back yet")
 assert(#fake.callsTo(squid, "BPI_Monster_JumpToVent") == 0)
 runSeconds(100.2, 141)
 assert(lastEvent() == "VentsReopened", "the vents open again once half the time is back")
-command("Vent")
+command("Mobility")
 local climbs = fake.callsTo(squid, "BPI_Monster_JumpToVent")
 assert(#climbs == 1 and climbs[1].args[1] == nearVent, "and the squid can climb in")
 

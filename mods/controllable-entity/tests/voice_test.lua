@@ -16,7 +16,7 @@ local game = require("entity.game")
 fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
 })
-fake.installModPak(game.modClasses)
+fake.installModPak(game.modAssets)
 fake.object("GameStateBase")
 fake.world = fake.object("World")
 

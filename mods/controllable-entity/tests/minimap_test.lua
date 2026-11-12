@@ -25,7 +25,7 @@ fake.objects[game.paths.widgetLayoutLibrary] = fake.object("WidgetLayoutLibrary"
   GetViewportScale = function() return 2 end,
   GetViewportSize = function() return { X = 3840, Y = 2160 } end,
 })
-fake.installModPak(game.modClasses)
+fake.installModPak(game.modAssets)
 fake.object("GameStateBase")
 
 local follower = nil
