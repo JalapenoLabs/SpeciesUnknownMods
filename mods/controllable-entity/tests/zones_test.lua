@@ -59,6 +59,10 @@ fake.objects["/Script/NavigationSystem.Default__NavigationSystemV1"] = fake.obje
   end,
 })
 
+fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
+  GetTimeSeconds = function() return fake.now end,
+})
+
 local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false, location = location(9000, 2000, -450) }, {
   K2_GetActorLocation = function(self) return self.location end,
   K2_GetActorRotation = function() return { Pitch = 0, Yaw = 0, Roll = 0 } end,
@@ -111,6 +115,23 @@ assert(squid.location.X == -6000 and events[#events] == "Denied.Forbidden", "the
 local warned = #events
 tick(20.5, location(-8450, -3550, -150))
 assert(#events == warned and squid.location.X == -6000, "put back again, with one message every few seconds")
+
+-- Regression (playtest 9): put back into the ducts it last stood in, a friend's squid was teleported there at once,
+-- still standing, found no room, and was put back over and over. Back into the ducts, the move waits for the crouch
+squid.InVent = true
+tick(30, location(-6000, 2000, 200))
+-- The friend's squid stands up outside the ducts and walks aboard; the host's crouch waits for the friend's machine
+squid.BPI_Monster_SetInVent = function(self, inVent) self.InVent = inVent end
+squid.bIsCrouched = false
+squid.InVent = false
+tick(32, location(9000, 5500, -450))
+assert(squid.location.Y == 5500, "a friend's squid not yet crouched isn't teleported into the duct")
+fake.runFrames()
+assert(squid.location.Y == 5500, "it waits for the crouch")
+squid.bIsCrouched = true
+fake.runFrames()
+assert(squid.location.X == -6000 and squid.location.Z == 200 and squid.InVent, "then goes back into the duct")
+squid.BPI_Monster_SetInVent = function(self, inVent) self.InVent, self.bIsCrouched = inVent, inVent end
 
 -- The entity's markings: the forbidden trigger boxes this machine has loaded, not the game's other trigger boxes
 local function triggerBox(areaName, centre)

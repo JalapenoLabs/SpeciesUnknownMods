@@ -15,6 +15,7 @@
 local config = require("entity.config")
 local game = require("entity.game")
 local links = require("entity.links")
+local vents = require("entity.vents")
 
 local zones = {}
 
@@ -139,18 +140,27 @@ local function isOnForbiddenFloor(monster, location)
   return navigation:K2_ProjectPointToNavigation(monster, location, anyFloor, nil, nil, FLOOR_PROBE_EXTENT) == true
 end
 
+-- Puts the entity back where it last stood allowed. Back into the ducts, the move waits for the entity to crouch,
+-- which a friend's own machine applies a moment later (vents.moveInto): teleported there at once, still standing, it
+-- found no room and stayed where it was, put back again and again (playtest 9). Standing, it's teleported at once.
 local function putBack(entity, now, reason)
   local monster = entity.monster
-  if held.lastAllowed then
-    if (monster.InVent == true) ~= held.lastAllowedInVent then
-      monster:BPI_Monster_SetInVent(held.lastAllowedInVent)
+  local spot = held.lastAllowed
+  local location = monster:K2_GetActorLocation()
+  local isPlaced = true
+  if spot and held.lastAllowedInVent then
+    vents.moveInto(monster, spot)
+  elseif spot then
+    if monster.InVent == true then
+      monster:BPI_Monster_SetInVent(false)
     end
-    monster:K2_TeleportTo(held.lastAllowed, monster:K2_GetActorRotation())
+    isPlaced = monster:K2_TeleportTo(spot, monster:K2_GetActorRotation()) == true
   end
   if now - held.lastWarnedAt >= config.zones.warningInterval then
     held.lastWarnedAt = now
     links.sendEvent(entity.controller, reason)
-    game.log("Put the entity back: %s", reason)
+    game.log("Put the entity back: %s, from %.0f, %.0f, %.0f%s", reason, location.X, location.Y, location.Z,
+      isPlaced and "" or " (no room where it last stood)")
   end
 end
 
