@@ -90,7 +90,6 @@ local messageByEvent = {
   FrenzyStarted = "FRENZY: every grab kills.",
   FrenzyPartial = "They have the weapon. Your hunger grows faster, and the vents won't hide you for long.",
   ForcedOut = "Your time in the vents is up. Out you go.",
-  ShuttleNear = "Near the shuttle: no sprinting, and no kills.",
   VentsReopened = "The vents will take you again.",
   BackUp = "Back up, with your vent time full: run.",
   PickedByHost = "The host picked you to be the entity next mission. Only you know.",
@@ -111,8 +110,6 @@ local messageByEvent = {
   ["Denied.Shuttle"] = "Hunt them away from their shuttle: you can't board it.",
   ["Denied.Elevator"] = "Keep off the crew's elevator.",
   ["Denied.Forbidden"] = "Hunt elsewhere: this area is forbidden to you.",
-  ["Denied.ShuttleNoKill"] = "Your grab can't kill this close to the shuttle.",
-  ["Denied.ShuttleZone"] = "Save your hunger: it can't kill this close to the shuttle.",
   ["Denied.NotAlone"] = "The crew turns the power on. F8 only does it when you play alone.",
   ["Denied.VentsShut"] = "The vents take you again once your vent time is half back.",
   ["Denied.HostOnly"] = "The host picks the entity.",
@@ -485,7 +482,7 @@ local function showMessage(kind)
     return
   end
   local message = messageByEvent[kind]
-  -- Events that only change what the HUD shows (ShuttleLeft) have no message of their own
+  -- Events that only change what the HUD shows (Released) have no message of their own
   if not message then
     return
   end
@@ -547,15 +544,6 @@ local stateChangeByEvent = {
     state.isLeashed = false
     state.persistentStatus = nil
   end,
-  -- The shuttle's rules hold while the entity is near it
-  ShuttleNear = function()
-    state.persistentStatus = messageByEvent.ShuttleNear
-  end,
-  ShuttleLeft = function()
-    if state.persistentStatus == messageByEvent.ShuttleNear then
-      state.persistentStatus = nil
-    end
-  end,
   Lost = function()
     state.isEntity = false
     state.isLeashed = false
@@ -579,7 +567,7 @@ function hud.toggleHints()
 end
 
 function hud.register()
-  -- Every event with a message, and the few that only change what the HUD shows (ShuttleLeft)
+  -- Every event with a message, and the few that only change what the HUD shows (Released)
   local eventKinds = {}
   for kind in pairs(messageByEvent) do
     eventKinds[kind] = true

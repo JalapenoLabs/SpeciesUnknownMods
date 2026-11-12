@@ -37,7 +37,6 @@ local function freshHold(monsterAddress)
     lastAllowed = nil,
     lastAllowedInVent = false,
     lastWarnedAt = -math.huge,
-    isNearShuttle = false,
   }
 end
 
@@ -220,12 +219,6 @@ function zones.tickHost(entity, now)
   elseif monster.InVent == true or monster.CharacterMovement:IsMovingOnGround() then
     held.lastAllowed = { X = location.X, Y = location.Y, Z = location.Z }
     held.lastAllowedInVent = monster.InVent == true
-  end
-
-  local isNearShuttle = shuttle ~= nil and zones.isInside(shuttle, location, config.zones.shuttleApproach)
-  if isNearShuttle ~= held.isNearShuttle then
-    held.isNearShuttle = isNearShuttle
-    links.sendEvent(entity.controller, isNearShuttle and "ShuttleNear" or "ShuttleLeft")
   end
 end
 

@@ -69,6 +69,14 @@ local moveByCommand = {
   Call = function(monster) return cries.play(monster, "Call", true) end,
 }
 
+-- The refusals the entity player isn't told about: a move that can't be made just yet (Mike's grab while he already
+-- holds someone), and the shuttle's rules, which the entity finds out by playing (playtest 9: the hints gave the fun
+-- of finding them away).
+local silentReasons = {
+  Cooldown = true,
+  ShuttleZone = true,
+}
+
 -- Runs a command from the entity player: checks it came from the entity and is off cooldown, then moves the monster.
 -- A slot's cooldown, and whether the lair holds it back, are the entity's own (its kit's moves); the rest are shared.
 local function runCommand(command)
@@ -106,8 +114,7 @@ local function runCommand(command)
 
     local ok, reason = moveByCommand[command](entity.monster, aim, now, moves.byKitId[entity.kit.id])
     if not ok then
-      -- Nor does a move that can't be made just yet (Mike's grab while he already holds someone)
-      if reason ~= "Cooldown" then
+      if not silentReasons[reason] then
         links.sendEvent(controller, "Denied." .. reason)
       end
       return
@@ -149,7 +156,10 @@ local function onGrabStarted(context)
     local montage = StaticFindObject(entity.kit.killGrab.breakMontage)
     monster["KnockBack (Clients)"](monster, montage, 1.0)
   end)
-  links.sendEvent(entity.controller, isNearShuttle and "Denied.ShuttleNoKill" or "Denied.UltimateNotReady")
+  -- Near the shuttle the grab just breaks off, unexplained: the entity finds that rule out by playing (playtest 9)
+  if not isNearShuttle then
+    links.sendEvent(entity.controller, "Denied.UltimateNotReady")
+  end
 end
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --

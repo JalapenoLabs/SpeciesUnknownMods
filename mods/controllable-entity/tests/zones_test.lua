@@ -93,9 +93,9 @@ tick(0, location(9000, 2000, -450))
 assert(#events == 0 and not zones.isNearShuttle(squid.location), "far from the shuttle nothing holds the squid")
 
 -- Regression (playtest 6): the entity could guard the shuttle. In its approach it can't sprint, use its ultimate or
--- kill, and its HUD says so
+-- kill; playtest 9: and isn't told so, to find it out by playing
 tick(1, location(9000, 4000, -450))
-assert(zones.isNearShuttle(squid.location) and events[#events] == "ShuttleNear", "the approach is the shuttle's")
+assert(zones.isNearShuttle(squid.location) and #events == 0, "the approach is the shuttle's, unannounced")
 
 -- Regression (playtest 6): the entity could board and camp the shuttle. Aboard, it's put back where it last stood
 tick(2, location(9000, 5500, -450))
@@ -112,9 +112,9 @@ assert(squid.location.Y == 5500 and #events == eventsBeforeBoarding, "capture co
 inLab = inLabOnly
 gameState.Contract.ContractType_2_AD7B8E08435CF5A38556E7BA67C34760 = game.contractTypes.Elimination
 
--- Leaving the approach clears the HUD's line
+-- Leaving the approach lifts its rules
 tick(11, location(9000, 2000, -450))
-assert(events[#events] == "ShuttleLeft", "leaving the approach lifts its rules")
+assert(not zones.isNearShuttle(squid.location), "leaving the approach lifts its rules")
 
 -- The game's forbidden areas: the squid is put back where it last stood outside
 tick(12, location(-6000, -3550, -150))

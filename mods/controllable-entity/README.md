@@ -140,8 +140,8 @@ The AI keeps out of the game's forbidden areas and never guards the crew's shutt
   outside it, `ExtTriggerBase`). The host puts a squid that strays aboard back where it last stood outside ("Hunt
   them away from their shuttle").
 - **Its approach is calm.** Within 15 m of the bay, which takes in Hawking's corridor from the airlock, the entity
-  can't sprint, can't use its ultimate, and its grabs never kill (frenzy included); the lash still works. Its HUD
-  says so while it's there.
+  can't sprint, can't use its ultimate, and its grabs never kill (frenzy included); the lash still works. Nothing
+  tells the entity so: it finds those rules out by playing (playtest 9: the hints gave the fun of finding them away).
 - **Forbidden areas are the game's own:** where its AI may not path (`NavArea_Forbidden`): the genetics lab's wing on
   Hawking, the underground electrical area on Polar. The host asks the navigation whether the squid stands on
   forbidden floor (a point projects through the game's `QuerryFilter_CheckForbidden` only outside them), so every
@@ -773,8 +773,8 @@ one friend.
 17. **Crawl openings (alone).** In crew quarters, walk the squid into the low opening the crew crouch through: it
     crouches and goes in. Walk back out into the room: it stands up and stays standing. The log shows `The entity
     crouches into a crawl opening`.
-18. **The shuttle (alone).** Walk toward the shuttle: within about 15 m of its bay the HUD says "Near the shuttle: no
-    sprinting, and no kills", Shift doesn't sprint, and E answers "Save your hunger". Try to board: the squid is put
+18. **The shuttle (alone).** Walk toward the shuttle: within about 15 m of its bay Shift doesn't sprint and E does
+    nothing, with no message about either. Try to board: the squid is put
     back with "Hunt them away from their shuttle". Amber posts glow around the approach and red ones around the bay.
 19. **Forbidden areas (alone).** Head for the genetics lab's wing: red posts stand at its edge, and stepping in puts
     the squid back with "Hunt elsewhere". A `Put the entity back: Denied.Forbidden` line in the host's log anywhere
