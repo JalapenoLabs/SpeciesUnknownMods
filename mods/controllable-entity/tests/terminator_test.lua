@@ -35,7 +35,7 @@ for _, path in ipairs({ robotKit.swingMontage, robotKit.dashMontage, robotKit.ki
   montages[path] = fake.object("AnimMontage")
   fake.objects[path] = montages[path]
 end
-local gameInstance = fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })
+local gameInstance = fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0, Contract = {} })
 
 local function playerState(lobbyId, name)
   return fake.object("BP_MyPlayerState_C", nil, {
@@ -131,6 +131,7 @@ local robot = fake.object("BP_BigRobot_C", {
   CanShoot = true,
   IsStunt = false,
   IsElectrocuted = false,
+  IsDead = false,
   Health = 1000,
   MaxHealth = 1000,
   MainTarget = crewController,
@@ -139,6 +140,8 @@ local robot = fake.object("BP_BigRobot_C", {
   CharacterMovement = fake.object("CharacterMovementComponent", { MaxWalkSpeed = 0, MaxWalkSpeedCrouched = 0 }),
   CapsuleComponent = fake.object("CapsuleComponent", nil, { GetScaledCapsuleHalfHeight = function() return 120 end }),
 }, {
+  -- An object property with nothing in it reads as an invalid object, as UE4SS gives it
+  MainTarget = fake.invalid(),
   K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 120 } end,
   GetVelocity = function() return { X = 0, Y = 0, Z = 0 } end,
   BPI_Monster_GetSpeedByType = function(_, speedType, out) out.Speed = 250 + speedType end,
@@ -211,6 +214,11 @@ fake.runLoops(33)
 local look = lastCall(robot, "BPI_BasicMonster_LookAtLocation")
 assert(look and look[1] == true and look[2].X == 2000 and look[2].Y == 0 and look[3] == false,
   "it faces the point along the aim")
+
+-- Shot, the game may hand it the shooter as its target; it would turn to them on its own, so the target goes again
+robot.MainTarget = crewBody
+fake.runLoops(33)
+assert(rawget(robot, "MainTarget") == nil, "a target the game hands it is cleared")
 
 -- No crawl openings for it
 fake.runLoops(200)

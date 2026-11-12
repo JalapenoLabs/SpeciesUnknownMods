@@ -20,7 +20,7 @@ fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
 })
 fake.installModPak(game.modAssets)
-local gameInstance = fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })
+local gameInstance = fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0, Contract = {} })
 
 local function playerState(lobbyId)
   return fake.object("BP_MyPlayerState_C", nil, {
@@ -98,6 +98,64 @@ assert(lastEvent(crewController) == "Denied.EntityModeOff", "nobody can voluntee
 
 takeover.chooseEntity("Squid")
 assert(gameInstance.spawnForceSessionMonster == kits.byId.Squid.monsterType, "the host's entity is forced")
+
+-- The game never sends the Terminator on a contract the crew arrives at without their main weapon, nor on the easiest
+-- difficulty (its armour is beaten by those guns), so Random never rolls it there
+local fields = game.contractFields
+local function chooseContract(primaryWeapons, difficulty)
+  gameInstance.Contract = {
+    [fields.valid] = true,
+    [fields.primaryWeapons] = primaryWeapons,
+    [fields.difficulty] = difficulty,
+  }
+end
+chooseContract(false, 2)
+takeover.chooseEntity("Random")
+for _ = 1, 40 do
+  takeover.chooseEntity("Random")
+  fake.runLoops(1000)
+  assert(gameInstance.spawnForceSessionMonster ~= kits.byId.Terminator.monsterType,
+    "no Terminator from Random without the crew's main weapons")
+end
+chooseContract(true, 0)
+for _ = 1, 40 do
+  takeover.chooseEntity("Random")
+  fake.runLoops(1000)
+  assert(gameInstance.spawnForceSessionMonster ~= kits.byId.Terminator.monsterType,
+    "nor on the easiest difficulty")
+end
+-- With the main weapons, on a harder difficulty, Random may roll it; a roll the host's next contract doesn't fit is
+-- rolled again
+chooseContract(true, 2)
+local rolledTerminator = false
+for _ = 1, 40 do
+  takeover.chooseEntity("Random")
+  fake.runLoops(1000)
+  rolledTerminator = rolledTerminator or gameInstance.spawnForceSessionMonster == kits.byId.Terminator.monsterType
+  if rolledTerminator then
+    break
+  end
+end
+assert(rolledTerminator, "Random may roll the Terminator on a contract the game gives it")
+chooseContract(false, 2)
+fake.runLoops(1000)
+assert(gameInstance.spawnForceSessionMonster ~= kits.byId.Terminator.monsterType,
+  "a roll the next contract doesn't fit is rolled again")
+
+-- The host's own pick stands, but they're told once that the crew may have no way to beat it
+local eventsBefore = #fake.callsTo(linkByOwner[hostController], "EntityClientEvent")
+takeover.chooseEntity("Terminator")
+fake.runLoops(1000)
+fake.runLoops(1000)
+assert(gameInstance.spawnForceSessionMonster == kits.byId.Terminator.monsterType, "the host's pick stands")
+local warnings = 0
+for index, event in ipairs(fake.callsTo(linkByOwner[hostController], "EntityClientEvent")) do
+  if index > eventsBefore and event.args[1]:ToString() == "PickedUnfit" then
+    warnings = warnings + 1
+  end
+end
+assert(warnings == 1, "and the host is warned, once")
+gameInstance.Contract = {}
 takeover.chooseEntity("Random")
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --

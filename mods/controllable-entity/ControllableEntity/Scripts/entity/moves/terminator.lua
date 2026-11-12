@@ -177,6 +177,11 @@ return {
     if isFiring and cantFire then
       stopFiring(monster)
     end
+    -- Being shot may hand it the shooter as its target, as the AI's would be (BP_BaseMonster.SeeNewTarget): it would
+    -- turn to them on its own and throw grenades at them after a knockback, so the target goes again
+    if monster.MainTarget:IsValid() then
+      monster.MainTarget = nil
+    end
     -- Lying powered down, it faces nowhere
     if not monster[kit.poweredFlag] then
       return

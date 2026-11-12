@@ -18,8 +18,11 @@ local takeover = {}
 -- The host's choices for the session (picker.lua, playtest 8): the entity ("Random", a kit's id, or "AiOnly", when the
 -- mission's monster stays the game's AI) and who plays it ("Random", or a player's key). Random rolls each mission.
 takeover.choice = { entity = "Random", player = "Random" }
--- The kit Random rolled for the next mission, in the lobby among the playable kits; rolled again for each mission.
+-- The kit Random rolled for the next mission, in the lobby among the playable kits that fit the contract; rolled again
+-- for each mission.
 local rolledKit = nil
+-- Whether the host was told their pick is one the game wouldn't give this contract, so they're told once per pick.
+local warnedUnfitPick = false
 -- Who will be the entity when the host leaves it to chance, by the game's own lobby player id (stable across travel,
 -- unlike the controller and player state objects, which are rebuilt on every map): a volunteer, or the player picked
 -- at random this mission. The host's own pick of a player comes first (pickedController).
@@ -102,11 +105,60 @@ local function pickedController()
   return controllerForKey(takeover.choice.player)
 end
 
+-- Whether the game itself would give a kit's monster the contract chosen at the lobby's terminal. Its roll never gives
+-- the Terminator a contract the crew arrives at without their main weapon, nor the easiest difficulty
+-- (BP_GameManager.Get Random). Before a contract is chosen, every kit fits.
+local function fitsContract(kit)
+  if not kit.needsCrewMainWeapons then
+    return true
+  end
+  local gameInstance = FindFirstOf(game.classNames.gameInstance)
+  if not gameInstance or not gameInstance:IsValid() then
+    game.log("No game instance; can't tell whether the %s fits the contract", kit.displayName)
+    return true
+  end
+  local contract = gameInstance.Contract
+  if not contract[game.contractFields.valid] then
+    return true
+  end
+  return contract[game.contractFields.primaryWeapons] == true and contract[game.contractFields.difficulty] ~= 0
+end
+
+-- Random's entity: rolled among the playable kits that fit the chosen contract, once per mission, and rolled again if
+-- the host then chooses a contract it doesn't fit.
+local function rollEntity()
+  if rolledKit and fitsContract(rolledKit) then
+    return rolledKit
+  end
+  local fitting = {}
+  for _, kit in ipairs(kits.playable) do
+    if fitsContract(kit) then
+      table.insert(fitting, kit)
+    end
+  end
+  rolledKit = fitting[math.random(#fitting)]
+  return rolledKit
+end
+
+-- The host's own pick stands even on a contract the game wouldn't give its monster; they're told once, since the crew
+-- may have no way to beat it.
+local function warnIfUnfit(kit)
+  local fits = fitsContract(kit)
+  if not fits and not warnedUnfitPick then
+    local host = game.localController()
+    if host then
+      links.sendEvent(host, "PickedUnfit")
+    end
+    game.log("The host's pick, the %s, isn't one the game gives this contract", kit.displayName)
+  end
+  warnedUnfitPick = not fits
+end
+
 -- Decides the next mission's specimen, from the lobby. The mission rolls its monster seconds after it loads, before
 -- every player has even arrived, and places what belongs to it (the special weapon for its weakness) as it loads, so
 -- the entity's monster is forced whenever the mission will have an entity: one the host picked, a volunteer, or a
 -- random pick among two or more players. Playing alone, only a volunteer or the host's pick makes sense. Random rolls
--- among the playable kits, once per mission, rather than leaving a roll that may land on a monster no kit plays.
+-- among the playable kits rather than leaving a roll that may land on a monster no kit plays.
 local function syncForcedMonster()
   local hasPlayer = pickedController() ~= nil or volunteerKey ~= nil or #playerControllers() >= 2
   if takeover.choice.entity == "AiOnly" or not hasPlayer then
@@ -114,11 +166,12 @@ local function syncForcedMonster()
     return
   end
   if takeover.choice.entity == "Random" then
-    rolledKit = rolledKit or kits.playable[math.random(#kits.playable)]
-    forceMonster(rolledKit)
+    forceMonster(rollEntity())
     return
   end
-  forceMonster(kits.byId[takeover.choice.entity])
+  local picked = kits.byId[takeover.choice.entity]
+  warnIfUnfit(picked)
+  forceMonster(picked)
 end
 
 local function forgetVolunteer()
@@ -179,6 +232,7 @@ end
 function takeover.chooseEntity(choice)
   takeover.choice.entity = choice
   rolledKit = nil
+  warnedUnfitPick = false
   if choice == "AiOnly" and volunteerKey then
     local volunteer = controllerForKey(volunteerKey)
     if volunteer then

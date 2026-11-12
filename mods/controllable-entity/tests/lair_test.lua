@@ -18,7 +18,7 @@ fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
 })
 fake.installModPak(game.modAssets)
-fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })
+fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0, Contract = {} })
 
 local function playerState(lobbyId)
   return fake.object("BP_MyPlayerState_C", nil, {

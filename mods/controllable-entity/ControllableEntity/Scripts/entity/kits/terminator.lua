@@ -19,6 +19,10 @@ local terminator = {
     .. "BigRobot_Spritesheet_Mat_Inst.BigRobot_Spritesheet_Mat_Inst",
   -- Too big for the vents: no duct lair, no vent time, no crawl openings, no vent markers.
   usesVents = false,
+  -- The game's own roll never gives it a contract the crew arrives at without their main weapon, nor its easiest
+  -- difficulty (BP_GameManager.Get Random): its armour is beaten by those guns. A Random entity follows the same rule
+  -- (takeover.lua).
+  needsCrewMainWeapons = true,
   -- Its replicated "awake" flag: it spawns with it off, lying on the floor, and the lair (lair.lua) keeps it that way
   -- until the power is on. While it is off, the player's own machine moves nothing (control.lua).
   poweredFlag = "IsPowered",

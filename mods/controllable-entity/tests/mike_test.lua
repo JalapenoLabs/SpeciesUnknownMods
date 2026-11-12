@@ -29,7 +29,7 @@ fake.objects[game.paths.navigation] = fake.object("NavigationSystemV1", nil, {
     return true
   end,
 })
-local gameInstance = fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })
+local gameInstance = fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0, Contract = {} })
 
 local function playerState(lobbyId, name)
   return fake.object("BP_MyPlayerState_C", nil, {

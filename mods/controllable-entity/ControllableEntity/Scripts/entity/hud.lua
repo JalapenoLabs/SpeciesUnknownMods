@@ -94,6 +94,8 @@ local messageByEvent = {
   VentsReopened = "The vents will take you again.",
   PickedByHost = "The host picked you to be the entity next mission. Only you know.",
   PickedPlayerLeft = "The player you picked left. The entity's player is random again.",
+  PickedUnfit = "The game never sends your pick on this contract (the crew has no main weapons, or it's the easiest "
+    .. "difficulty), so it may be unbeatable. Your pick stands.",
   ["Denied.Cooldown"] = "Not yet.",
   ["Denied.NoTarget"] = "Get closer to a crew member.",
   ["Denied.NoVentEntrance"] = "Stand under a vent to climb in.",

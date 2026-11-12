@@ -24,7 +24,7 @@ fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
 fake.installModPak(game.modAssets)
 fake.objects[kits.byId.Squid.killGrab.breakMontage] = fake.object("AnimMontage")
 
-local gameInstance = fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })
+local gameInstance = fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0, Contract = {} })
 
 local function playerState(lobbyId, name)
   return fake.object("BP_MyPlayerState_C", nil, {

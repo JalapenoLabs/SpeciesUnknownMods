@@ -64,7 +64,18 @@ game.lightStatus = {
   Limited = 3,
 }
 
--- Contract types (BP_MyGameState.Contract.ContractType_2_...).
+-- ContractStruct's fields, by their full generated names (BP_MyGameInstance.Contract, BP_MyGameState.Contract).
+game.contractFields = {
+  type = "ContractType_2_AD7B8E08435CF5A38556E7BA67C34760",
+  -- Whether a contract has been chosen at all
+  valid = "Valid_13_7EC50B9D43830CC60C6CFB89C4A56633",
+  -- 0 is the easiest
+  difficulty = "Difficulty_5_84E907A245C9C4C6CA73B4B492F85329",
+  -- Whether the crew brings their main weapon (BP_Character spawns the one they picked only when it's set)
+  primaryWeapons = "WeaponsCat1_18_791AA0694D75543C3E72E9BF6CBDDED7",
+}
+
+-- Contract types (BP_MyGameState.Contract's type field).
 game.contractTypes = {
   Elimination = 0,
   Destruction = 1,
@@ -124,7 +135,7 @@ function game.contractType()
   if not gameState or not gameState:IsValid() then
     return nil
   end
-  return gameState.Contract["ContractType_2_AD7B8E08435CF5A38556E7BA67C34760"]
+  return gameState.Contract[game.contractFields.type]
 end
 
 -- Whether a weapon's grab (BP_LaserGun.BPI_Weapon_SetGrabbed, on the host) is a crew member taking the contract's

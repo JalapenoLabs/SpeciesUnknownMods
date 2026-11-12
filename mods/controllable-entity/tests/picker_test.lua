@@ -19,7 +19,7 @@ fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
   GetTimeSeconds = function() return fake.now end,
 })
 local modAssets = fake.installModPak(game.modAssets)
-fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0 })
+fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0, Contract = {} })
 
 -- The game's UI-mode switch, as its pause menu uses
 local uiLibrary = fake.object("UI_FunctionLibrary")

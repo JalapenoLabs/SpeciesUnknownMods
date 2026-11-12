@@ -41,6 +41,10 @@ kills, and around sound instead of wallhacks.
   belongs to it (the special weapon for its weakness, its bodies and corpses) as it loads. Random rolls among the
   playable entities, once per mission, rather than leaving the game's roll, which may land on a monster nobody can
   play yet.
+- **Random follows the game's own rule for the Terminator:** the game never sends it on a contract the crew arrives
+  at without their main weapon, nor on the easiest difficulty (its armour is beaten by those guns), so Random doesn't
+  either, and rolls again if the host then chooses such a contract. The host's direct pick stands on any contract,
+  with a one-time warning that the crew may have no way to beat it.
 
 ### The start: the lair and the power
 
@@ -418,8 +422,8 @@ that finds nobody stands the kill down again, and the meter stays full.
 - `tests/meter_test.lua`: the meter and frenzy rules.
 - `tests/host_flow_test.lua` and `tests/client_flow_test.lua`: the real scripts through a whole round, as the host
   and as the entity player's machine, against `tests/fake_ue4ss.lua`, a stand-in for UE4SS and the game objects.
-- `tests/entity_mode_test.lua`: the host's choices, forcing the entity's monster from the lobby, the host's pick of
-  a player, and the random pick.
+- `tests/entity_mode_test.lua`: the host's choices, forcing the entity's monster from the lobby, Random following the
+  game's contract rule for the Terminator, the host's pick of a player, and the random pick.
 - `tests/picker_test.lua`: the host's picker panel: its tiles, clicks, players joining, and the UI mode.
 - `tests/lair_test.lua`: the start in the ducts near the game's spawn, the ducts as the lair, the power, and F8 alone.
 - `tests/mike_test.lua`: playing Mike: forcing him, his swipe, dodge and grab, his grab check and the shield, the
@@ -747,7 +751,8 @@ one friend.
     shield up between you, E says "Their shield is up" and the meter stays full. Electrocute Mike: his health bar turns
     red while he's stunned, and his head takes damage; when a face breaks the bar fills again. Report whether the dodge
     rubber-bands on the entity's screen, whether his turning feels right, and if Aim always says "No room to dodge
-    there" on open floor.
+    there" on open floor. If the stack shows the squid's icons instead of his, the mod's textures didn't load at
+    runtime: send the log (a `Could not load /Game/Mods/ControllableEntity/Icons/...` line).
 24. **The Terminator (alone, then with a friend).** Pick the Terminator and yourself, and start a contract with the
     power off: you lie on the floor where it spawned, not in a vent, and "You lie powered down" stays on screen. You
     can look around but not move, and every move answers "You're powered down"; all four rows in the stack are dimmed
@@ -758,4 +763,9 @@ one friend.
     With a friend: the gatling hurts them; Aim throws at them; with a full meter, E near them reaches out and the grab
     crushes their head, and the ultimate's bar comes back empty. Have them shoot it: the health bar drains (the gun's
     pool first); break the gun and Shoot punches instead. When it goes down at two thirds of its health, the bar turns
-    red. Report whether its turning jitters on your screen when a friend hosts.
+    red. Report whether its turning jitters on your screen when a friend hosts, and whether being shot makes it turn
+    toward the shooter on its own, starts the action music, or (before the power) gets it up early.
+25. **Random and the contract (with a friend).** Choose a contract without the crew's main weapons, or on the easiest
+    difficulty, and leave the entity on Random over a few missions: the Terminator never comes up (the game never
+    sends it there either). Pick the Terminator directly on such a contract: the host sees "The game never sends your
+    pick on this contract", once, and the pick stands.
