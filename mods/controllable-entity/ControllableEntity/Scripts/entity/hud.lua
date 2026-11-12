@@ -109,7 +109,7 @@ local messageByEvent = {
   ["Denied.PickInLobby"] = "Pick the entity in the lobby.",
   ["Denied.DodgeInVent"] = "Dodge out of the vents.",
   ["Denied.NoRoom"] = "No room to dodge there.",
-  ["Denied.Shielded"] = "Their shield took the grab.",
+  ["Denied.Shielded"] = "Their shield is up: get around it.",
 }
 
 -- Everything the HUD knows comes from the host's events in the current world; a new world starts blank and the host

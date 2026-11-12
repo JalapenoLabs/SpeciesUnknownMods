@@ -14,9 +14,6 @@ local kit = kits.byId.Mike
 local DODGE_SPEED = 1.0
 -- How far around the dodge's landing the navigation may look for floor.
 local DODGE_FLOOR_EXTENT = { X = 60, Y = 60, Z = 200 }
--- What a shield in the way takes instead of the grab, as his own grab check deals it.
-local SHIELD_PUNCH_DAMAGE = 100
-local PUNCH_DAMAGE_TYPE = "/Game/Blueprints/DamageType/DamageType_Punch.DamageType_Punch_C"
 
 -- A quaternion turning by a yaw (degrees) about the vertical, for a transform's rotation.
 local function yawQuaternion(yaw)
@@ -93,8 +90,9 @@ local function dodge(monster, aim)
 end
 
 -- Whether a crew member can be grabbed: what his own grab check asks before grabbing (his ContinusSphereCheck), for
--- the ultimate's grab, which skips the check's sphere. A crew member behind a shield isn't; the shield takes his
--- punch instead, as it does from his own check (forced: his punch counts only mid-attack otherwise).
+-- the ultimate's grab, which skips the check's sphere. A crew member behind a shield isn't. His own check punches the
+-- shield instead, mid-attack; the ultimate plays no attack, so a punch here would be damage out of nowhere, as fast as
+-- the key is pressed (a refused move starts no cooldown).
 local function grabbable(monster, target)
   local dead = {}
   target:BPI_Human_IsDead(dead)
@@ -104,11 +102,9 @@ local function grabbable(monster, target)
     return false, "NoTarget"
   end
 
-  local haveShield, hitShield = {}, {}
-  monster:CheckShieldBeforeTarget(target, haveShield, hitShield)
+  local haveShield = {}
+  monster:CheckShieldBeforeTarget(target, haveShield, {})
   if haveShield.HaveShield then
-    local punch = game.loadGameAsset(PUNCH_DAMAGE_TYPE)
-    monster:BPI_BasicMonster_SetHitDamageShield(hitShield.HitShield, SHIELD_PUNCH_DAMAGE, punch, true)
     return false, "Shielded"
   end
   return true

@@ -485,7 +485,7 @@ squid's, inherited from `BP_BaseMonster` (`JumpToVent`, `ClimbVent250`, `LookFro
 |------|----------------------|-------------------------------------|
 | Swipe | `BTService_CheckBasicAttack` -> `BPI_BasicMonster_SetSimpleAttack(target, location, distance)`; his `GetAttackSimpleAnim` picks `Attack_1` or `Attack_2` at a standing target, and his grab (`Attack_Player_Vent`) at a crouched one | Same call, with the aimed actor; at nobody, `AttackSimpleAnim (Clients)` with `Attack_1`, which sets him attacking, so it hurts whoever it sweeps |
 | Dodge | `BTService_CheckDodging` projects a capsule to his side and calls `BPI_Monster_SetDodging(finalTransform, targetPoint, speed)`; root motion is warped to `finalTransform`, and his `GetDodgeAnim` plays left or right by where it lies against his facing | Turn him to the aim, then the same call, to the floor 300 units aside as the navigation finds it (`K2_ProjectPointToNavigation`), the way the player moves across their view |
-| Grab | The grab montage's `CheckSphereForward` (radius 30, 80 ahead) -> his `ContinusSphereCheck`: not already holding someone, a crew member alive and `BPI_Human_CanBeGrabbed(false)`, and no shield in the way (`CheckShieldBeforeTarget`) -> `GrabPlayerVent ( Multi)(player)` | The same checks on the crew member nearest the aim within 220 units, then `GrabPlayerVent ( Multi)` at once. A shield in the way takes his 100-damage punch instead (`BPI_BasicMonster_SetHitDamageShield`, forced, as his check deals it only mid-attack) |
+| Grab | The grab montage's `CheckSphereForward` (radius 30, 80 ahead) -> his `ContinusSphereCheck`: not already holding someone, a crew member alive and `BPI_Human_CanBeGrabbed(false)`, and no shield in the way (`CheckShieldBeforeTarget`; with one, he punches the shield for 100 instead) -> `GrabPlayerVent ( Multi)(player)` | The same checks on the crew member nearest the aim within 220 units, then `GrabPlayerVent ( Multi)` at once. A shield in the way refuses it, without the punch: the ultimate plays no attack, and a refused move starts no cooldown, so a punch would shred a shield as fast as E is pressed |
 | Vent drop | `BTService_CheckPlayerDownVent` -> `BPI_Monster_AttackFromVent(vent, player)` | Same call as the squid's. It doesn't grab: Mike doesn't override the drop the way the squid does |
 
 - **No leap.** His class defaults switch `AllowSpecialAttack` off, and his `CanSpecialAttack` says no.
@@ -501,6 +501,10 @@ squid's, inherited from `BP_BaseMonster` (`JumpToVent`, `ClimbVent250`, `LookFro
   puts his turn rate back to his class's own. With no target he breathes audibly, which gives him away. His
   `GetUp (Multi)` plays the squid's get-up animation, a leftover, so the mod never calls it.
 - The dodge's warp target is set only on the host, so it may rubber-band on his player's screen, like the leap.
+- **Two things only a playtest shows.** The ultimate's grab is a call from Lua, and the meter is spent by the hook on
+  it, so the kill spending the meter shows the hook fires for a call from Lua too. The dodge reads its landing from
+  `K2_ProjectPointToNavigation`'s out parameter, as the hunt's move to the power room does; a dodge that always finds
+  "no room" on open floor means that read comes back empty, for both.
 
 ## How the game makes noise
 
@@ -697,7 +701,8 @@ one friend.
     floor, never through a wall; in the vents, Aim answers "Dodge out of the vents". The 1, 2 and 3 keys are his own
     cries. With a friend: Shoot next to them swipes; with them crouched in a crawl opening, the swipe grabs them and
     breaks off with "Your hunger isn't ready". With a full meter, E facing them within about 2 m grabs and eats them;
-    with their shield up between you, E punches the shield and says "Their shield took the grab", and the meter stays
-    full. Electrocute Mike: his health bar turns red while he's stunned, and his head takes damage; when a face breaks
-    the bar fills again. Report whether the dodge rubber-bands on the entity's screen and whether his turning feels
-    right.
+    the ultimate's bar comes back empty (if it stays full, the kill didn't spend the meter: send the log). With their
+    shield up between you, E says "Their shield is up" and the meter stays full. Electrocute Mike: his health bar turns
+    red while he's stunned, and his head takes damage; when a face breaks the bar fills again. Report whether the dodge
+    rubber-bands on the entity's screen, whether his turning feels right, and if Aim always says "No room to dodge
+    there" on open floor.

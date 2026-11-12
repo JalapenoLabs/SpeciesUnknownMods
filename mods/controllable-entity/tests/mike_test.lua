@@ -2,8 +2,8 @@
 
 -- Playing Mike (BP_Monster_Michel), on the host: the host picks him, the mission spawns him, and his moves are his
 -- own: the swipe, the dodge aside (never in the vents), and the ultimate's grab, which repeats his own grab check (a
--- shield in the way takes his punch instead) and is ruled by the kill meter through his GrabPlayerVent ( Multi),
--- hooked under its spaced name. His health bar is his one pool, clamped when it refills past full.
+-- shield in the way refuses it, unpunched) and is ruled by the kill meter through his GrabPlayerVent ( Multi), hooked
+-- under its spaced name. His health bar is his one pool, clamped when it refills past full.
 -- Run from the repository root: lua mods/controllable-entity/tests/mike_test.lua
 
 package.path = "mods/controllable-entity/ControllableEntity/Scripts/?.lua;mods/controllable-entity/tests/?.lua;"
@@ -22,8 +22,6 @@ fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
 fake.installModPak(game.modAssets)
 local breakMontage = fake.object("AnimMontage")
 fake.objects[mikeKit.killGrab.breakMontage] = breakMontage
-local punch = fake.object("DamageType_Punch_C")
-fake.objects["/Game/Blueprints/DamageType/DamageType_Punch.DamageType_Punch_C"] = punch
 -- The navigation finds floor wherever it is asked, at height 0
 fake.objects[game.paths.navigation] = fake.object("NavigationSystemV1", nil, {
   K2_ProjectPointToNavigation = function(_, _, spot, out)
@@ -121,10 +119,9 @@ local mike = fake.object("BP_Monster_Michel_C", {
 })
 -- A shield between him and the crew member, or not: his own check traces for one
 local shieldUp = false
-mike.CheckShieldBeforeTarget = function(self, target, haveShield, hitShield)
+mike.CheckShieldBeforeTarget = function(self, target, haveShield)
   table.insert(fake.calls, { object = self, method = "CheckShieldBeforeTarget", args = { target } })
   haveShield.HaveShield = shieldUp
-  hitShield.HitShield = shieldUp and { Actor = "shield" } or nil
 end
 -- His grab runs the hooks on it, as the game's does when Lua calls it
 mike["GrabPlayerVent ( Multi)"] = function(self, target)
@@ -197,15 +194,14 @@ assert(#knockbacks == 1 and knockbacks[1].args[1] == breakMontage, "an unarmed g
 command("Ultimate")
 assert(lastEvent() == "Denied.UltimateNotReady", "the ultimate needs a full meter")
 
--- A shield in the way takes his punch, forced as his own check deals it, and the meter stays full
+-- A shield in the way refuses the grab, and the meter stays full. It deals no damage: the ultimate plays no attack,
+-- and a refusal starts no cooldown, so a punch here would shred a shield as fast as E is pressed
 abilities.meter().value = 1
 shieldUp = true
 fake.now = 30
 command("Ultimate")
-assert(lastEvent() == "Denied.Shielded", "a shield takes the grab")
-local punches = fake.callsTo(mike, "BPI_BasicMonster_SetHitDamageShield")
-assert(#punches == 1 and punches[1].args[2] == 100 and punches[1].args[3] == punch and punches[1].args[4] == true,
-  "the shield takes his punch")
+assert(lastEvent() == "Denied.Shielded", "a shield refuses the grab")
+assert(#fake.callsTo(mike, "BPI_BasicMonster_SetHitDamageShield") == 0, "without hurting the shield")
 assert(#fake.callsTo(mike, "GrabPlayerVent ( Multi)") == 0, "and nobody is grabbed")
 assert(abilities.meter().value == 1 and not abilities.meter():isArmed(fake.now), "the kill stands down, unspent")
 
