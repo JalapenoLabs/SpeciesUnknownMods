@@ -381,7 +381,9 @@ create: network events and a widget layout.
 - **Blueprint pak** (`ControllableEntity_P`, in `Content/Paks/~mods/`), generated from code by the asset builder
   in `unreal/SpeciesUnknown/Source/SpeciesUnknownModKit` (see [docs/pak-mods.md](../../docs/pak-mods.md)):
   - `BP_EntityLink`: a replicated actor the host spawns for every player, owned by their controller and relevant to
-    them alone. Its events, `EntityServerCommand` (player to host), `EntityClientPing` and `EntityClientEvent`
+    them alone. After a hot reload the host takes back the links already in the world rather than spawning more: a
+    second link split a player's HUD values from what their machine read (playtest 9: the entity's stamina and
+    vent-time bars froze after a reload mid-mission). Its events, `EntityServerCommand` (player to host), `EntityClientPing` and `EntityClientEvent`
     (host to player), have no logic of their own: UE4SS's `RegisterCustomEvent` runs Lua when each one executes,
     on the machine it executes on. Its replicated `Meter`, `Frenzy`, `Health`, `Downed` and `Stamina` feed the HUD:
     a monster's own health doesn't replicate, so the host sends the pool hits are draining.

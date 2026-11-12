@@ -39,6 +39,31 @@ end
 -- Host
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
+-- A hot reload of the mod forgets the links but leaves them in the world, owned by their players. Spawning more beside
+-- them split each player's HUD values: the host wrote to the new link while the player's machine kept reading the old
+-- one (playtest 9: after a reload mid-mission, the entity's stamina and vent-time bars stayed frozen). So the links
+-- already in the world are taken back first, as established ones, and a second link for the same player is removed.
+local function adoptLinksInWorld()
+  local adopted = 0
+  for _, link in ipairs(FindAllOf(game.classNames.link) or {}) do
+    local owner = link:IsValid() and link.Owner
+    if owner and owner:IsValid() then
+      local address = owner:GetAddress()
+      local entry = linkByControllerAddress[address]
+      if not entry or not entry.actor:IsValid() then
+        linkByControllerAddress[address] = { actor = link, spawnedOnPass = reconcilePass - 1 }
+        adopted = adopted + 1
+      elseif entry.actor:GetAddress() ~= link:GetAddress() then
+        link:K2_DestroyActor()
+        game.log("Removed a second link for one player")
+      end
+    end
+  end
+  if adopted > 0 then
+    game.log("Took back %d link(s) already in the world", adopted)
+  end
+end
+
 -- Spawns a link for every player controller that has none. Called every second on the host: players join, leave
 -- and travel at any time, and a reconcile pass catches every case without hooking the game's travel code.
 function links.reconcile()
@@ -48,6 +73,7 @@ function links.reconcile()
   end
 
   reconcilePass = reconcilePass + 1
+  adoptLinksInWorld()
   local liveAddresses = {}
   for _, controller in ipairs(FindAllOf("PlayerController") or {}) do
     if controller:IsValid() then

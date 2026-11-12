@@ -342,4 +342,23 @@ local unmuted = fake.param(false)
 fake.hooks[talkerPath .. "SetMutedOnVoiceChannel"](fake.param(entityTalker), unmuted, fake.param(0))
 assert(unmuted:get() == false, "and the game's own mute settings are theirs again")
 
+-- Regression (playtest 9): a hot reload of the mod forgot the links but left them in the world, and the host spawned a
+-- second one per player. It wrote the HUD's values to the new link while the entity's machine read the old one, whose
+-- stamina and vent-time bars stayed frozen. After a reload, the links already in the world are taken back
+local linksBeforeReload = #spawnedLinks
+for name in pairs(package.loaded) do
+  if name:match("^entity%.") then
+    package.loaded[name] = nil
+  end
+end
+fake.loops, fake.customEvents, fake.hooks = {}, {}, {}
+dofile("mods/controllable-entity/ControllableEntity/Scripts/main.lua")
+fake.runLoops(1000)
+fake.runLoops(1000)
+assert(#spawnedLinks == linksBeforeReload, "no second link is spawned after a reload")
+-- And a second link left by an earlier run is removed
+local secondLink = fake.object("BP_EntityLink_C", { Owner = crewController })
+fake.runLoops(1000)
+assert(secondLink.destroyed and not linkOf(crewController).destroyed, "a player's second link is removed")
+
 print("host flow test passed")
