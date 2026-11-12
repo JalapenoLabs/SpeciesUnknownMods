@@ -180,6 +180,25 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
   electrocution stops the gatling firing in the game's own code; a broken gun is never told to stop.
 - **The Terminator has two instant kills:** the arm grab's montage (`Decapitation`, while `IsGrabPlayer` is set) and
   its close attack `atk_front03` (`CheckCrushHead`), which `SetSimpleAttack` picks once its gatling is gone.
+- **Some things switch on only for the local player's own pawn**, deciding from trigger overlaps that pass
+  `BP_FunctionLibrairy.GetOnlyVisualOverlap`: the map sections (`BP_StreamingVolume_Manager`), Polar's indoor fog
+  (`BP_InsideVolume_Manager`), the minimap's deck (`BP_MapManagerExtended`), Hawking's reactor core (`BP_CoreReactor`,
+  in `Hawking_StaticMap_Enginery`, hidden until `BeginOverlap` on its `TriggerVolume` runs `InitRender(true)`; its
+  camera shake has its own `TriggerVolumeShake`) and the engineering water (`BP_Water`, in `SpaceShip.umap`, hidden
+  until `BeginOverlap` on its `TriggerVolume` runs `InitWater(true)`). A possessed monster's collision never fires
+  those overlaps. The reactor's pulse (`CheckPawnKill`, on the host) hurts every Character in its box regardless.
+- **The reactor room** (Hawking) is `NavArea_DangerousArea`, which nearly every AI query filter excludes, and its
+  doors (`BP_Door_Reactor`) are placed locked. An unlocked door opens for a `BPI_PawnInfo` actor whose `CanOpenDoors`
+  is true entering its `BoxEnter`; monsters inherit `CanOpenDoors = true` from `BP_ParentMonster`.
+- **Polar's elevators** (`BP_Elevator_Cargo`, `BP_Elevator_Simple`, children of `BP_ElevatorParent`; Hawking has
+  none) count riders in their car's `TriggerVolume`, which rides with the car. Any monster in it (`MonsterInside`)
+  makes a start refuse with an alarm, and a refused start leaves the landing's call screens dead until someone rides
+  the car. No monster AI rides them.
+- **The minimap's reference box:** each map has one `BlockingVolume` tagged `RefBoxMap`; every map manager finds it
+  as it begins play, and `UMG_MiniMap` copies it once, in `Construct`. A minimap built before that has none and draws
+  the map frozen on its middle (`MapUtils_FunctionLibrary.WorldToWidgetLocation` returns zero).
+- **Polar's visor frost** is Ultra Dynamic Weather's screen frost (`Ultra_Dynamic_Weather_C`, its
+  `Screen Frost Post Process`), a post process on whatever camera is the local one, not tied to the crew character.
 - **Contracts and their modifiers.** `ContractStruct` holds one fixed field per modifier (`PowerAtStart`,
   `EmergencyPower`, `Turret`, ...). `BP_Mission_FunctionLibrairy.GenerateContracts` builds the lobby's list on the host
   (balancing modifiers against bounty targets per tier, `ContractGenParams_DataTable`); `BP_ContractManagerTerminal`
