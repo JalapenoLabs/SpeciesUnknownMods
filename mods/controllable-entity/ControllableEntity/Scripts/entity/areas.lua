@@ -1,15 +1,15 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- The areas of the ship the entity player's machine treats the squid as standing in.
+-- The areas of the ship the entity player's machine treats the entity as standing in.
 --
 -- Some of the game's managers follow the local player's pawn through trigger volumes, and decide from the volumes'
--- overlap events, which the squid's collision never fires:
+-- overlap events, which the entity's collision never fires:
 --   - map sections: each BP_StreamingVolume_Manager shows its sections while the pawn stands in one of its volumes, so
 --     walls and floors stayed hidden around the entity (playtest 5);
 --   - the map's deck: BP_MapManagerExtended picks which layer the minimaps draw from the map triggers the pawn stands
 --     in, so the entity's minimap showed the deck below crew quarters (playtest 6).
 -- Each manager also has a way in by hand that runs the same check the overlaps do (BP_FunctionLibrairy.
--- GetOnlyVisualOverlap: the local player's pawn counts), so the mod tells them when the squid is inside a volume's
+-- GetOnlyVisualOverlap: the local player's pawn counts), so the mod tells them when the entity is inside a volume's
 -- bounding box (AActor.GetActorBounds; AVolume's exact EncompassesPoint isn't exposed to Blueprints or Lua). A rotated
 -- volume's box is a little larger than the volume, which only switches an area slightly early.
 
@@ -43,10 +43,10 @@ local function mapTriggers()
   return triggers
 end
 
--- Each kind of manager, by class: where its volumes are, how it is told the squid entered or left one, and whether a
--- new squid first leaves every volume it isn't in. The map manager counts triggers, not who stands in them, so the
--- crew body the player drove before the squid stays counted in the triggers it last stood in: once the player drives
--- the squid, the body's own end-overlaps fail GetOnlyVisualOverlap (playtest 6: the minimap stuck on the safe zone
+-- Each kind of manager, by class: where its volumes are, how it is told the entity entered or left one, and whether a
+-- new entity first leaves every volume it isn't in. The map manager counts triggers, not who stands in them, so the
+-- crew body the player drove before the entity stays counted in the triggers it last stood in: once the player drives
+-- the entity, the body's own end-overlaps fail GetOnlyVisualOverlap (playtest 6: the minimap stuck on the safe zone
 -- the crew start in). Leaving a trigger the manager doesn't count does nothing.
 local managerKinds = {
   BP_StreamingVolume_Manager_C = {
@@ -71,9 +71,9 @@ local managerKinds = {
   },
 }
 
--- The volumes the squid is inside, by "<manager address>:<volume address>": { manager, kind, volume }.
+-- The volumes the entity is inside, by "<manager address>:<volume address>": { manager, kind, volume }.
 local enteredVolumes = {}
--- The squid being followed, by address, so a new one starts by leaving the volumes it isn't in.
+-- The entity being followed, by address, so a new one starts by leaving the volumes it isn't in.
 local followedMonsterAddress = nil
 -- Each volume's bounding box, by address: volumes never move, so it is read once. { origin, extent }
 local boundsByVolume = {}
@@ -105,7 +105,7 @@ local function isInside(volume, location)
     and math.abs(location.Z - bounds.origin.Z) <= bounds.extent.Z
 end
 
--- Runs a few times a second on the entity player's machine while they drive the squid.
+-- Runs a few times a second on the entity player's machine while they drive the entity.
 function areas.follow(monster)
   local location = monster:K2_GetActorLocation()
   local isNewMonster = monster:GetAddress() ~= followedMonsterAddress
@@ -149,11 +149,11 @@ function areas.follow(monster)
     for _ in pairs(enteredVolumes) do
       count = count + 1
     end
-    game.log("The squid is in %d trigger volume(s); the game follows it through their areas", count)
+    game.log("The entity is in %d trigger volume(s); the game follows it through their areas", count)
   end
 end
 
--- Once the player no longer drives the squid, the volumes are left as the game's own overlaps would leave them.
+-- Once the player no longer drives the entity, the volumes are left as the game's own overlaps would leave them.
 function areas.forget(monster)
   for _, entry in pairs(enteredVolumes) do
     if entry.manager:IsValid() and entry.volume:IsValid() and monster and monster:IsValid() then

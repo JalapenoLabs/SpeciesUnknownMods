@@ -32,29 +32,29 @@ return {
   },
 
   movement = {
-    -- The squid moves this much faster in the vents than the game's own crouched speed.
+    -- The entity moves this much faster in the vents than the game's own crouched speed.
     ventSpeedMultiplier = 1.3,
     -- A full sprint lasts this long, and an empty stamina refills in this long while not sprinting.
     sprintSeconds = 6,
     staminaRefillSeconds = 10,
-    -- Out of breath, the squid sprints again once the stamina is back to this fraction.
+    -- Out of breath, the entity sprints again once the stamina is back to this fraction.
     staminaToSprintAgain = 0.3,
   },
 
   vents = {
-    -- How close across the floor the squid must be to a vent shaft to climb into it from the room below, or to drop
+    -- How close across the floor the entity must be to a vent shaft to climb into it from the room below, or to drop
     -- out of it from the duct above.
     enterReach = 400,
     exitReach = 400,
     -- A shaft more than this far above or below doesn't count: it belongs to another floor.
     verticalReach = 900,
-    -- How close across the duct floor the squid must be to either end of a step inside the ducts to climb it, and how
+    -- How close across the duct floor the entity must be to either end of a step inside the ducts to climb it, and how
     -- far above or below that end it may be. A step rises 250 units, so the two ends never both match.
     climbReach = 250,
     climbVerticalReach = 150,
-    -- How far across the duct floor the squid may crawl from where it started peeking before the peek ends.
+    -- How far across the duct floor the entity may crawl from where it started peeking before the peek ends.
     peekBreakDistance = 80,
-    -- How close to a floor-level crawl opening's trigger the squid crouches into it, and how fast it must be heading
+    -- How close to a floor-level crawl opening's trigger the entity crouches into it, and how fast it must be heading
     -- in (units a second along the opening): the squid is about 176 tall and an opening about 141.
     crawlReach = 120,
     crawlEntrySpeed = 50,
@@ -63,15 +63,15 @@ return {
   -- Once a crew member holds the weapon that can kill the specimen (kill and capture contracts), the vents stop being
   -- a hiding place (hunt.lua).
   hunt = {
-    -- How long the squid can stay in the vents at a time.
+    -- How long the entity can stay in the vents at a time.
     ventSeconds = 20,
     -- Outside the vents the time refills this many times slower than it drains: a second for every six.
     refillSlowdown = 6,
     -- Once the time has run out, the vents stay shut until it has refilled this far.
     reopenFraction = 0.5,
-    -- A squid still in the vents this long after being forced out is moved to the power room.
+    -- An entity still in the vents this long after being forced out is moved to the power room.
     stuckSeconds = 10,
-    -- The hunted squid cries out this often, so the crew can follow it.
+    -- The hunted entity cries out this often, so the crew can follow it.
     crySeconds = 12,
   },
 
@@ -84,7 +84,7 @@ return {
     warningInterval = 3,
   },
 
-  -- The cries the squid makes on its own (cries.lua).
+  -- The cries the entity makes on its own (cries.lua).
   cries = {
     -- The "seen you" call: when the entity first sees a crew member within this range and view cone (degrees, all
     -- the way across), at most this often.
@@ -102,7 +102,7 @@ return {
   },
 
   vision = {
-    -- The entity's own light, which only their machine renders: a soft, shadowless glow around the squid, full in the
+    -- The entity's own light, which only their machine renders: a soft, shadowless glow around the entity, full in the
     -- unlit ducts and faint in the rooms, which the game keeps dark on purpose (the crew are meant to need
     -- flashlights).
     lanternCandelas = 80,
@@ -117,7 +117,7 @@ return {
     markerColor = { R = 0.25, G = 1.4, B = 3.0, A = 1 },
     -- Marker disc size, as the scale of the engine's 1 m cylinder.
     markerScale = { X = 0.8, Y = 0.8, Z = 0.03 },
-    -- How often the markers follow the squid around.
+    -- How often the markers follow the entity around.
     markerRefreshSeconds = 0.5,
     -- The posts around the places the entity may not go (red) and the shuttle's approach (amber), one every this
     -- many units along each edge, this thick as the engine cylinder's scale. Rebuilt this often if the places changed
@@ -138,14 +138,14 @@ return {
     minimumZoom = 1.0,
     maximumZoom = 8.0,
     zoomStep = 1.25,
-    -- Degrees added to the squid's heading for the player icon: the map draws world +Y up, so yaw 0 (+X) points left.
+    -- Degrees added to the entity's heading for the player icon: the map draws world +Y up, so yaw 0 (+X) points left.
     iconAngleOffset = -90,
   },
 
   camera = {
-    -- How far the third-person view sits behind the squid.
+    -- How far the third-person view sits behind the entity.
     thirdPersonDistance = 320,
-    -- How far above the squid's centre the camera's arm starts: the first-person eye height.
+    -- How far above the entity's centre the camera's arm starts: the first-person eye height.
     height = 70,
     -- How far down the player can look in third person, in degrees below level. Further down, the arm swings the camera
     -- up through the ship's outer hull in places (playtest 6). First person keeps the game's own limit.
@@ -176,12 +176,12 @@ return {
   },
 
   keys = {
-    -- UE4SS key names for the mod's own keys, which the game binds to nothing. The squid's moves are the game's own
+    -- UE4SS key names for the mod's own keys, which the game binds to nothing. The entity's moves are the game's own
     -- actions instead (control.lua), so the player's own bindings carry over.
     volunteer = "F8",
     -- Host only, in the lobby: opens the entity picker (picker.lua), and closes it.
     picker = "F9",
-    -- Held to sprint; an Unreal key name (the squid reuses no game action for it: the crew's sprint is bound on the
+    -- Held to sprint; an Unreal key name (the entity reuses no game action for it: the crew's sprint is bound on the
     -- crew character, not the controller).
     sprint = "LeftShift",
     -- Minimap zoom (UE4SS key names: "." and ",").

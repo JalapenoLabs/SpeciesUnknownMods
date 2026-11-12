@@ -5,14 +5,14 @@
 -- The game's camera manager (Character_CameraBP.BlueprintUpdateCamera) doesn't follow the view target: while it has a
 -- crew body cached (its Player variable), the camera sits in that body's head, and the entity's crew body is parked,
 -- not destroyed. Its own way to follow another pawn is BPI_CameraPlayer_ResetPlayer, which sets the view target and
--- caches the pawn only if it is a crew character, so handing it the squid clears the cache and the engine's normal
+-- caches the pawn only if it is a crew character, so handing it the entity clears the cache and the engine's normal
 -- view takes over. (Playtest 4 showed the engine's CameraStyle can't be changed from Lua: neither writing the property
 -- nor ClientSetCameraMode moved the camera.)
 --
--- The squid has no camera of its own, so the mod gives it one on this machine: a spring arm on the squid, pointing
+-- The entity has no camera of its own, so the mod gives it one on this machine: a spring arm on the entity, pointing
 -- along the player's look, with a camera at its end. The arm passes through walls rather than pulling in. The engine
 -- views a pawn through its camera component. Third person is the arm at full length; first person is the arm at zero
--- length, with the squid's own mesh hidden from its player.
+-- length, with the entity's own mesh hidden from its player.
 
 local config = require("entity.config")
 local game = require("entity.game")
@@ -32,7 +32,7 @@ local IDENTITY_TRANSFORM = {
 }
 
 local isThirdPerson = true
--- The camera rig on the squid: { squidAddress, squid, manager, arm, view }, or nil.
+-- The camera rig on the entity's monster: { monsterAddress, arm, view }, or nil.
 local rig = nil
 
 local function describe(actor)
@@ -42,7 +42,7 @@ local function describe(actor)
   return actor:GetClass():GetFName():ToString()
 end
 
--- Gives the squid its spring arm and camera; nil after logging when the engine won't make them. A rig the squid
+-- Gives the entity its spring arm and camera; nil after logging when the engine won't make them. A rig the entity
 -- already has is reused: the engine views through a pawn's first camera, so a second rig (after a hot reload of the
 -- mod, in playtest 4) would be one the player never sees, and the view toggle would move the wrong one.
 local function buildRig(monster)
@@ -57,18 +57,18 @@ local function buildRig(monster)
     view = monster:AddComponentByClass(cameraClass, true, IDENTITY_TRANSFORM, false)
   end
   if not arm or not arm:IsValid() or not view or not view:IsValid() then
-    game.log("Could not give the squid a camera; the view stays as it is")
+    game.log("Could not give the entity a camera; the view stays as it is")
     return nil
   end
 
   -- Set on a reused rig too, so a newer version of these settings always applies
   arm:K2_SetRelativeLocation({ X = 0, Y = 0, Z = config.camera.height }, false, {}, true)
   arm.bUsePawnControlRotation = true
-  -- Much of the duct network is invisible collision, which kept pulling the camera in to the squid's head (playtest
+  -- Much of the duct network is invisible collision, which kept pulling the camera in to the entity's head (playtest
   -- 4). Clipping through walls is fine for the entity, so the arm ignores them
   arm.bDoCollisionTest = false
   view:K2_AttachToComponent(arm, FName(ARM_END_SOCKET), SNAP_TO_TARGET, SNAP_TO_TARGET, SNAP_TO_TARGET, false)
-  game.log(reused and "The squid already has a camera; using it" or "Gave the squid a camera")
+  game.log(reused and "The entity already has a camera; using it" or "Gave the entity a camera")
   return { monsterAddress = monster:GetAddress(), arm = arm, view = view }
 end
 
@@ -78,10 +78,10 @@ local function defaultLowestPitch(manager)
   return manager:GetClass():GetCDO().ViewPitchMin
 end
 
--- Applies the view: the arm's length, the squid's own mesh, and how far down the player can look.
---   - In first person the squid's mesh hides from its player, or the view is from inside its head (playtest 6). Owner
+-- Applies the view: the arm's length, the entity's own mesh, and how far down the player can look.
+--   - In first person the entity's mesh hides from its player, or the view is from inside its head (playtest 6). Owner
 --     no-see hides it from the owner's view only, and possessing a pawn makes the controller its owner
---     (APawn::PossessedBy), so everyone else still sees the squid.
+--     (APawn::PossessedBy), so everyone else still sees the entity.
 --   - In third person the arm swings up as the player looks down, and looking almost straight down took the camera up
 --     through the ship's outer hull, which blacked out the screen (playtest 6). Like most third-person cameras, it
 --     stops the look short of straight down (the camera manager's ViewPitchMin, which limits the control rotation);
@@ -94,12 +94,12 @@ local function applyView()
     or ownLowestPitch
 end
 
--- How far the camera was from the squid at the last report, so the log shows changes, not every second.
+-- How far the camera was from the entity at the last report, so the log shows changes, not every second.
 local lastReportedDistance = nil
 -- Distance changes smaller than this aren't worth a log line.
 local REPORT_DISTANCE_STEP = 250
 
--- Playtest diagnostics: where the camera really is, relative to the squid.
+-- Playtest diagnostics: where the camera really is, relative to the entity.
 local function reportDistance(controller, monster)
   local cameraLocation = controller.PlayerCameraManager:GetCameraLocation()
   local monsterLocation = monster:K2_GetActorLocation()
@@ -108,13 +108,13 @@ local function reportDistance(controller, monster)
     return
   end
   lastReportedDistance = distance
-  game.log("The camera is %.0f units from the squid (camera %.0f, %.0f, %.0f; squid %.0f, %.0f, %.0f; %s)", distance,
+  game.log("The camera is %.0f units from the entity (camera %.0f, %.0f, %.0f; entity %.0f, %.0f, %.0f; %s)", distance,
     cameraLocation.X, cameraLocation.Y, cameraLocation.Z, monsterLocation.X, monsterLocation.Y, monsterLocation.Z,
     isThirdPerson and "third person" or "first person")
 end
 
--- Runs when the player becomes the entity and about once a second after, while they drive the squid: builds the rig
--- once per squid, and hands the game's camera back to the squid whenever the game's own code has moved it.
+-- Runs when the player becomes the entity and about once a second after, while they drive the entity: builds the rig
+-- once per monster, and hands the game's camera back to the entity whenever the game's own code has moved it.
 function camera.follow(controller, monster)
   local manager = controller.PlayerCameraManager
   if not manager:IsValid() then
@@ -137,7 +137,7 @@ function camera.follow(controller, monster)
   local followsMonster = viewTarget:IsValid() and viewTarget:GetAddress() == monster:GetAddress()
   if cachedCrewBody:IsValid() or not followsMonster then
     local previous = cachedCrewBody:IsValid() and cachedCrewBody or viewTarget
-    game.log("The game's camera was following %s; handing it the squid", describe(previous))
+    game.log("The game's camera was following %s; handing it the entity", describe(previous))
     manager:BPI_CameraPlayer_ResetPlayer(monster)
   end
 

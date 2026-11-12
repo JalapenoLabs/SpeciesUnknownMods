@@ -1,6 +1,6 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- What only the entity player sees, on their own machine: a light around the squid (full in the unlit ducts, faint in
+-- What only the entity player sees, on their own machine: a light around the entity (full in the unlit ducts, faint in
 -- the rooms), and glowing markers at the vent openings nearby. The ducts are unlit, and much of the network is
 -- invisible collision rather than modelled walls, so without these the entity can't tell where they are (playtest 4).
 -- Glowing posts also stand along the edges of the places the entity may not go and of the shuttle's approach
@@ -33,11 +33,11 @@ local IDENTITY_TRANSFORM = {
   Scale3D = { X = 1, Y = 1, Z = 1 },
 }
 
--- What this machine has built: { worldKey, squidAddress, lantern, lanternInVent, markers = { actor, ... },
+-- What this machine has built: { worldKey, monsterAddress, lantern, lanternInVent, markers = { actor, ... },
 -- nextRefreshAt, posts = { actor, ... }, postsKey, nextZoneRefreshAt }, or nil.
 local built = nil
 
--- The squid's light, reusing one it already has (after a hot reload of the mod) rather than stacking a second.
+-- The entity's light, reusing one it already has (after a hot reload of the mod) rather than stacking a second.
 local function giveLantern(monster)
   local lightClass = StaticFindObject(POINT_LIGHT_CLASS)
   local lantern = monster:GetComponentByClass(lightClass)
@@ -45,7 +45,7 @@ local function giveLantern(monster)
     lantern = monster:AddComponentByClass(lightClass, false, IDENTITY_TRANSFORM, false)
   end
   if not lantern or not lantern:IsValid() then
-    game.log("Could not give the squid a light")
+    game.log("Could not give the entity a light")
     return nil
   end
 
@@ -102,7 +102,7 @@ local function spawnGlow(world, location, scale, color)
   return actor
 end
 
--- A pool of marker discs, spawned once per world and moved to the openings near the squid.
+-- A pool of marker discs, spawned once per world and moved to the openings near the entity.
 local function spawnMarkers(world)
   local mesh = game.loadGameAsset(MARKER_MESH)
   if not mesh then
@@ -202,7 +202,7 @@ local function refreshPosts(world)
   game.log("Marked %d zone(s) for the entity with %d posts", #marked, #built.posts)
 end
 
--- The vent openings nearest the squid, closest first: the holes in the duct floor while it's in the vents, the floor
+-- The vent openings nearest the entity, closest first: the holes in the duct floor while it's in the vents, the floor
 -- under each vent while it's in a room.
 local function nearestOpenings(monster)
   local location = monster:K2_GetActorLocation()
@@ -246,8 +246,8 @@ local function forget()
   built = nil
 end
 
--- Runs about ten times a second on the entity player's machine while they drive the squid: builds the light and the
--- markers once per squid and world, and keeps the markers on the openings around it.
+-- Runs about ten times a second on the entity player's machine while they drive the entity: builds the light and the
+-- markers once per monster and world, and keeps the markers on the openings around it.
 function vision.follow(controller, monster)
   local world = controller:GetWorld()
   local worldKey = world:GetAddress()
@@ -280,7 +280,7 @@ function vision.follow(controller, monster)
   built.nextRefreshAt = now + config.vision.markerRefreshSeconds
   placeMarkers(monster)
 
-  -- Full in the unlit ducts, faint in the rooms: the game keeps them dark on purpose, and the squid has no flashlight
+  -- Full in the unlit ducts, faint in the rooms: the game keeps them dark on purpose, and the entity has no flashlight
   -- (playtest 6: off in the rooms was too dark, full was more than needed)
   local inVent = monster.InVent == true
   if built.lantern and built.lantern:IsValid() and built.lanternInVent ~= inVent then
@@ -290,7 +290,7 @@ function vision.follow(controller, monster)
   end
 end
 
--- After losing, or once the player no longer drives the squid: everything only they could see goes.
+-- After losing, or once the player no longer drives the entity: everything only they could see goes.
 vision.forget = forget
 
 return vision

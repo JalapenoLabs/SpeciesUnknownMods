@@ -221,7 +221,7 @@ function takeover.players()
   return players
 end
 
--- With no volunteer, a co-op mission's entity is a player picked at random once the squid is there to take.
+-- With no volunteer, a co-op mission's entity is a player picked at random once the monster is there to take.
 local function pickAtRandom()
   local controllers = {}
   for _, controller in ipairs(playerControllers()) do
@@ -282,8 +282,8 @@ end
 -- Taking control
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
--- The mission's specimen, when it is the squid: the monster BP_GameManager spawned (its Monster property). Other
--- squids exist too, like the specimen on display in the lobby, and must never be taken over.
+-- The mission's specimen, when it is the entity: the monster BP_GameManager spawned (its Monster property). Other
+-- monsters of its class exist too, like the specimen on display in the lobby, and must never be taken over.
 local function missionMonster()
   local gameManager = FindFirstOf(game.classNames.gameManager)
   if not gameManager or not gameManager:IsValid() then
@@ -329,7 +329,7 @@ end
 local function takeControl(controller, monster, worldKey)
   local crewBody = controller.Pawn
 
-  -- The squid's AI controller would fight the player for it; it goes away for good
+  -- The monster's AI controller would fight the player for it; it goes away for good
   local aiController = monster.Controller
   if aiController:IsValid() and not aiController:IsPlayerController() then
     aiController:UnPossess()
@@ -383,8 +383,8 @@ local function takeControl(controller, monster, worldKey)
   lair.begin(monster, controller)
 end
 
--- A hot reload of the mod (UE4SS's Ctrl+R) forgets who the entity is, while the player still drives the squid. Their
--- controller is the proof: the squid's AI was destroyed at the takeover, so only the entity player can be driving it.
+-- A hot reload of the mod (UE4SS's Ctrl+R) forgets who the entity is, while the player still drives the monster. Their
+-- controller is the proof: the monster's AI was destroyed at the takeover, so only the entity player can be driving it.
 -- They're taken back as the entity where they are; the lair isn't rebuilt, so the leash is gone until the next mission.
 local function adoptAfterReload(monster, worldKey)
   local controller = game.playerControllerOf(monster)
@@ -403,11 +403,11 @@ local function adoptAfterReload(monster, worldKey)
   }
   monster.ShouldCheckIfStuck = false
   movement.resetHost()
-  game.log("%s is driving the squid; taken back as the entity after a reload", volunteerKey)
+  game.log("%s is driving the monster; taken back as the entity after a reload", volunteerKey)
   return true
 end
 
--- Whether a command comes from the entity. A command from the player driving the mission's squid takes them back as
+-- Whether a command comes from the entity. A command from the player driving the mission's monster takes them back as
 -- the entity at once after a reload, rather than at the next reconcile: a sprint started in that second was lost
 -- (playtest 6), and Shift only sends a command when it changes.
 function takeover.isEntityController(controller)
@@ -431,7 +431,7 @@ local function noticeLoss()
   end
 
   links.sendEvent(entity.controller, "Lost")
-  game.log("The entity lost: the squid is gone")
+  game.log("The entity lost: its monster is gone")
 
   -- Watch the surviving crew; the player is out of this mission
   local crewMember = FindFirstOf(game.classNames.crewCharacter)
@@ -442,7 +442,7 @@ end
 
 
 -- Tells the volunteer their status once per world, after their link has had time to reach them: in the lobby that
--- they're signed up, in a mission that the squid is still to come.
+-- they're signed up, in a mission that the monster they'll take is still to come.
 local function announceVolunteer(controller, worldKey)
   if announcedWorldKey == worldKey or not links.isEstablished(controller) then
     return

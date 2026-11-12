@@ -6,8 +6,8 @@
 -- gives the entity a reason to come aboard, where the crew may only capture it, and the crew a reason to hunt.
 --
 -- The game ends a mission once: BP_MyGameState.BPI_GameState_FinishGame does nothing after the first. A real capture
--- marks the monster captured, then finishes the game as one (BP_Capture.CheckInside). The squid's death finishes it as
--- a kill some 15 seconds later (FinishDeath), so finishing it as a capture as the squid dies comes first. The squid's
+-- marks the monster captured, then finishes the game as one (BP_Capture.CheckInside). The entity's death finishes it as
+-- a kill some 15 seconds later (FinishDeath), so finishing it as a capture as the entity dies comes first. The entity's
 -- Death (Server) runs the base monster's, which sets IsDead and calls OnRep_IsDead on the host.
 
 local game = require("entity.game")

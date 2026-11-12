@@ -1,6 +1,6 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- Controllable Entity: one player becomes the mission's monster (the squid) and hunts the crew.
+-- Controllable Entity: one player becomes the mission's monster (the squid or Mike) and hunts the crew.
 -- See ../../README.md for the rules and how each part works.
 --
 -- Every player installs the mod; the same script runs on each machine. Gameplay rules run on the host (each loop
@@ -40,7 +40,7 @@ hud.register()
 picker.register()
 game.hookLoadedClasses()
 
--- Host loops: links and the takeover reconcile once a second; the squid's speed, the meter and the lair's leash run
+-- Host loops: links and the takeover reconcile once a second; the entity's speed, the meter and the lair's leash run
 -- five times a second.
 LoopInGameThreadWithDelay(1000, function()
   if not game.isHost() then

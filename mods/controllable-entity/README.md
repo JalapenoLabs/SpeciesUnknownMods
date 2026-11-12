@@ -623,7 +623,7 @@ one friend.
    already claimed the entity".
 3. **The squid is forced and taken.** Start a contract. The mission's specimen is the squid, the volunteer sees
    "You are the entity" and controls it, and the host's log shows `took control of the monster: Squid` then
-   `The squid starts in a vent at ...`. The volunteer's crew body is gone. On Hawking the squid only spawns once a
+   `The entity starts in a vent at ...`. The volunteer's crew body is gone. On Hawking the squid only spawns once a
    crew member steps out of the shuttle, so until then the volunteer plays as crew; alone, walk out yourself (see
    [How the mission's monster is chosen](#how-the-missions-monster-is-chosen)).
 4. **Moving and looking.** The view jumps into the vents, behind the squid. Walk and look around. The log shows
@@ -674,13 +674,13 @@ one friend.
     humans, Leave them no respawns (with the count), and Stay alive, and no contract icon. Letting go hides it. If it
     shows the header but no rows, or nothing at all, send the log.
 17. **Crawl openings (alone).** In crew quarters, walk the squid into the low opening the crew crouch through: it
-    crouches and goes in. Walk back out into the room: it stands up and stays standing. The log shows `The squid
+    crouches and goes in. Walk back out into the room: it stands up and stays standing. The log shows `The entity
     crouches into a crawl opening`.
 18. **The shuttle (alone).** Walk toward the shuttle: within about 15 m of its bay the HUD says "Near the shuttle: no
     sprinting, and no kills", Shift doesn't sprint, and E answers "Save your hunger". Try to board: the squid is put
     back with "Hunt them away from their shuttle". Amber posts glow around the approach and red ones around the bay.
 19. **Forbidden areas (alone).** Head for the genetics lab's wing: red posts stand at its edge, and stepping in puts
-    the squid back with "Hunt elsewhere". A `Put the squid back: Denied.Forbidden` line in the host's log anywhere
+    the squid back with "Hunt elsewhere". A `Put the entity back: Denied.Forbidden` line in the host's log anywhere
     else (for example at a closed vent door) is a false positive worth reporting.
 20. **The hunt (with a friend, kill or capture contract).** Once a friend picks up the special weapon, the entity
     sees "the vents won't hide you for long" and a vent-time bar at the top whenever it's in the vents. Stay in for

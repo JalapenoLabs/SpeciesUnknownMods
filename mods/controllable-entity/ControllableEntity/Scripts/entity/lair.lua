@@ -1,12 +1,12 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- Host side of where the entity starts. The squid goes straight into the ducts (its lair) and stays in them until the
+-- Host side of where the entity starts. The entity goes straight into the ducts (its lair) and stays in them until the
 -- crew turns the power on: the game's own grace period, in which the crew is safe. Some contracts start with the power
--- on, and then the squid is free at once.
+-- on, and then the entity is free at once.
 --
 -- It starts in the vent nearest where the game spawned it: the game manager's spawn point for the mission's monster
 -- (BP_GameManager.GetSpawnPoint), the one the AI would start from, skipping vents too near the crew. Inside, the
--- whole duct network is the squid's (playtest 7: a radius around the start pulled the squid back from ducts it could
+-- whole duct network is the entity's (playtest 7: a radius around the start pulled the squid back from ducts it could
 -- see and crawl into, with no sign why). Only leaving the ducts puts it back.
 
 local config = require("entity.config")
@@ -18,7 +18,7 @@ local lair = {}
 
 local POWER_SCREEN_CLASS_NAME = "BP_Screen_RestorePower_C"
 
--- The current lair: { squid, controller, lastInside, leashed, lastWarnedAt }, or nil.
+-- The current lair: { monster, controller, lastInside, leashed, lastWarnedAt }, or nil.
 local current = nil
 
 local function isPowerOff()
@@ -39,7 +39,7 @@ end
 
 -- A random vent spot at least minimumCrewDistance from every crew member, or the spot farthest from the crew when
 -- none is that far. Nil when the map has no vents.
--- The duct spot nearest where the game spawned the squid that is far enough from every crew member, or the one
+-- The duct spot nearest where the game spawned the entity that is far enough from every crew member, or the one
 -- farthest from the crew when none is.
 local function chooseStartSpot(spawnLocation)
   local crew = crewLocations()
@@ -69,7 +69,7 @@ end
 function lair.begin(monster, controller)
   local spot = chooseStartSpot(monster:K2_GetActorLocation())
   if not spot then
-    game.log("No vent on this map; the squid starts where the game spawned it")
+    game.log("No vent on this map; the entity starts where the game spawned it")
     current = nil
     return
   end
@@ -89,15 +89,15 @@ function lair.begin(monster, controller)
     local isAlone = gameState:IsValid() and gameState.PlayerArray:GetArrayNum() == 1
     links.sendEvent(controller, isAlone and "LeashedAlone" or "Leashed")
   end
-  game.log("The squid starts in a vent at %.0f, %.0f, %.0f%s", spot.X, spot.Y, spot.Z,
+  game.log("The entity starts in a vent at %.0f, %.0f, %.0f%s", spot.X, spot.Y, spot.Z,
     leashed and ", held in the ducts until the power is on" or "")
 end
 
--- Lets the squid out of its lair early, when the vents stop being safe for it (hunt.lua).
+-- Lets the entity out of its lair early, when the vents stop being safe for it (hunt.lua).
 function lair.release()
   if current and current.leashed then
     current.leashed = false
-    game.log("The lair lets the squid go: the vents are no longer safe")
+    game.log("The lair lets the entity go: the vents are no longer safe")
   end
 end
 
@@ -105,13 +105,13 @@ function lair.forget()
   current = nil
 end
 
--- Whether the squid is still held in its lair: the power hasn't come on yet.
+-- Whether the entity is still held in its lair: the power hasn't come on yet.
 function lair.isLeashed(monster)
   return current ~= nil and current.leashed and current.monster:IsValid()
     and current.monster:GetAddress() == monster:GetAddress()
 end
 
--- Runs about five times a second on the host. While the power is off, a squid that leaves the ducts or strays past
+-- Runs about five times a second on the host. While the power is off, an entity that leaves the ducts or strays past
 -- the leash goes back to the last spot it stood at inside the leash; once the power is on, it is free for good, even
 -- if the crew turns the power off again.
 function lair.tick()
@@ -142,7 +142,7 @@ function lair.tick()
   if now - current.lastWarnedAt >= config.lair.warningInterval then
     current.lastWarnedAt = now
     links.sendEvent(current.controller, "Denied.PowerOff")
-    game.log("Pulled the squid back into the ducts from %.0f, %.0f, %.0f", location.X, location.Y, location.Z)
+    game.log("Pulled the entity back into the ducts from %.0f, %.0f, %.0f", location.X, location.Y, location.Z)
   end
 end
 

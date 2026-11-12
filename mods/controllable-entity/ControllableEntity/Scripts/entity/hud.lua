@@ -27,7 +27,7 @@ local HIDDEN = 2
 local VISIBLE_NO_INPUT = 3
 -- The crew character can rebuild its HUD (on respawn, after menus), so the entity's machine checks for it this often.
 local CREW_HUD_CHECK_SECONDS = 0.5
--- Finding the grate under the squid walks every vent shaft, so the peek hint checks for one this often.
+-- Finding the grate under the entity walks every vent shaft, so the peek hint checks for one this often.
 local PEEK_CHECK_SECONDS = 0.25
 -- The space between the minimap's bottom edge and the key hints, in HUD units.
 local HINTS_GAP = 10
@@ -124,10 +124,10 @@ local function freshState(worldKey)
     -- A line that stays under the messages until the host's next event replaces it: the volunteer's status, or the
     -- lair's hint while the power is off.
     persistentStatus = nil,
-    -- Whether the lair holds the squid in the ducts (until the power is on).
+    -- Whether the lair holds the entity in the ducts (until the power is on).
     isLeashed = false,
     nextCrewHudCheckAt = 0,
-    -- Whether the squid is in a vent over a grate it could peek through, rechecked every PEEK_CHECK_SECONDS.
+    -- Whether the entity is in a vent over a grate it could peek through, rechecked every PEEK_CHECK_SECONDS.
     isOverGrate = false,
     nextPeekCheckAt = 0,
     -- Each command's cooldown in progress, by command: { endsAt, seconds }, as the host started it.
@@ -280,9 +280,9 @@ local function drawActions(widget, link, kit, now)
   setText(widget.FrenzyText, inFrenzy and "FRENZY" or "")
 end
 
--- The health bar shows the pool the squid is on (playtest 6): its stagger while standing, its real health once a hit
--- has knocked it down. Like the crew's, the stamina bar only shows once sprinting has used some, and the vent time
--- (top centre, once the crew hunts the squid) only once the vents have used some.
+-- The health bar shows the pool hits are draining (playtest 6; abilities.lua), red while the entity is down. Like
+-- the crew's, the stamina bar only shows once sprinting has used some, and the vent time
+-- (top centre, once the crew hunts the entity) only once the vents have used some.
 local function drawVitals(widget, link)
   widget.HealthBar:SetPercent(link.Health)
   widget.HealthBar:SetFillColorAndOpacity(healthColorByDowned[link.Downed == true])
@@ -370,7 +370,7 @@ local function maskCapsuleName(capsuleScreen)
   capsuleScreen.TextBlock_Pseudo:SetText(mask)
 end
 
--- The crew HUD belongs to the parked crew body, so it would stay on screen over the squid's view. It comes off the
+-- The crew HUD belongs to the parked crew body, so it would stay on screen over the entity's view. It comes off the
 -- screen rather than being hidden: the respawn-capsule status sets its own visibility again, and isn't reported as
 -- in the viewport either, so the removal doesn't ask first (removing a widget that isn't shown does nothing).
 --
@@ -409,8 +409,8 @@ local function render()
   end
 
   syncWorld(controller)
-  -- Only the entity drives the squid, so driving it is proof enough: the host's BecameEntity may never arrive in this
-  -- run of the mod (a hot reload on either machine forgets it, playtest 6)
+  -- Only the entity player drives the monster, so driving it is proof enough: the host's BecameEntity may never
+  -- arrive in this run of the mod (a hot reload on either machine forgets it, playtest 6)
   local pawn = controller.Pawn
   local drivesMonster = game.monsterDrivenBy(controller) ~= nil
   if drivesMonster then
@@ -455,7 +455,7 @@ local function render()
   drawActions(widget, link, kit, now)
   drawVitals(widget, link)
   drawPeekHint(widget, pawn, now)
-  -- The cone turns with the player's look, the way the minimap's player icon turns with the squid (minimap.lua)
+  -- The cone turns with the player's look, the way the minimap's player icon turns with the entity (minimap.lua)
   widget.ViewCone:SetRenderTransformAngle(controller:GetControlRotation().Yaw + config.minimap.iconAngleOffset)
   drawPings(widget, controller, now)
 end
@@ -514,7 +514,7 @@ local stateChangeByEvent = {
     state.isLeashed = false
     state.persistentStatus = nil
   end,
-  -- The shuttle's rules hold while the squid is near it
+  -- The shuttle's rules hold while the entity is near it
   ShuttleNear = function()
     state.persistentStatus = messageByEvent.ShuttleNear
   end,

@@ -1,11 +1,11 @@
 -- Copyright © 2026 Jalapeno Labs
 
 -- The entity's minimap, on their own machine: the game's own minimap (UMG_MiniMap, the screen of the crew's minimap
--- tool) in the top-right corner, centred on the squid, north up, with the player icon turning as the squid turns.
+-- tool) in the top-right corner, centred on the entity, north up, with the player icon turning as the entity turns.
 -- "." and "," zoom.
 --
 -- The widget centres its map on its ParentActor every frame and turns the map with that actor (UMG_MiniMap.Tick). Given
--- the squid itself, the map would spin with the squid, so it follows an invisible actor attached to the squid that
+-- the entity itself, the map would spin with the entity, so it follows an invisible actor attached to the entity that
 -- takes its position but never turns. The widget's moving item icons (the special weapons, the black box) are hidden:
 -- their icons stay on the map while a crew member carries them, which would show the entity where that player is.
 
@@ -30,12 +30,12 @@ local CLIP_TO_BOUNDS = 1
 -- instead, the map was off centre and spilled over the whole screen).
 local DESIGN_SIZE = 1024
 
--- What this machine has built: { worldKey, squidAddress, widget, follower }, or nil.
+-- What this machine has built: { worldKey, monsterAddress, widget, follower }, or nil.
 local built = nil
 -- The widget's Scale, which "." and "," change; every new minimap starts fully zoomed out.
 local zoom = config.minimap.minimumZoom
 
--- An invisible actor that rides along with the squid but keeps a world rotation of zero, so the map stays north up.
+-- An invisible actor that rides along with the entity but keeps a world rotation of zero, so the map stays north up.
 local function spawnFollower(world, monster)
   local follower = world:SpawnActor(StaticFindObject(FOLLOWER_CLASS), monster:K2_GetActorLocation(), {})
   if not follower or not follower:IsValid() then
@@ -123,7 +123,7 @@ function minimap.forget()
   built = nil
 end
 
--- Runs about thirty times a second on the entity player's machine while they drive the squid.
+-- Runs about thirty times a second on the entity player's machine while they drive the entity.
 function minimap.follow(controller, monster)
   local worldKey = controller:GetWorld():GetAddress()
   if built and (built.worldKey ~= worldKey or built.monsterAddress ~= monster:GetAddress()) then
@@ -140,7 +140,7 @@ function minimap.follow(controller, monster)
   local widget = built.widget
   widget.Scale = zoom
   widget.CanvasPanel_DynamicIcone:SetVisibility(COLLAPSED)
-  -- The icon turns with the squid. The map draws world +Y up and +X to the left (MapUtils.WorldToWidgetLocation
+  -- The icon turns with the entity. The map draws world +Y up and +X to the left (MapUtils.WorldToWidgetLocation
   -- negates both), so a heading of yaw points the icon yaw - 90 degrees clockwise from up
   local heading = monster:K2_GetActorRotation().Yaw
   widget.UMG_Icone_player_C_0:SetRenderTransformAngle(heading + config.minimap.iconAngleOffset)

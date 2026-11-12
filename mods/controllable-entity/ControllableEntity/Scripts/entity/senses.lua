@@ -3,7 +3,7 @@
 -- Host side of the entity's senses: every noise the game reports to its AI becomes a blurred ping on the entity
 -- player's HUD, through walls. The entity never learns more than the AI monster would hear.
 --
--- A possessed squid has no AI controller, so the AI's own hearing (AIPerception on BP_Basic_AI_Controller) no longer
+-- A possessed monster has no AI controller, so the AI's own hearing (AIPerception on BP_Basic_AI_Controller) no longer
 -- receives anything. These hooks watch the noise sources themselves and apply the same range rules:
 --   gunshots   Weapon_Base.MakeNoiseAI            loudness and range set per weapon
 --   footsteps  BP_ParentCharacter footsteps       range Volume^1.3 x 1100, doubled in water, when FootstepsNoise
@@ -26,7 +26,7 @@ local function blurred(location, distance)
   return { X = location.X + math.cos(angle) * offset, Y = location.Y + math.sin(angle) * offset, Z = location.Z }
 end
 
--- Sends a heard noise to the entity player, or does nothing when the squid wouldn't have heard it.
+-- Sends a heard noise to the entity player, or does nothing when the entity wouldn't have heard it.
 local function hear(abilities, takeover, location, loudness, noiseRange, kind)
   local entity = takeover.activeEntity()
   if not entity then

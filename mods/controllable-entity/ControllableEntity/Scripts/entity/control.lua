@@ -3,8 +3,8 @@
 -- The entity player's controls, on their own machine.
 --
 -- The game binds all gameplay input on its player controller (BP_MyPlayerController.InpActEvt_IA_*), and every
--- handler forwards to the possessed pawn's BPI_PlayerInput interface. The squid doesn't implement it, so while the
--- player drives the squid those handlers do nothing; post-hooks on them drive the squid instead. The player's own
+-- handler forwards to the possessed pawn's BPI_PlayerInput interface. No monster implements it, so while the
+-- player drives one those handlers do nothing; post-hooks on them drive it instead. The player's own
 -- key bindings therefore carry over unchanged. Movement, look and the view apply here, where the player's movement
 -- prediction and camera run; every other action is a command for the host.
 
@@ -92,7 +92,7 @@ local function toggleView(controller, actionValueParameter)
 end
 
 -- The game's objectives key (Tab by default): shows the entity's objectives while held. The game's own handler asks
--- the pawn to show the crew's (and the crew's name tags), which the squid ignores.
+-- the pawn to show the crew's (and the crew's name tags), which the entity ignores.
 local function viewObjectives(controller, actionValueParameter)
   if not game.monsterDrivenBy(controller) then
     return
@@ -183,21 +183,21 @@ local function registerKeys()
 end
 
 -- Playtest diagnostics: the first time each action arrives at all, and the first time it arrives while the player
--- drives the squid, so a playtest log shows exactly where input stops.
+-- drives the monster, so a playtest log shows exactly where input stops.
 local reportedArrivals = {}
 local function reportArrival(actionName, controller)
   local drivingMonster = game.monsterDrivenBy(controller) ~= nil
-  local key = actionName .. (drivingMonster and ":squid" or ":crew")
+  local key = actionName .. (drivingMonster and ":monster" or ":crew")
   if reportedArrivals[key] then
     return
   end
   reportedArrivals[key] = true
   local pawn = controller.Pawn
   local pawnClass = pawn:IsValid() and pawn:GetClass():GetFName():ToString() or "no pawn"
-  game.log("Input %s arrived (pawn: %s%s)", actionName, pawnClass, drivingMonster and ", driving the squid" or "")
+  game.log("Input %s arrived (pawn: %s%s)", actionName, pawnClass, drivingMonster and ", driving the entity" or "")
 end
 
--- On the player's own machine, as they become the entity: the camera goes to the squid (see camera.lua), and any input
+-- On the player's own machine, as they become the entity: the camera goes to the entity (see camera.lua), and any input
 -- the game had told the controller to ignore is let through again.
 local function onBecameEntity()
   local controller = game.localController()
@@ -244,7 +244,7 @@ function control.register()
     end
     minimap.forget()
   end)
-  -- The squid this machine last drove, so the areas it stood in can be handed back once it stops
+  -- The entity this machine last drove, so the areas it stood in can be handed back once it stops
   local lastMonster = nil
   LoopInGameThreadWithDelay(250, function()
     local controller = game.localController()

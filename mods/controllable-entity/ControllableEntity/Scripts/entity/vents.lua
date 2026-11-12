@@ -1,11 +1,11 @@
 -- Copyright © 2026 Jalapeno Labs
 
--- The game's vents, as the squid's AI sees them.
+-- The game's vents, as the monsters' AI sees them.
 --
 -- Each BP_Vent_Up is a vertical shaft from a room's ceiling up into the ducts. The actor stands on the room's floor,
 -- and up to four billboard components (Point1Component to Point4Component) mark spots beside the shaft's top, inside
 -- the duct. Those are the spots the AI walks to inside the ducts (BTTask_FindClosestVentpoint reads them through
--- BPI_Vent_GetAllpointLocation), so they are where the mod puts the squid too. Hawking has 265 shafts.
+-- BPI_Vent_GetAllpointLocation), so they are where the mod puts the entity too. Hawking has 265 shafts.
 
 local config = require("entity.config")
 local game = require("entity.game")
@@ -39,7 +39,7 @@ function vents.all()
 end
 
 -- The shaft nearest a location across the floor, within reach and on the same floor, and its floor distance; nil when
--- none is. The squid climbs in from the room below a shaft and drops out from the duct above it, so the floor distance
+-- none is. The entity climbs in from the room below a shaft and drops out from the duct above it, so the floor distance
 -- is what matters either way.
 function vents.nearest(location, reach)
   local best, bestDistance = nil, reach
@@ -94,22 +94,22 @@ function vents.openingOf(vent, fromInside)
   return { X = floor.X, Y = floor.Y, Z = floor.Z }
 end
 
--- Frames to wait between asking the squid to crouch and teleporting it: the crouch applies on its next movement
+-- Frames to wait between asking the entity to crouch and teleporting it: the crouch applies on its next movement
 -- update, and only the crouched capsule fits the ducts.
 local CROUCH_FRAMES = 2
 
--- Puts the squid inside the ducts at a spot, then runs `onArrived` (optional) once it's there. SetInVent is what the
--- vents' own trigger calls: it replicates the state and crouches the squid. The teleport waits for the crouch to
--- apply; a teleport that still finds no room places the squid without the check, and says so in the log.
+-- Puts the entity inside the ducts at a spot, then runs `onArrived` (optional) once it's there. SetInVent is what the
+-- vents' own trigger calls: it replicates the state and crouches the entity. The teleport waits for the crouch to
+-- apply; a teleport that still finds no room places the entity without the check, and says so in the log.
 function vents.moveInto(monster, spot, onArrived)
   monster:BPI_Monster_SetInVent(true)
   ExecuteInGameThreadAfterFrames(CROUCH_FRAMES, function()
     if not monster:IsValid() then
-      game.log("The squid was gone before it could be moved into the vents")
+      game.log("The entity was gone before it could be moved into the vents")
       return
     end
     if not monster:K2_TeleportTo(spot, monster:K2_GetActorRotation()) then
-      game.log("No room to teleport the squid to %.0f, %.0f, %.0f; placing it there", spot.X, spot.Y, spot.Z)
+      game.log("No room to teleport the entity to %.0f, %.0f, %.0f; placing it there", spot.X, spot.Y, spot.Z)
       monster:K2_SetActorLocation(spot, false, {}, true)
     end
     if onArrived then

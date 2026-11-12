@@ -32,7 +32,7 @@ local RADIO_CHANNEL = 1
 
 -- On the host: the entity's player state, whose talker stays silent while it's the entity; nil without one.
 local silencedPlayerState = nil
--- On each machine: whether its own player drove the squid at the last check, so the game's voice hears of a change.
+-- On each machine: whether its own player drove the entity at the last check, so the game's voice hears of a change.
 local wasLocalEntity = false
 
 local function isLocalEntity()

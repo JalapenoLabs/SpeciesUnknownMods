@@ -4,12 +4,12 @@
 -- and never camps the crew's shuttle; a player would do both.
 --
 --   - Forbidden areas are where the game's own AI may not path (NavArea_Forbidden: the genetics lab's wing on Hawking,
---     the electrical area on Polar). The host asks the navigation itself whether the squid stands in one: a point
+--     the electrical area on Polar). The host asks the navigation itself whether the entity stands in one: a point
 --     projects onto the navmesh through the game's QuerryFilter_CheckForbidden only outside them.
 --   - Aboard the shuttle (BP_PlayerShip) is its own bay box, the one its launch check uses. The entity may not board,
 --     except in capture contracts (capture.lua). A wider box around it takes in the approach: there the entity can't
 --     sprint, use its ultimate, or kill, so the crew can get to and from their shuttle.
--- The host puts a squid that strays into a forbidden area or aboard back where it last stood outside. The entity sees
+-- The host puts an entity that strays into a forbidden area or aboard back where it last stood outside. The entity sees
 -- the edges as glowing posts (vision.lua), and a line on its HUD while it's near the shuttle.
 
 local config = require("entity.config")
@@ -25,11 +25,11 @@ local FORBIDDEN_FILTER =
 local FORBIDDEN_AREA_CLASS_NAME = "NavArea_Forbidden_C"
 local TRIGGER_BOX_CLASS_NAME = "TriggerBox"
 local DYNAMIC_FORBIDDEN_CLASS_NAME = "BP_DynamicNav_Forbidden_C"
--- How far around the squid the navigation looks for floor under it: the squid's centre stands about its half height
+-- How far around the entity the navigation looks for floor under it: the entity's centre stands about its half height
 -- above the floor, and a narrow reach keeps an allowed floor just outside a forbidden area from counting.
 local FLOOR_PROBE_EXTENT = { X = 60, Y = 60, Z = 250 }
 
--- On the host, per squid: where it last stood outside every forbidden place and whether that was in the vents, when
+-- On the host, per monster: where it last stood outside every forbidden place and whether that was in the vents, when
 -- it was last told to keep out, and whether it was near the shuttle at the last check.
 local function freshHold(monsterAddress)
   return {
@@ -124,7 +124,7 @@ end
 -- The host
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
--- Whether the squid stands on forbidden floor: on the navmesh, but not where the forbidden-area filter allows. In the
+-- Whether the entity stands on forbidden floor: on the navmesh, but not where the forbidden-area filter allows. In the
 -- air (mid-leap) it stands on no floor, so it isn't.
 local function isOnForbiddenFloor(monster, location)
   local navigation = StaticFindObject(NAVIGATION)
@@ -150,7 +150,7 @@ local function putBack(entity, now, reason)
   if now - held.lastWarnedAt >= config.zones.warningInterval then
     held.lastWarnedAt = now
     links.sendEvent(entity.controller, reason)
-    game.log("Put the squid back: %s", reason)
+    game.log("Put the entity back: %s", reason)
   end
 end
 
