@@ -201,5 +201,15 @@ return {
     zoomOut = "OEM_COMMA",
     -- Shows or hides the key hints under the minimap.
     hints = "H",
+    -- Held to get the entity unstuck (unstuck.lua).
+    unstuck = "F7",
+  },
+
+  -- The entity's unstuck (unstuck.lua): how long the key is held, how far the entity may drift meanwhile, and how long
+  -- before it works again.
+  unstuck = {
+    holdSeconds = 5,
+    stillDistance = 100,
+    cooldownSeconds = 120,
   },
 }

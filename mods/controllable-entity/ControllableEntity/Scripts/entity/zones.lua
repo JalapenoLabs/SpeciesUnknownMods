@@ -20,7 +20,6 @@ local vents = require("entity.vents")
 local zones = {}
 
 local SHUTTLE_CLASS_NAME = "BP_PlayerShip_C"
-local NAVIGATION = "/Script/NavigationSystem.Default__NavigationSystemV1"
 local FORBIDDEN_FILTER =
   "/Game/Blueprints/Monsters/IA/NavAssets/QuerryFilter_CheckForbidden.QuerryFilter_CheckForbidden_C"
 local FORBIDDEN_AREA_CLASS_NAME = "NavArea_Forbidden_C"
@@ -128,7 +127,7 @@ end
 -- Whether the entity stands on forbidden floor: on the navmesh, but not where the forbidden-area filter allows. In the
 -- air (mid-leap) it stands on no floor, so it isn't.
 local function isOnForbiddenFloor(monster, location)
-  local navigation = StaticFindObject(NAVIGATION)
+  local navigation = StaticFindObject(game.paths.navigation)
   local filter = game.loadGameAsset(FORBIDDEN_FILTER)
   if not filter then
     return false
@@ -139,6 +138,9 @@ local function isOnForbiddenFloor(monster, location)
   end
   return navigation:K2_ProjectPointToNavigation(monster, location, anyFloor, nil, nil, FLOOR_PROBE_EXTENT) == true
 end
+
+-- Whether a spot is forbidden floor for a monster, for the unstuck (unstuck.lua), which mustn't put it in one.
+zones.isForbiddenAt = isOnForbiddenFloor
 
 -- Puts the entity back where it last stood allowed. Back into the ducts, the move waits for the entity to crouch,
 -- which a friend's own machine applies a moment later (vents.moveInto): teleported there at once, still standing, it

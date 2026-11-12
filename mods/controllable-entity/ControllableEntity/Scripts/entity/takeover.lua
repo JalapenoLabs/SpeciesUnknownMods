@@ -436,6 +436,7 @@ local function takeControl(controller, monster, worldKey)
       kits.forMonster(monster).displayName)
   end
 
+  local spawnLocation = monster:K2_GetActorLocation()
   activeEntity = {
     key = playerKey(controller.PlayerState),
     controller = controller,
@@ -444,6 +445,8 @@ local function takeControl(controller, monster, worldKey)
     playerState = controller.PlayerState,
     parkedBody = parkedBody,
     worldKey = worldKey,
+    -- Where the game spawned the monster, before the lair moves it: somewhere it can stand (unstuck.lua)
+    startLocation = { X = spawnLocation.X, Y = spawnLocation.Y, Z = spawnLocation.Z },
   }
   releaseParkedBody(activeEntity)
   links.sendEvent(controller, "BecameEntity")
@@ -463,6 +466,7 @@ local function adoptAfterReload(monster, worldKey)
     return false
   end
   volunteerKey = playerKey(controller.PlayerState)
+  local location = monster:K2_GetActorLocation()
   activeEntity = {
     key = volunteerKey,
     controller = controller,
@@ -471,6 +475,8 @@ local function adoptAfterReload(monster, worldKey)
     playerState = controller.PlayerState,
     parkedBody = nil,
     worldKey = worldKey,
+    -- Where the game spawned it is forgotten with the reload; where it is now stands in (unstuck.lua)
+    startLocation = { X = location.X, Y = location.Y, Z = location.Z },
   }
   monster.ShouldCheckIfStuck = false
   movement.resetHost()

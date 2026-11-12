@@ -39,25 +39,23 @@ local function crewLocations()
   return locations
 end
 
--- A random vent spot at least minimumCrewDistance from every crew member, or the spot farthest from the crew when
--- none is that far. Nil when the map has no vents.
--- The duct spot nearest where the game spawned the entity that is far enough from every crew member, or the one
--- farthest from the crew when none is.
-local function chooseStartSpot(spawnLocation)
+-- The duct spot nearest a location that is far enough from every crew member, or the one farthest from the crew when
+-- none is; nil when the map has no vents. `isAllowed` (optional) rules spots out.
+local function chooseStartSpot(nearLocation, isAllowed)
   local crew = crewLocations()
   local nearestFarEnough, nearestFarEnoughDistance = nil, math.huge
   local farthestSpot, farthestDistance = nil, -1
 
   for _, vent in ipairs(vents.all()) do
     local spot = vents.spotsOf(vent)[1]
-    if spot then
+    if spot and (not isAllowed or isAllowed(spot)) then
       local nearestCrewDistance = math.huge
       for _, location in ipairs(crew) do
         nearestCrewDistance = math.min(nearestCrewDistance, game.distance(spot, location))
       end
-      local spawnDistance = game.distance(spot, spawnLocation)
-      if nearestCrewDistance >= config.lair.minimumCrewDistance and spawnDistance < nearestFarEnoughDistance then
-        nearestFarEnough, nearestFarEnoughDistance = spot, spawnDistance
+      local nearDistance = game.distance(spot, nearLocation)
+      if nearestCrewDistance >= config.lair.minimumCrewDistance and nearDistance < nearestFarEnoughDistance then
+        nearestFarEnough, nearestFarEnoughDistance = spot, nearDistance
       end
       if nearestCrewDistance > farthestDistance then
         farthestSpot, farthestDistance = spot, nearestCrewDistance
@@ -150,6 +148,9 @@ local function letGo(event)
   end
   links.sendEvent(current.controller, event)
 end
+
+-- A safe duct spot near a location, as the lair's start picks one (the unstuck, unstuck.lua).
+lair.safeDuctSpot = chooseStartSpot
 
 -- Lets the entity out of its lair early, when the vents stop being safe for it (hunt.lua).
 function lair.release()

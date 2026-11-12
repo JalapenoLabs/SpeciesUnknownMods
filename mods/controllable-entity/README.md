@@ -143,7 +143,10 @@ The AI keeps out of the game's forbidden areas and never guards the crew's shutt
 - **Forbidden areas are the game's own:** where its AI may not path (`NavArea_Forbidden`): the genetics lab's wing on
   Hawking, the underground electrical area on Polar. The host asks the navigation whether the squid stands on
   forbidden floor (a point projects through the game's `QuerryFilter_CheckForbidden` only outside them), so every
-  map's areas count without a list of them, and puts the squid back where it last stood outside.
+  map's areas count without a list of them, and puts the squid back where it last stood outside: on the ground or in
+  the ducts, never in mid-air (playtest 9: a spot remembered while falling down a shaft over Polar's underground put
+  the squid back above the hole, to fall in again and again). Back into the ducts, the move waits for the squid to
+  crouch, which a friend's machine applies a moment later.
 - **The entity sees the edges:** glowing posts, only on its machine, red where it may not go and amber around the
   shuttle's approach. The forbidden areas' posts come from the trigger boxes carrying the forbidden area, which load
   with their section of the ship, so they appear as the squid gets near.
@@ -244,6 +247,7 @@ gets a mod key of its own.
 | F8 (mod key, in the lobby) | Volunteer to be the entity next mission, or back out. As the entity, playing alone: turn the power on |
 | F9 (mod key, host only, in the lobby) | Open the entity picker: which entity, and who plays it (F9 again closes it) |
 | Left Shift (mod key, held) | Sprint, on stamina |
+| F7 (mod key, held 5 s) | Unstuck, when the map holds the entity somewhere it can't leave. Keep still and unhurt for 5 seconds: an entity that lives in the vents goes into the nearest duct spot clear of the crew and of forbidden floor, any other back where the game spawned it. Moving, being hurt, going down or letting go cancels it; it works again after 2 minutes. The game has nothing like it (playtest 9: fallen into Polar's forbidden underground, the squid had no way back up) |
 | `.` and `,` (mod keys) | Zoom the minimap in and out |
 | H (mod key) | Hide the key hints under the minimap, or show them again |
 
@@ -348,6 +352,7 @@ create: network events and a widget layout.
   | `hunt.lua` | host | The vents' time limit once the crew holds the special weapon |
   | `crawl.lua` | host | Crouching the entity into the floor-level crawl openings |
   | `zones.lua` | both | The shuttle, its approach and the forbidden areas: where the entity may not go |
+  | `unstuck.lua` | both | F7 held: getting the entity out of somewhere it can't leave |
   | `capture.lua` | host | In capture contracts, the entity killed off the shuttle counts as captured |
   | `senses.lua` | host | Noise sources to blurred pings |
   | `control.lua` | entity player | Input to movement and commands; the mod's keys |
@@ -431,6 +436,9 @@ that finds nobody stands the kill down again, and the meter stays full.
 - `tests/entity_mode_test.lua`: the host's choices, forcing the entity's monster from the lobby, Random following the
   game's contract rule for the Terminator, the host's pick of a player, and the random pick.
 - `tests/picker_test.lua`: the host's picker panel: its tiles, clicks, players joining, and the UI mode.
+- `tests/unstuck_test.lua`: the unstuck: held, still and unhurt, into a safe duct (never onto forbidden floor) or back
+  where the game spawned the entity; cancelled by moving, being hurt or letting go; its cooldown; the key on the
+  player's machine.
 - `tests/vents_test.lua`: a move into the ducts waiting for the crouch, a newer move replacing a waiting one, and
   giving up after a while.
 - `tests/lair_test.lua`: the start in the ducts near the game's spawn, the ducts as the lair, the power, and F8 alone.

@@ -178,6 +178,7 @@ assert(hostController.Pawn:GetClass():GetFName():ToString() == "BP_Character_C"
 
 local squid = fake.object("BP_Monster_Poulpi_C", { Controller = fake.invalid() }, {
   BPI_Monster_GetSpeedByType = function(_, _, out) out.Speed = 400 end,
+  K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
 })
 fake.giveSquidState(squid)
 gameManager.Monster = squid
