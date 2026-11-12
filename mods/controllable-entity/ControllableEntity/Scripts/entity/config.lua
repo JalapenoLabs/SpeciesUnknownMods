@@ -37,11 +37,13 @@ return {
   },
 
   movement = {
-    -- The entity moves this much faster in the vents than the game's own crouched speed.
-    ventSpeedMultiplier = 1.3,
-    -- A full sprint lasts this long, and an empty stamina refills in this long while not sprinting.
-    sprintSeconds = 6,
-    staminaRefillSeconds = 10,
+    -- The entity moves this much faster in the vents than the game's own crouched speed (playtest 9: 1.3 was too slow
+    -- to get anywhere in time; 60% faster than that).
+    ventSpeedMultiplier = 2.1,
+    -- A full sprint lasts this long, and an empty stamina refills in this long while not sprinting (playtest 9: 6 and
+    -- 10 left the entity no chance of catching the crew).
+    sprintSeconds = 9,
+    staminaRefillSeconds = 3.3,
     -- Out of breath, the entity sprints again once the stamina is back to this fraction.
     staminaToSprintAgain = 0.3,
   },
@@ -183,7 +185,13 @@ return {
     footstepInterval = 0.7,
     pingSeconds = 1.5,
     -- Marker size by kind of noise, as a multiple of the 14-pixel marker: gunshots stand out.
-    pingScaleByKind = { Gunshot = 2.2, Footstep = 1.0, Alarm = 1.6 },
+    pingScaleByKind = { Gunshot = 2.2, Footstep = 1.0, Alarm = 1.6, Sense = 1.8 },
+    -- With nothing heard for this long, the entity senses every living crew member: a pink ping each, blurred this
+    -- much more than a heard noise, so it gives a direction and a rough distance, never a position (playtest 9: lost
+    -- in the vents with nothing to go on, the entity "may as well have lost the game").
+    senseSeconds = 15,
+    senseBlurFraction = 0.3,
+    senseBlurMax = 2500,
     -- Noises behind the camera or off the screen sit on a ring around the centre, this fraction of the way to the
     -- nearest screen edge, drawn this much bigger.
     ringRadiusFraction = 0.35,

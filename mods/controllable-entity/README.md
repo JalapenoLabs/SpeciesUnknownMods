@@ -197,6 +197,10 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
   ping lands from the true spot (12% of the distance, up to 6 m), so distant noises give a direction, not a spot.
 - This is fair by construction: the pings come from the same noises, under the same range rules, that the AI
   monsters' hearing uses (see [How the game makes noise](#how-the-game-makes-noise)).
+- **A sense of the crew.** With nothing heard for 15 seconds, the entity senses every living crew member: a pink ping
+  each, blurred far more than a noise (30% of the distance, up to 25 m), so it gives a direction and a rough distance,
+  and again every 15 seconds while the quiet lasts. Playtest 9: lost in the vents with nothing heard, the entity "may
+  as well have lost the game".
 - Louder kinds draw bigger (gunshots more than twice the size of a footstep). A noise behind the camera or off the
   screen sits on a ring around the screen's centre instead, in its direction, like a hit indicator: straight ahead is
   the top of the ring, behind is the bottom.
@@ -334,9 +338,10 @@ HUD's bars can't be handed to the mod's widget, because a progress bar's style c
 The keys shown are the game's default bindings; a player who rebinds an action sees the default. The icons are
 SVGs in [`art/icons/`](art/icons/).
 
-The squid moves at the game's combat speed, 30% faster in the vents than the game's own crouched speed. Holding
-Left Shift sprints at the squid's top speed (the game's own, as when the AI monster gets angry) for up to 6 seconds;
-the stamina refills over 10 seconds, and an out-of-breath squid sprints again once it is back to 30%. The crew's
+The squid moves at the game's combat speed, 2.1 times the game's own crouched speed in the vents. Holding Left Shift
+sprints at the squid's top speed (the game's own, as when the AI monster gets angry) for up to 9 seconds; the stamina
+refills over 3.3 seconds, and an out-of-breath squid sprints again once it is back to 30%. Playtest 9 found the vents,
+the sprint and its refill too slow to catch anyone (the vents were 1.3 times, the sprint 6 seconds and its refill 10). The crew's
 sprint is bound on the crew character, not the controller, so the mod watches Shift itself. The host owns the
 stamina; both machines apply the same speed (see `movement.lua`).
 

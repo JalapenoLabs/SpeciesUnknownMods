@@ -1,7 +1,8 @@
 -- Copyright © 2026 Jalapeno Labs
 
 -- Host side of the entity's senses: every noise the game reports to its AI becomes a blurred ping on the entity
--- player's HUD, through walls. The entity never learns more than the AI monster would hear.
+-- player's HUD, through walls. The entity never learns more from a noise than the AI monster would hear. When nothing
+-- has been heard for a while, it senses where the crew are, roughly (senses.tickHost).
 --
 -- A possessed monster has no AI controller, so the AI's own hearing (AIPerception on BP_Basic_AI_Controller) no longer
 -- receives anything. These hooks watch the noise sources themselves and apply the same range rules:
@@ -16,11 +17,13 @@ local links = require("entity.links")
 local senses = {}
 
 local lastFootstepPingAtBySource = {}
+-- When the entity was last sent a ping of any kind, by the monster's address, for its sense of the crew.
+local lastPingAt = { monsterAddress = nil, at = 0 }
 
 -- The spot the entity is told about: the true location pushed a random distance away, more for far noises, so a
--- distant noise gives a direction rather than a position.
-local function blurred(location, distance)
-  local radius = math.min(distance * config.senses.blurFraction, config.senses.blurMax)
+-- distant noise gives a direction rather than a position. `fraction` and `cap` default to a heard noise's.
+local function blurred(location, distance, fraction, cap)
+  local radius = math.min(distance * (fraction or config.senses.blurFraction), cap or config.senses.blurMax)
   local angle = math.random() * 2 * math.pi
   local offset = math.sqrt(math.random()) * radius
   return { X = location.X + math.cos(angle) * offset, Y = location.Y + math.sin(angle) * offset, Z = location.Z }
@@ -42,10 +45,37 @@ local function hear(abilities, takeover, location, loudness, noiseRange, kind)
     return
   end
 
+  local now = game.timeSeconds(entity.monster)
   if distance <= config.meter.noiseNearbyDistance then
-    abilities.meter():noteNoiseNearby(game.timeSeconds(entity.monster))
+    abilities.meter():noteNoiseNearby(now)
   end
   links.sendPing(entity.controller, blurred(location, distance), loudness, kind)
+  lastPingAt = { monsterAddress = entity.monster:GetAddress(), at = now }
+end
+
+-- Runs five times a second on the host while there is an entity. With nothing heard for senseSeconds, the entity
+-- senses every living crew member, a heavily blurred pink ping each, and again every senseSeconds while the quiet
+-- lasts: a lost entity always has somewhere to go, without a wallhack's precision.
+function senses.tickHost(entity, now)
+  local monster = entity.monster
+  if lastPingAt.monsterAddress ~= monster:GetAddress() then
+    lastPingAt = { monsterAddress = monster:GetAddress(), at = now }
+    return
+  end
+  if now - lastPingAt.at < config.senses.senseSeconds then
+    return
+  end
+  lastPingAt.at = now
+  local origin = monster:K2_GetActorLocation()
+  for _, crewMember in ipairs(FindAllOf(game.classNames.crewCharacter) or {}) do
+    local isAlive = crewMember:IsValid() and not crewMember.bHidden and crewMember.IsDead ~= true
+    if isAlive then
+      local location = crewMember:K2_GetActorLocation()
+      local spot = blurred(location, game.distance(origin, location), config.senses.senseBlurFraction,
+        config.senses.senseBlurMax)
+      links.sendPing(entity.controller, spot, 1.0, "Sense")
+    end
+  end
 end
 
 function senses.register(abilities, takeover)
@@ -97,10 +127,12 @@ function senses.register(abilities, takeover)
         return
       end
 
+      local now = game.timeSeconds(entity.monster)
       if distance <= config.meter.noiseNearbyDistance then
-        abilities.meter():noteNoiseNearby(game.timeSeconds(entity.monster))
+        abilities.meter():noteNoiseNearby(now)
       end
       links.sendPing(entity.controller, blurred(soundLocation, distance), 1.0, "Alarm")
+      lastPingAt = { monsterAddress = entity.monster:GetAddress(), at = now }
     end)
 end
 

@@ -72,6 +72,7 @@ LoopInGameThreadWithDelay(200, function()
     end
     cries.tickHost(entity, now)
     unstuck.tickHost(entity, now)
+    senses.tickHost(entity, now)
   end
   abilities.tick()
   lair.tick()

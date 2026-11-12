@@ -263,6 +263,25 @@ fake.hooks[game.paths.weaponClass .. ":MakeNoiseAI"](fake.param(weapon))
 local pings = fake.callsTo(linkOf(crewController), "EntityClientPing")
 assert(#pings == 1 and pings[1].args[3]:ToString() == "Gunshot", "the shot is heard")
 
+-- Playtest 9: lost in the vents with nothing heard, the entity had nothing to go on. After a quiet spell it senses
+-- every living crew member, roughly, and again after every quiet spell
+fake.now = 11 + config.senses.senseSeconds - 1
+fake.runLoops(200)
+assert(#fake.callsTo(linkOf(crewController), "EntityClientPing") == 1, "not before the quiet has lasted")
+fake.now = 11 + config.senses.senseSeconds + 0.2
+fake.runLoops(200)
+pings = fake.callsTo(linkOf(crewController), "EntityClientPing")
+assert(#pings == 2 and pings[2].args[3]:ToString() == "Sense", "the entity senses the crew member")
+local sensed = pings[2].args[1]
+assert(math.abs(sensed.X - 200) <= config.senses.senseBlurMax, "roughly where they are")
+fake.runLoops(200)
+assert(#fake.callsTo(linkOf(crewController), "EntityClientPing") == 2, "once per quiet spell")
+crewBody.IsDead = true
+fake.now = fake.now + config.senses.senseSeconds + 0.2
+fake.runLoops(200)
+assert(#fake.callsTo(linkOf(crewController), "EntityClientPing") == 2, "and never a dead one")
+crewBody.IsDead = false
+
 -- The meter state reaches the entity's link
 fake.runLoops(200)
 assert(linkOf(crewController).Frenzy == true, "frenzy replicates through the link")

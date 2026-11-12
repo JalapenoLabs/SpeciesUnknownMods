@@ -42,6 +42,8 @@ local pingColorByKind = {
   Gunshot = { R = 1.0, G = 0.29, B = 0.24 },
   Footstep = { R = 0.37, G = 0.89, B = 1.0 },
   Alarm = { R = 1.0, G = 0.70, B = 0.23 },
+  -- The entity's sense of the crew when nothing has been heard (senses.lua)
+  Sense = { R = 1.0, G = 0.42, B = 0.85 },
 }
 
 -- A move the lair holds back (leaving the ducts before the power is on) dims.
