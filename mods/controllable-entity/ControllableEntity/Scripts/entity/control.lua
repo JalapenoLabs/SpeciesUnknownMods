@@ -84,6 +84,25 @@ local function button(command)
   end
 end
 
+-- A button an entity's move may be held on (the Terminator fires its gatling while Shoot is held): the command when
+-- pressed, and <command>Release when let go, which the host passes to the move that is held. The game binds more than
+-- one event per action (its handlers come in pairs), so only a change between held and let go is sent.
+local function heldButton(command)
+  local releaseCommand = command .. "Release"
+  local isHeld = false
+  return function(controller, actionValueParameter)
+    if not game.monsterDrivenBy(controller) then
+      return
+    end
+    local isPressed = buttonPressed(actionValueParameter)
+    if isPressed == isHeld then
+      return
+    end
+    isHeld = isPressed
+    links.sendCommand(isPressed and command or releaseCommand, aimOf(controller), nil)
+  end
+end
+
 local function toggleView(controller, actionValueParameter)
   if not game.monsterDrivenBy(controller) or not buttonPressed(actionValueParameter) then
     return
@@ -124,7 +143,7 @@ end
 local handlerByAction = {
   Move = move,
   Look = look,
-  Shoot = button("Primary"),
+  Shoot = heldButton("Primary"),
   ADS = button("Secondary"),
   Interact = button("Ultimate"),
   HoldTool = button("Mobility"),

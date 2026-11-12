@@ -213,13 +213,19 @@ local moves = fake.callsTo(squid, "AddMovementInput")
 assert(#moves == 2, "forward and right movement")
 assert(math.abs(moves[1].args[1].Y - 1) < 1e-9 and moves[1].args[2] == 1, "forward follows the camera's yaw")
 
+-- Shoot may be held (the Terminator's gatling): a press sends the move, a release its release, and the game's second
+-- event for the same press sends nothing more
 local commandsBeforeShooting = #fake.callsTo(link, "EntityServerCommand")
 shootHook(fake.param(controller), fake.param({ pressed = true }))
-shootHook(fake.param(controller), fake.param({ pressed = false }))
+shootHook(fake.param(controller), fake.param({ pressed = true }))
 commands = fake.callsTo(link, "EntityServerCommand")
 assert(#commands == commandsBeforeShooting + 1 and commands[#commands].args[1]:ToString() == "Primary",
-  "a press sends one command, a release none")
+  "a press sends one command")
 assert(math.abs(commands[#commands].args[2].Y - 1) < 1e-9, "the command carries the aim")
+shootHook(fake.param(controller), fake.param({ pressed = false }))
+commands = fake.callsTo(link, "EntityServerCommand")
+assert(#commands == commandsBeforeShooting + 2 and commands[#commands].args[1]:ToString() == "PrimaryRelease",
+  "and letting go sends its release")
 
 -- HoldTool (Space) vents and Interact (E) fires the ultimate (playtest 6), through the game's own bindings
 holdToolHook(fake.param(controller), fake.param({ pressed = true }))

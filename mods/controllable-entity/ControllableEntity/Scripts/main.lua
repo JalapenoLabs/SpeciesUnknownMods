@@ -61,7 +61,10 @@ LoopInGameThreadWithDelay(200, function()
     movement.tickHost(entity, now)
     hunt.tick(entity, now)
     zones.tickHost(entity, now)
-    crawl.tickHost(entity)
+    -- Only an entity that lives in the vents crouches into the crawl openings
+    if entity.kit.usesVents then
+      crawl.tickHost(entity)
+    end
     cries.tickHost(entity, now)
   end
   abilities.tick()

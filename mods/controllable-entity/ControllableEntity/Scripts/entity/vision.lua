@@ -12,6 +12,7 @@
 
 local config = require("entity.config")
 local game = require("entity.game")
+local kits = require("entity.kits")
 local vents = require("entity.vents")
 local zones = require("entity.zones")
 
@@ -260,7 +261,8 @@ function vision.follow(controller, monster)
       monsterAddress = monster:GetAddress(),
       lantern = giveLantern(monster),
       lanternInVent = nil,
-      markers = spawnMarkers(world),
+      -- Only an entity that lives in the vents has openings to look for
+      markers = kits.forMonster(monster).usesVents and spawnMarkers(world) or {},
       nextRefreshAt = 0,
       posts = {},
       postsKey = nil,

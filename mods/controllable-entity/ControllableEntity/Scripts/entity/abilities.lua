@@ -190,10 +190,25 @@ function abilities.tick()
   link.VentTime = hunt.ventTimeLeft()
 end
 
+-- Letting go of a move that is held (the Terminator's gatling, on Shoot) stops it, cooldown or not. An entity whose
+-- Primary isn't held has nothing to let go of.
+local function onPrimaryRelease(_, controller)
+  local entity = takeover.isEntityController(controller) and takeover.activeEntity()
+  if not entity then
+    game.log("PrimaryRelease from a player who isn't the entity; ignored")
+    return
+  end
+  local release = moves.byKitId[entity.kit.id].PrimaryRelease
+  if release then
+    release(entity.monster)
+  end
+end
+
 function abilities.register()
   for command in pairs(moveByCommand) do
     links.onCommand(command, runCommand(command))
   end
+  links.onCommand("PrimaryRelease", onPrimaryRelease)
   for _, kit in ipairs(kits.playable) do
     game.hookWhenLoaded(kit.classPath, kit.killGrab.functionName, onGrabStarted)
   end
