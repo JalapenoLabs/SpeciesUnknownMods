@@ -75,8 +75,15 @@ end
 fake.runLoops(33)
 assert(createdWith == nil, "the crew gets no minimap")
 
--- Driving the squid: the game's minimap, top right, following an actor that rides with the squid and never turns
+-- Regression (playtest 9): on Polar the entity takes the monster as the mission starts, before the map managers find
+-- their reference box; built then, the minimap had none and drew the map frozen on its middle. It waits for the box
 controller.Pawn = squid
+local mapManager = fake.object("BP_MapManager_C", { RefBoxMap = fake.invalid() })
+fake.runLoops(33)
+assert(createdWith == nil, "no minimap before the map's reference box exists")
+mapManager.RefBoxMap = fake.object("BlockingVolume")
+
+-- Driving the squid: the game's minimap, top right, following an actor that rides with the squid and never turns
 fake.runLoops(33)
 assert(createdWith == widgetClass, "the game's own minimap widget is used")
 assert(#fake.callsTo(minimapWidget, "AddToViewport") == 1, "it goes on the screen")

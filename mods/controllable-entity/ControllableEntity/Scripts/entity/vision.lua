@@ -34,6 +34,20 @@ local IDENTITY_TRANSFORM = {
   Scale3D = { X = 1, Y = 1, Z = 1 },
 }
 
+-- The weather's screen frost (Ultra Dynamic Weather, on Polar) is a post process on whatever camera is this machine's,
+-- so the entity saw the crew's frosting visor outside (playtest 9). It is turned to nothing on the entity's machine
+-- alone, and again whenever the weather rebuilds it; the crew keep theirs. A map without that weather has no frost.
+local WEATHER_CLASS_NAME = "Ultra_Dynamic_Weather_C"
+local SCREEN_FROST = "Screen Frost Post Process"
+
+local function setScreenFrost(blendWeight)
+  local weather = FindFirstOf(WEATHER_CLASS_NAME)
+  local frost = weather and weather:IsValid() and weather[SCREEN_FROST]
+  if frost and frost:IsValid() then
+    frost.BlendWeight = blendWeight
+  end
+end
+
 -- What this machine has built: { worldKey, monsterAddress, lantern, lanternInVent, markers = { actor, ... },
 -- nextRefreshAt, posts = { actor, ... }, postsKey, nextZoneRefreshAt }, or nil.
 local built = nil
@@ -244,6 +258,8 @@ local function forget()
     built.lantern:K2_DestroyComponent(built.lantern)
   end
   removePosts()
+  -- Crew again (or watching them), the player gets the weather's frost back
+  setScreenFrost(1)
   built = nil
 end
 
@@ -281,6 +297,7 @@ function vision.follow(controller, monster)
   end
   built.nextRefreshAt = now + config.vision.markerRefreshSeconds
   placeMarkers(monster)
+  setScreenFrost(0)
 
   -- Full in the unlit ducts, faint in the rooms: the game keeps them dark on purpose, and the entity has no flashlight
   -- (playtest 6: off in the rooms was too dark, full was more than needed)

@@ -2,12 +2,17 @@
 
 -- The areas of the ship the entity player's machine treats the entity as standing in.
 --
--- Some of the game's managers follow the local player's pawn through trigger volumes, and decide from the volumes'
+-- Some of the game's actors follow the local player's pawn through trigger volumes, and decide from the volumes'
 -- overlap events, which the entity's collision never fires:
 --   - map sections: each BP_StreamingVolume_Manager shows its sections while the pawn stands in one of its volumes, so
---     walls and floors stayed hidden around the entity (playtest 5);
+--     walls and floors stayed hidden around the entity (playtest 5); Polar's BP_InsideVolume_Manager, its indoor fog,
+--     works the same way;
 --   - the map's deck: BP_MapManagerExtended picks which layer the minimaps draw from the map triggers the pawn stands
---     in, so the entity's minimap showed the deck below crew quarters (playtest 6).
+--     in, so the entity's minimap showed the deck below crew quarters (playtest 6);
+--   - things that switch on for whoever is near: Hawking's reactor core shows, turns and shakes the camera only while
+--     the pawn is in its own volumes (BP_CoreReactor), and the engineering water shows only while the pawn is in its
+--     own (BP_Water), so neither was ever there for the entity, whose squid still took the reactor's pulse
+--     (playtest 9).
 -- Each manager also has a way in by hand that runs the same check the overlaps do (BP_FunctionLibrairy.
 -- GetOnlyVisualOverlap: the local player's pawn counts), so the mod tells them when the entity is inside a volume's
 -- bounding box (AActor.GetActorBounds; AVolume's exact EncompassesPoint isn't exposed to Blueprints or Lua). A rotated
@@ -54,15 +59,54 @@ end
 -- crew body the player drove before the entity stays counted in the triggers it last stood in: once the player drives
 -- the entity, the body's own end-overlaps fail GetOnlyVisualOverlap (playtest 6: the minimap stuck on the safe zone
 -- the crew start in). Leaving a trigger the manager doesn't count does nothing.
-local managerKinds = {
-  BP_StreamingVolume_Manager_C = {
+local sectionKind = {
+  leavesStaleVolumes = false,
+  headroom = config.areas.sectionHeadroom,
+  volumesOf = listedVolumes,
+  setInside = function(manager, volume, monster, isInside)
+    manager:BPI_Streaming_AddActorToTrigger(volume, monster, isInside)
+  end,
+}
+
+-- An actor that switches something on while the local player stands in one of its own trigger volumes: by the field
+-- holding each volume, the functions its overlap events call. Those run the game's own check (GetOnlyVisualOverlap),
+-- which the entity passes as this machine's pawn.
+local function ownVolumesKind(handlersByVolumeField)
+  return {
     leavesStaleVolumes = false,
-    headroom = config.areas.sectionHeadroom,
-    volumesOf = listedVolumes,
-    setInside = function(manager, volume, monster, isInside)
-      manager:BPI_Streaming_AddActorToTrigger(volume, monster, isInside)
+    headroom = 0,
+    volumesOf = function(actor)
+      local volumes = {}
+      for field in pairs(handlersByVolumeField) do
+        local volume = actor[field]
+        if volume and volume:IsValid() then
+          table.insert(volumes, volume)
+        end
+      end
+      return volumes
     end,
-  },
+    setInside = function(actor, volume, monster, isInside)
+      for field, handlers in pairs(handlersByVolumeField) do
+        local ownVolume = actor[field]
+        if ownVolume:IsValid() and ownVolume:GetAddress() == volume:GetAddress() then
+          actor[isInside and handlers.enter or handlers.leave](actor, volume, monster)
+          return
+        end
+      end
+    end,
+  }
+end
+
+local managerKinds = {
+  BP_StreamingVolume_Manager_C = sectionKind,
+  BP_InsideVolume_Manager_C = sectionKind,
+  BP_CoreReactor_C = ownVolumesKind({
+    TriggerVolume = { enter = "BeginOverlap", leave = "EndOverlap" },
+    TriggerVolumeShake = { enter = "BeginOverlapShake", leave = "EndOverlapShake" },
+  }),
+  BP_Water_C = ownVolumesKind({
+    TriggerVolume = { enter = "BeginOverlap", leave = "EndOverlap" },
+  }),
   -- Of the triggers the pawn stands in, the highest priority picks the layer (BP_MapManagerExtended.CheckBestTrigger),
   -- and standing in none goes back to the default one
   BP_MapManagerExtended_C = {

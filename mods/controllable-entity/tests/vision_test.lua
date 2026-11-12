@@ -89,9 +89,15 @@ dofile("mods/controllable-entity/ControllableEntity/Scripts/main.lua")
 fake.runLoops(100)
 assert(#markers == 0 and #squidComponents == 0, "the crew sees nothing extra")
 
+-- Polar's weather frosts the local camera's visor outside (Ultra Dynamic Weather's screen frost)
+local screenFrost = fake.object("PostProcessComponent", { BlendWeight = 1 })
+fake.object("Ultra_Dynamic_Weather_C", { ["Screen Frost Post Process"] = screenFrost })
+
 -- Driving the squid inside the ducts
 controller.Pawn = squid
 fake.runLoops(100)
+-- Regression (playtest 9): the entity saw the crew's frosting visor outside. On its machine alone, the frost is off
+assert(screenFrost.BlendWeight == 0, "no visor frost for the entity")
 assert(#squidComponents == 1, "the squid gets a light")
 local lantern = squidComponents[1]
 assert(#fake.callsTo(lantern, "SetCastShadows") == 1, "a shadowless one")
@@ -143,5 +149,7 @@ for _, post in ipairs(posts) do
   assert(post.destroyed, "and the posts")
 end
 assert(#fake.callsTo(lantern, "K2_DestroyComponent") == 1, "and the light")
+
+assert(screenFrost.BlendWeight == 1, "and the frost is back once the player no longer drives the squid")
 
 print("vision test passed")

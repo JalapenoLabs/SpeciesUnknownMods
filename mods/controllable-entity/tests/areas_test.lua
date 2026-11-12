@@ -120,11 +120,44 @@ squid.location = { X = 1500, Y = 0, Z = 0 }
 fake.runLoops(250)
 assert(entries(farManager)[3] == true, "and back down, enters it again")
 
+-- Regression (playtest 9): the reactor core and the engineering water switch on only while the local player stands in
+-- their own volumes, so neither ever showed for the entity. Its machine tells them, through their own overlap calls
+squid.location = { X = 1500, Y = 0, Z = 0 }
+local reactorVolume, reactorShakeVolume, waterVolume = volume(9000), volume(9200), volume(1500)
+local reactor = fake.object("BP_CoreReactor_C", {
+  TriggerVolume = reactorVolume,
+  TriggerVolumeShake = reactorShakeVolume,
+})
+local water = fake.object("BP_Water_C", { TriggerVolume = waterVolume })
+local function calls(target, method)
+  local found = {}
+  for _, call in ipairs(fake.callsTo(target, method)) do
+    if call.args[2] == squid then
+      table.insert(found, call.args[1])
+    end
+  end
+  return found
+end
+fake.runLoops(250)
+assert(#calls(water, "BeginOverlap") == 1 and calls(water, "BeginOverlap")[1] == waterVolume, "the water shows")
+assert(#calls(reactor, "BeginOverlap") == 0, "a reactor far away stays dark")
+squid.location = { X = 9000, Y = 0, Z = 0 }
+fake.runLoops(250)
+assert(#calls(water, "EndOverlap") == 1, "leaving the water's volume hides it again")
+assert(#calls(reactor, "BeginOverlap") == 1 and calls(reactor, "BeginOverlap")[1] == reactorVolume,
+  "the reactor core shows")
+assert(#calls(reactor, "BeginOverlapShake") == 1 and calls(reactor, "BeginOverlapShake")[1] == reactorShakeVolume,
+  "and its shake reaches the entity")
+squid.location = { X = 1500, Y = 0, Z = 0 }
+fake.runLoops(250)
+assert(#calls(reactor, "EndOverlap") == 1 and #calls(reactor, "EndOverlapShake") == 1, "both end on leaving")
+local farEntries = #entries(farManager)
+
 -- Once the player stops driving the squid, the volumes are handed back
 local crewQuartersLeft = mapCalls("EndOverlap", crewQuartersTrigger)
 controller.Pawn = fake.invalid()
 fake.runLoops(250)
-assert(entries(farManager)[4] == false, "the volume is left when the player stops driving the squid")
+assert(entries(farManager)[farEntries + 1] == false, "the volume is left when the player stops driving the squid")
 assert(mapCalls("EndOverlap", crewQuartersTrigger) == crewQuartersLeft + 1, "and so is the deck's trigger")
 
 print("areas test passed")

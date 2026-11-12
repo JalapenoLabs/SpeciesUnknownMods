@@ -30,8 +30,14 @@ local CLIP_TO_BOUNDS = 1
 -- instead, the map was off centre and spilled over the whole screen).
 local DESIGN_SIZE = 1024
 
+-- The game's map managers: each finds its map's reference box (RefBoxMap, the BlockingVolume each map tags) as it
+-- begins play, and the minimap draws the map from it.
+local MAP_MANAGER_CLASS_NAMES = { "BP_MapManager_C", "BP_MapManagerExtended_C" }
+
 -- What this machine has built: { worldKey, monsterAddress, widget, follower }, or nil.
 local built = nil
+-- The world the minimap was last reported waiting in, so the wait is logged once.
+local reportedWaitingIn = nil
 -- The widget's Scale, which "." and "," change; every new minimap starts fully zoomed out.
 local zoom = config.minimap.minimumZoom
 
@@ -64,7 +70,30 @@ local function removeLeftovers()
   end
 end
 
+-- The minimap copies its manager's reference box once, as it's built (UMG_MiniMap.Construct), and draws the map from
+-- it. On Polar the entity takes the monster the moment the mission starts, before the managers begin play: built then,
+-- it had no box and drew the map frozen on its middle (playtest 9). So it is built once a manager has its box.
+local function isMapReady()
+  for _, className in ipairs(MAP_MANAGER_CLASS_NAMES) do
+    for _, manager in ipairs(FindAllOf(className) or {}) do
+      local box = manager:IsValid() and manager.RefBoxMap
+      if box and box:IsValid() then
+        return true
+      end
+    end
+  end
+  return false
+end
+
 local function build(controller, monster)
+  local worldKey = controller:GetWorld():GetAddress()
+  if not isMapReady() then
+    if reportedWaitingIn ~= worldKey then
+      reportedWaitingIn = worldKey
+      game.log("The minimap waits for the map's reference box")
+    end
+    return nil
+  end
   removeLeftovers()
   local widgetClass = game.loadGameAsset(WIDGET_CLASS)
   if not widgetClass then
@@ -89,7 +118,7 @@ local function build(controller, monster)
   zoom = config.minimap.minimumZoom
   game.log("The minimap is up")
   return {
-    worldKey = controller:GetWorld():GetAddress(),
+    worldKey = worldKey,
     monsterAddress = monster:GetAddress(),
     widget = widget,
     follower = follower,

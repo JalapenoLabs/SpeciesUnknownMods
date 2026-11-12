@@ -224,6 +224,18 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
   triggers the same way, and the entity's machine walks the squid through those too (`BeginOverlap` and
   `EndOverlap` on `BP_MapManagerExtended`). When the player takes the squid, it first leaves the triggers their crew
   body stood in, which the game would otherwise go on counting.
+- **The minimap waits for its map.** The widget copies its map manager's reference box (`RefBoxMap`, the volume each
+  map tags) once, as it's built. On Polar the entity takes the monster as the mission starts, before the managers
+  find their box, and the minimap drew the map frozen on its middle (playtest 9), so it is built once a manager has
+  its box.
+- **What switches on for whoever is near** works the same way: Hawking's reactor core shows, turns and shakes the
+  camera only while the local player stands in its own volumes (`BP_CoreReactor.BeginOverlap`, `BeginOverlapShake`),
+  the engineering water shows only in its own (`BP_Water.BeginOverlap`), and Polar's indoor fog follows its own
+  manager (`BP_InsideVolume_Manager`, like the map sections). None of them showed for the entity (playtest 9), so its
+  machine calls their overlaps too.
+- **No visor frost.** Polar's weather frosts the local camera's visor outside (Ultra Dynamic Weather's
+  `Screen Frost Post Process`), the entity's too (playtest 9); on its machine alone it is turned to nothing, and the
+  crew keep theirs.
 - On the roadmap: seeing down into the room below while in the vents (the crew and the openings under the squid), from
   playtest 5. Then a glowing path along the ducts to the nearest opening (needs the host's navigation data sent to
   the entity), and an overlay of the duct network while inside.
@@ -768,12 +780,6 @@ one friend.
 21. **Voice (with a friend; passed in playtest 9).** The entity's voice reaches nobody, and their radio key makes no
     sound. The friend holds the radio key and talks: the entity hears them only when close, with no radio static. A
     hook error in the log on the first radio press names the voice call that needs fixing.
-26. **Playtest 9's fixes (with a friend as the entity).** The friend starts in the ducts, crouched, and stays there
-    until the power is on, without falling out of the vent. Crawl openings take them the first time. Knock the squid
-    down (a fire canister, the turrets): it stays put, every move answers "You're down", and it gets up on its own
-    once it stops burning; on both screens it lies down and gets up together. Space vents once per press, with no
-    "Not yet". High in the ducts over the labs, the ship below stays visible. Lashing a crew member fills the
-    ultimate's bar a tenth per hit.
 22. **Capture (with a friend, capture contract).** Kill the squid away from the shuttle: the contract completes as
     captured. Kill it aboard: the contract fails, as normal. Check the lobby's specimen display after the first.
 23. **Mike (alone, then with a friend).** In the picker, pick Mike and yourself, and start a contract: the specimen
@@ -805,3 +811,13 @@ one friend.
     difficulty, and leave the entity on Random over a few missions: the Terminator never comes up (the game never
     sends it there either). Pick the Terminator directly on such a contract: the host sees "The game never sends your
     pick on this contract", once, and the pick stands.
+26. **Playtest 9's fixes (with a friend as the entity).** The friend starts in the ducts, crouched, and stays there
+    until the power is on, without falling out of the vent. Crawl openings take them the first time. Knock the squid
+    down (a fire canister, the turrets): it stays put, every move answers "You're down", and it gets up on its own
+    once it stops burning; on both screens it lies down and gets up together. Space vents once per press, with no
+    "Not yet". High in the ducts over the labs, the ship below stays visible. Lashing a crew member fills the
+    ultimate's bar a tenth per hit.
+27. **Seen as the crew see it (with a friend as the entity).** On Hawking, as the entity: the engineering water shows,
+    and once the crew unlock the reactor room, the core shows, turns and shakes the camera nearby. Walk to an
+    unlocked reactor door: if it stays shut for the squid, send the log. On Polar: the minimap matches where you are
+    from the first second, the visor never frosts outside, and the indoor fog shows indoors.
