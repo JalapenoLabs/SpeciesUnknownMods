@@ -213,4 +213,18 @@ assert(lastEvent() == "ForcedOut")
 assert(not squid.InVent and squid.location.X == 7704 - 150 and squid.location.Z == 1100 + 60,
   "the stuck squid stands on the floor in front of the power screen")
 
+-- Playtest 9: knocked down by the crew and burnt, the squid got up with its vent time as it was. Getting back up, it
+-- has the whole of it back, and the vents open to it again: its chance to run
+squid.InVent = false
+squid.location = location(300, 0, 0)
+runSeconds(162.2, 170)
+assert(entityLink.VentTime < 1, "some vent time was used")
+squid.IsOnGround = true
+runSeconds(170.2, 175)
+squid.IsOnGround = false
+runSeconds(175.2, 175.4)
+assert(entityLink.VentTime == 1 and lastEvent() == "BackUp", "back up, the vent time is full again")
+command("Mobility")
+assert(lastEvent() ~= "Denied.VentsShut", "and the vents take the squid")
+
 print("hunt test passed")

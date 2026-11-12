@@ -92,6 +92,7 @@ local messageByEvent = {
   ForcedOut = "Your time in the vents is up. Out you go.",
   ShuttleNear = "Near the shuttle: no sprinting, and no kills.",
   VentsReopened = "The vents will take you again.",
+  BackUp = "Back up, with your vent time full: run.",
   PickedByHost = "The host picked you to be the entity next mission. Only you know.",
   PickedPlayerLeft = "The player you picked left. The entity's player is random again.",
   PickedUnfit = "The game never sends your pick on this contract (the crew has no main weapons, or it's the easiest "

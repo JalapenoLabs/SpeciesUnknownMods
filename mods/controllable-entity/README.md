@@ -122,6 +122,8 @@ holds the special weapon (the same trigger as partial frenzy), the vents are onl
   otherwise taken beside the nearest one on its floor first. The vents then stay shut to it until half the time is
   back ("The vents won't take you yet").
 - The lair lets the squid go when the hunt starts, even with the power still off.
+- Getting back up after the crew knocked it down, the entity has its whole vent time back and the vents open to it
+  again ("Back up, with your vent time full: run."): its chance to escape, as the AI flees once it's up (playtest 9).
 - A squid still in the vents 10 seconds after being forced out (a spot the drop can't reach) is moved to the floor in
   front of the screen that restores the power (`BP_Screen_RestorePower`, one per map, found on the navigation).
 - The hunted squid is loud: every 12 seconds it cries out, so the crew can follow it. The AI's cries come from its
