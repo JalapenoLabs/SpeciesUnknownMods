@@ -8,6 +8,7 @@
 -- It may also have:
 --   - PrimaryRelease(monster): letting go of Shoot, for a Primary that is held;
 --   - begin(entity): at the takeover, and when a reload of the mod takes the entity back;
+--   - finish(entity): when it stops being the entity (it lost, or its monster was captured);
 --   - wake(monster): for an entity the lair keeps powered down (lair.lua);
 --   - tick(entity): about thirty times a second on the host while it is the entity;
 --   - healthShare(monster): the HUD's health bar and whether it is down, for an entity whose pools aren't its kit's

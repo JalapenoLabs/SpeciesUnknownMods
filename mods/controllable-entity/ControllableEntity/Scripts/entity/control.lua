@@ -97,7 +97,9 @@ local function heldButton(command)
   local releaseCommand = command .. "Release"
   local isHeld = false
   return function(controller, actionValueParameter)
+    -- Not driving a monster (any more: it was lost with the button held), nothing is held
     if not game.monsterDrivenBy(controller) then
+      isHeld = false
       return
     end
     local isPressed = buttonPressed(actionValueParameter)

@@ -91,7 +91,7 @@ local function beginPoweredDown(entity, kitMoves)
     wake = kitMoves.wake,
   }
   if not current.leashed then
-    current.wake(monster)
+    wake(monster, current.wake)
     game.log("The entity starts where the game spawned it, awake: the power is on")
     return
   end
@@ -132,12 +132,21 @@ function lair.begin(entity, kitMoves)
     leashed and ", held in the ducts until the power is on" or "")
 end
 
+-- Wakes an entity lying powered down, through its moves' wake. It calls into the game by a name only research has
+-- seen; a failure is logged rather than leaving the lair half let go.
+local function wake(monster, wakeStep)
+  local ok, failure = pcall(wakeStep, monster)
+  if not ok then
+    game.log("Waking the entity failed: %s", tostring(failure))
+  end
+end
+
 -- Lets the entity go: the power came on, or the hunt started (hunt.lua) and the vents stopped being safe for it. One
 -- lying powered down wakes.
 local function letGo(event)
   current.leashed = false
   if current.wake then
-    current.wake(current.monster)
+    wake(current.monster, current.wake)
   end
   links.sendEvent(current.controller, event)
 end

@@ -327,6 +327,19 @@ local function releaseParkedBody(entity)
   game.log("Removed the entity's parked crew body")
 end
 
+-- Runs one of an entity's own steps (its moves' begin or finish, moves.lua), if it has it. They call into the game by
+-- names only research has seen, and one that fails must not stop the takeover or the loss half done.
+local function runKitStep(entity, stepName)
+  local step = moves.byKitId[entity.kit.id][stepName]
+  if not step then
+    return
+  end
+  local ok, failure = pcall(step, entity)
+  if not ok then
+    game.log("The %s's %s step failed: %s", entity.kit.displayName, stepName, tostring(failure))
+  end
+end
+
 local function takeControl(controller, monster, worldKey)
   local crewBody = controller.Pawn
 
@@ -381,11 +394,8 @@ local function takeControl(controller, monster, worldKey)
   releaseParkedBody(activeEntity)
   links.sendEvent(controller, "BecameEntity")
   game.log("%s took control of the monster: %s", activeEntity.key, activeEntity.kit.displayName)
-  local kitMoves = moves.byKitId[activeEntity.kit.id]
-  if kitMoves.begin then
-    kitMoves.begin(activeEntity)
-  end
-  lair.begin(activeEntity, kitMoves)
+  runKitStep(activeEntity, "begin")
+  lair.begin(activeEntity, moves.byKitId[activeEntity.kit.id])
 end
 
 -- A hot reload of the mod (UE4SS's Ctrl+R) forgets who the entity is, while the player still drives the monster. Their
@@ -410,12 +420,9 @@ local function adoptAfterReload(monster, worldKey)
   }
   monster.ShouldCheckIfStuck = false
   movement.resetHost()
-  local kitMoves = moves.byKitId[activeEntity.kit.id]
-  if kitMoves.begin then
-    kitMoves.begin(activeEntity)
-  end
+  runKitStep(activeEntity, "begin")
   if not activeEntity.kit.usesVents then
-    lair.begin(activeEntity, kitMoves)
+    lair.begin(activeEntity, moves.byKitId[activeEntity.kit.id])
   end
   game.log("%s is driving the monster; taken back as the entity after a reload", volunteerKey)
   return true
@@ -439,6 +446,10 @@ end
 local function noticeLoss()
   local entity = activeEntity
   activeEntity = nil
+  -- What the entity left running stops with it (the Terminator's gatling: nothing in the game stops a firing gun)
+  if entity.monster:IsValid() then
+    runKitStep(entity, "finish")
+  end
   lair.forget()
   if not entity.controller:IsValid() then
     return

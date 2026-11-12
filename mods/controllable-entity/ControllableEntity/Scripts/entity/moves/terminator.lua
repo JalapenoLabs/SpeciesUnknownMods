@@ -156,6 +156,12 @@ return {
     monster.MainTarget = nil
   end,
 
+  -- When it stops being the entity (it lost, or was captured): a gatling still firing would fire on, since nothing in
+  -- the game stops it.
+  finish = function(entity)
+    stopFiring(entity.monster)
+  end,
+
   -- Powers it up, when the lair lets it go (lair.lua): it gets up off the floor.
   wake = function(monster)
     monster:BPI_Monster_SwitchBehavior(BEHAVIOUR_PATROL)
@@ -163,10 +169,12 @@ return {
 
   -- About thirty times a second on the host: it faces where its player looks, as its AI faced its target (its own
   -- turning, MoveFaceToTarget, turns toward that point every tick), and its gatling stops when the robot can no longer
-  -- fire it: broken, stunned or electrocuted (only electrocution stops it in the game's own code).
+  -- fire it: broken, stunned, electrocuted or dead (only electrocution stops it in the game's own code). A dead robot
+  -- stays its player's, lying there, until the game removes it, so death is caught here rather than at the loss.
   tick = function(entity)
     local monster = entity.monster
-    if isFiring and (not monster.HaveGatling or monster.IsStunt or monster.IsElectrocuted) then
+    local cantFire = not monster.HaveGatling or monster.IsStunt or monster.IsElectrocuted or monster.IsDead
+    if isFiring and cantFire then
       stopFiring(monster)
     end
     -- Lying powered down, it faces nowhere

@@ -409,6 +409,19 @@ fake.runLoops(33)
 statusTexts = fake.callsTo(widget.StatusText, "SetText")
 assert(statusTexts[#statusTexts].args[1].text == "", "once the power is on, the hint goes")
 
+-- Losing the monster with Shoot held left the press counted as held, and the next mission swallowed the first press:
+-- not driving a monster, nothing is held
+shootHook(fake.param(controller), fake.param({ pressed = true }))
+controller.Pawn = fake.invalid()
+shootHook(fake.param(controller), fake.param({ pressed = false }))
+controller.Pawn = squid
+local commandsBeforeNextPress = #fake.callsTo(link, "EntityServerCommand")
+shootHook(fake.param(controller), fake.param({ pressed = true }))
+commands = fake.callsTo(link, "EntityServerCommand")
+assert(#commands == commandsBeforeNextPress + 1 and commands[#commands].args[1]:ToString() == "Primary",
+  "the first press after losing the monster with Shoot held still fires")
+shootHook(fake.param(controller), fake.param({ pressed = false }))
+
 -- Regression (playtest 2): after quitting to the main menu the entity HUD stayed on screen. A map change must remove
 -- the old world's HUD and forget the old world's status until the host says otherwise.
 local removalsBeforeTravel = #fake.callsTo(widget, "RemoveFromParent")

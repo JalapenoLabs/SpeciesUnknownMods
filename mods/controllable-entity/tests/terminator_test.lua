@@ -241,6 +241,16 @@ robot.HaveGatling = false
 fake.runLoops(33)
 assert(lastCall(robot, "BPI_BigRobot_SetFiring")[1] == false, "a broken gatling stops firing")
 
+robot.HaveGatling = true
+-- Dead, it lies there as its player's until the game removes it: a gatling still firing stops
+fake.now = 2.5
+command("Primary")
+robot.IsDead = true
+fake.runLoops(33)
+assert(lastCall(robot, "BPI_BigRobot_SetFiring")[1] == false, "a dead robot's gatling stops firing")
+robot.IsDead = false
+robot.HaveGatling = false
+
 -- Without its gatling, Shoot punches: its plain punch, never the head crush, and never through the game's own pick
 fake.now = 3
 command("Primary")
@@ -312,6 +322,22 @@ robot.Health = 250
 robot.IsStunt = true
 fake.runLoops(200)
 assert(link.Health == 0.25 and link.Downed == true, "then its body's, and down while stunned")
+
+-- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
+-- Losing it with the gun firing
+-- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
+
+-- A gatling firing when the robot stops being the entity (captured, or its player no longer drives it) stops: the
+-- host's tick no longer runs for it, and nothing in the game stops a firing gun
+robot.HaveGatling, robot.IsStunt = true, false
+fake.now = 80
+command("Primary")
+assert(lastCall(robot, "BPI_BigRobot_SetFiring")[1] == true, "firing")
+crewController.Pawn = fake.invalid()
+fake.runLoops(1000)
+assert(require("entity.takeover").activeEntity() == nil, "the entity is lost")
+assert(lastCall(robot, "BPI_BigRobot_SetFiring")[1] == false, "and its gatling stops with it")
+crewController.Pawn = robot
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 -- The camera, on its player's machine
