@@ -69,11 +69,12 @@ local sectionKind = {
 }
 
 -- An actor that switches something on while the local player stands in one of its own trigger volumes: by the field
--- holding each volume, the functions its overlap events call. Those run the game's own check (GetOnlyVisualOverlap),
--- which the entity passes as this machine's pawn.
-local function ownVolumesKind(handlersByVolumeField)
+-- holding each volume, what its overlap events call. Either the overlap handlers themselves, { enter, leave }, which
+-- run the game's own check (GetOnlyVisualOverlap) and pass the entity as this machine's pawn; or, where the handlers
+-- are generated stubs, the switch they end in, { switch }, called with whether the entity is inside.
+local function ownVolumesKind(handlersByVolumeField, leavesStaleVolumes)
   return {
-    leavesStaleVolumes = false,
+    leavesStaleVolumes = leavesStaleVolumes == true,
     headroom = 0,
     volumesOf = function(actor)
       local volumes = {}
@@ -89,6 +90,10 @@ local function ownVolumesKind(handlersByVolumeField)
       for field, handlers in pairs(handlersByVolumeField) do
         local ownVolume = actor[field]
         if ownVolume:IsValid() and ownVolume:GetAddress() == volume:GetAddress() then
+          if handlers.switch then
+            actor[handlers.switch](actor, isInside)
+            return
+          end
           actor[isInside and handlers.enter or handlers.leave](actor, volume, monster)
           return
         end
@@ -97,16 +102,55 @@ local function ownVolumesKind(handlersByVolumeField)
   }
 end
 
+-- A trigger list whose overlaps the actor counts (Polar's soundscape): the triggers are the volumes, entered and left
+-- through its own overlap handlers.
+local function triggerListKind(listField)
+  return {
+    leavesStaleVolumes = true,
+    headroom = 0,
+    volumesOf = function(actor)
+      local volumes = {}
+      actor[listField]:ForEach(function(_, element)
+        local volume = element:get()
+        if volume:IsValid() then
+          table.insert(volumes, volume)
+        end
+      end)
+      return volumes
+    end,
+    setInside = function(actor, volume, monster, isInside)
+      if isInside then
+        actor:BeginOverlap(volume, monster)
+        return
+      end
+      actor:EndOverlap(volume, monster)
+    end,
+  }
+end
+
+local overlapHandlers = { enter = "BeginOverlap", leave = "EndOverlap" }
+local shakeHandlers = { enter = "BeginOverlapShake", leave = "EndOverlapShake" }
+
+-- Every kind by class. Subclasses are listed on their own (the vent wall's gas tank, the electrical reactor's child):
+-- a lookup by class name may not find them through their parent.
 local managerKinds = {
   BP_StreamingVolume_Manager_C = sectionKind,
   BP_InsideVolume_Manager_C = sectionKind,
-  BP_CoreReactor_C = ownVolumesKind({
-    TriggerVolume = { enter = "BeginOverlap", leave = "EndOverlap" },
-    TriggerVolumeShake = { enter = "BeginOverlapShake", leave = "EndOverlapShake" },
-  }),
-  BP_Water_C = ownVolumesKind({
-    TriggerVolume = { enter = "BeginOverlap", leave = "EndOverlap" },
-  }),
+  BP_CoreReactor_C = ownVolumesKind({ TriggerVolume = overlapHandlers, TriggerVolumeShake = shakeHandlers }),
+  BP_Water_C = ownVolumesKind({ TriggerVolume = overlapHandlers }),
+  -- Found by the local-player audit (#4): Hawking's wall fans in the vents, its engines (shown, lit, turning, and a
+  -- camera shake nearby), its electrical reactors and Polar's generators (their loop sound and spin), Polar's control
+  -- tower (its interior), its rovers (the engine heard from inside) and its soundscape (each area's sound and the
+  -- inside music, from the triggers the pawn stands in)
+  BP_VentWall_C = ownVolumesKind({ TriggerVolume = overlapHandlers }),
+  BP_VentWall_GazTank_Child_C = ownVolumesKind({ TriggerVolume = overlapHandlers }),
+  BP_Engine_C = ownVolumesKind({ TriggerVolume = overlapHandlers, TriggerVolumeShake = shakeHandlers }),
+  BP_Electrical_Reactor_C = ownVolumesKind({ TriggerVolume = overlapHandlers }),
+  BP_Electrical_Reactor_Child_C = ownVolumesKind({ TriggerVolume = overlapHandlers }),
+  BP_Electrical_Generator_POLAR_C = ownVolumesKind({ TriggerVolume = overlapHandlers }),
+  BP_TowerControl_C = ownVolumesKind({ TriggerVolume = { switch = "Inside" } }),
+  BP_Rover_C = ownVolumesKind({ TriggerVolume = { switch = "PlayerLocalInside" } }),
+  BP_AmbientMain_POLAR_C = triggerListKind("TriggerVolumeList"),
   -- Of the triggers the pawn stands in, the highest priority picks the layer (BP_MapManagerExtended.CheckBestTrigger),
   -- and standing in none goes back to the default one
   BP_MapManagerExtended_C = {

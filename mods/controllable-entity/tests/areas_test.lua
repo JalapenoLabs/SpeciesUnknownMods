@@ -151,6 +151,24 @@ assert(#calls(reactor, "BeginOverlapShake") == 1 and calls(reactor, "BeginOverla
 squid.location = { X = 1500, Y = 0, Z = 0 }
 fake.runLoops(250)
 assert(#calls(reactor, "EndOverlap") == 1 and #calls(reactor, "EndOverlapShake") == 1, "both end on leaving")
+-- The audit (#4): Hawking's vent wall fans, Polar's control tower (its interior, switched directly) and Polar's
+-- soundscape (a list of triggers it counts) switch on for the entity too
+local fanVolume, towerVolume, soundVolume = volume(3000), volume(3000), volume(3000)
+local fan = fake.object("BP_VentWall_C", { TriggerVolume = fanVolume })
+local tower = fake.object("BP_TowerControl_C", { TriggerVolume = towerVolume })
+local ambience = fake.object("BP_AmbientMain_POLAR_C", { TriggerVolumeList = fake.array({ soundVolume }) })
+squid.location = { X = 3000, Y = 0, Z = 0 }
+fake.runLoops(250)
+assert(#calls(fan, "BeginOverlap") == 1 and calls(fan, "BeginOverlap")[1] == fanVolume, "the vent fan shows")
+assert(#calls(ambience, "BeginOverlap") == 1 and calls(ambience, "BeginOverlap")[1] == soundVolume,
+  "the area's sound plays")
+local towerSwitches = fake.callsTo(tower, "Inside")
+assert(#towerSwitches == 1 and towerSwitches[1].args[1] == true, "the tower's interior shows")
+squid.location = { X = 1500, Y = 0, Z = 0 }
+fake.runLoops(250)
+towerSwitches = fake.callsTo(tower, "Inside")
+assert(#calls(fan, "EndOverlap") == 1 and #calls(ambience, "EndOverlap") == 1, "and all switch off on leaving")
+assert(#towerSwitches == 2 and towerSwitches[2].args[1] == false, "the tower too")
 local farEntries = #entries(farManager)
 
 -- Once the player stops driving the squid, the volumes are handed back

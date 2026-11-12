@@ -239,7 +239,12 @@ rest of the mission. Losing to capture is still to be confirmed (see [Open quest
   camera only while the local player stands in its own volumes (`BP_CoreReactor.BeginOverlap`, `BeginOverlapShake`),
   the engineering water shows only in its own (`BP_Water.BeginOverlap`), and Polar's indoor fog follows its own
   manager (`BP_InsideVolume_Manager`, like the map sections). None of them showed for the entity (playtest 9), so its
-  machine calls their overlaps too.
+  machine calls their overlaps too. An audit of every caller of the game's local-pawn check found more, handled the
+  same way: Hawking's vent wall fans (`BP_VentWall`, hidden and silent in the very vents the entity uses), its engines
+  (`BP_Engine`), its electrical reactors and Polar's generators, Polar's control tower (`BP_TowerControl.Inside`), its
+  rovers (`BP_Rover.PlayerLocalInside`) and its soundscape (`BP_AmbientMain_POLAR`: each area's sound and the inside
+  music). Still to do (#4): the shuttle's own inside view, the genetics lab's jars and morays, the final explosion's
+  sound, the fog and the maps' level loads.
 - **No visor frost.** Polar's weather frosts the local camera's visor outside (Ultra Dynamic Weather's
   `Screen Frost Post Process`), the entity's too (playtest 9); on its machine alone it is turned to nothing, and the
   crew keep theirs.
