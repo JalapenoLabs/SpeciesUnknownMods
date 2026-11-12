@@ -4,12 +4,45 @@
 -- where it looks (RMB), the ultimate's guaranteed kill (E) and venting (Space). Their numbers are in its kit.
 
 local ducts = require("entity.moves.ducts")
+local game = require("entity.game")
 local kits = require("entity.kits")
 local shared = require("entity.moves.shared")
 
 local kit = kits.byId.Squid
 -- The leap takes a crew member a little past where it lands.
 local LEAP_TARGET_SLACK = 150
+-- The squid gets up on its own once it is down and no longer burning (its heat at most this), a second or so later.
+local BURNING_HEAT = 0.1
+-- How long it may lie unburnt with nothing playing before the host gets it up itself: longer than the game's own wait.
+local STUCK_DOWN_SECONDS = 3
+
+-- When the squid began lying down, unburnt, with nothing playing; nil while it isn't.
+local stuckDownSince = nil
+
+-- The game gets a downed squid up once (BP_Monster_Poulpi's get-up check: GetUp, a refilled stagger pool). A montage
+-- that interrupts that get-up leaves the squid down for good on the host, lying there and dragged along while its
+-- player moves, unable to vent (playtest 9). The moves wait while it's down (abilities.lua), but the game's own
+-- reactions can still interrupt it, so once it has lain unburnt with nothing playing for longer than the game waits,
+-- the host gets it up the same way.
+local function getUpIfStuck(entity)
+  local monster = entity.monster
+  local isStuckDown = monster.IsOnGround == true and monster.BasicOverrideAnim ~= true
+    and monster.HeatValue <= BURNING_HEAT and monster.IsDead ~= true
+  if not isStuckDown then
+    stuckDownSince = nil
+    return
+  end
+  local now = game.timeSeconds(monster)
+  stuckDownSince = stuckDownSince or now
+  if now - stuckDownSince < STUCK_DOWN_SECONDS then
+    return
+  end
+  stuckDownSince = nil
+  monster["GetUp (Multi)"](monster, monster.MainSpeedMultiplier)
+  monster.HealthTemporal = monster.MaxHealthTemporal
+  monster.ShouldFallOnGround = false
+  game.log("The squid lay down with its get-up cut short; getting it up")
+end
 
 -- With a crew member in reach, the AI's own attack on them. With nobody, the swing at the air: its damage comes from
 -- the montage's sphere check in front of the squid (BP_ParentMonster.BasicSphereAttackDamage), so it hurts nobody.
@@ -54,4 +87,5 @@ return {
   end,
   Mobility = ducts.vent,
   Peek = ducts.peek,
+  tick = getUpIfStuck,
 }

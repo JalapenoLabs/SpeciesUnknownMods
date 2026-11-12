@@ -102,7 +102,8 @@ local squid = fake.object("BP_Monster_Poulpi_C", {
   location = location(0, 500, 0),
 }, {
   BPI_Monster_GetSpeedByType = function(_, _, out) out.Speed = 400 end,
-  BPI_Monster_SetInVent = function(self, inVent) self.InVent = inVent end,
+  -- The host's own crouch, as when the host plays the entity: it applies at once
+  BPI_Monster_SetInVent = function(self, inVent) self.InVent, self.bIsCrouched = inVent, inVent end,
   K2_GetActorLocation = function(self) return self.location end,
   K2_GetActorRotation = function() return { Pitch = 0, Yaw = 0, Roll = 0 } end,
   K2_TeleportTo = function(self, destination)

@@ -97,6 +97,7 @@ local messageByEvent = {
   PickedUnfit = "The game never sends your pick on this contract (the crew has no main weapons, or it's the easiest "
     .. "difficulty), so it may be unbeatable. Your pick stands.",
   ["Denied.Cooldown"] = "Not yet.",
+  ["Denied.Down"] = "You're down: nothing until you're back up.",
   ["Denied.NoTarget"] = "Get closer to a crew member.",
   ["Denied.NoVentEntrance"] = "Stand under a vent to climb in.",
   ["Denied.NoVentExit"] = "Crawl over a vent opening to drop out, or to either end of a step to climb it.",

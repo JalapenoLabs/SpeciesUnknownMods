@@ -425,6 +425,8 @@ that finds nobody stands the kill down again, and the meter stays full.
 - `tests/entity_mode_test.lua`: the host's choices, forcing the entity's monster from the lobby, Random following the
   game's contract rule for the Terminator, the host's pick of a player, and the random pick.
 - `tests/picker_test.lua`: the host's picker panel: its tiles, clicks, players joining, and the UI mode.
+- `tests/vents_test.lua`: a move into the ducts waiting for the crouch, a newer move replacing a waiting one, and
+  giving up after a while.
 - `tests/lair_test.lua`: the start in the ducts near the game's spawn, the ducts as the lair, the power, and F8 alone.
 - `tests/mike_test.lua`: playing Mike: forcing him, his swipe, dodge and grab, his grab check and the shield, the
   kill rule on his grab, and his health bar.
@@ -484,6 +486,19 @@ Possession notes:
   (`OutOfNavCheckEvent` -> `TeleportToNavigationPoint`). What triggers it is untraced.
 - Motion warping targets are set only on the host, so the leap and vent jumps may rubber-band on the squid
   player's screen. Playtest.
+- **Crouching in the ducts is the player's machine's.** `SetInVent` crouches the monster on the host alone, and a
+  character another player drives crouches only when their own machine says so: its moves carry the crouch to the
+  host, overriding the host's. So the entity player's machine crouches the monster while it is in the vents and
+  stands it up outside them, and a move into the ducts waits until the host sees it crouched (playtest 9: a friend's
+  squid stood up in the ducts, didn't fit, and fell out of the vent it was put in, over and over).
+- **Down means frozen.** Knocked over (`IsOnGround`), or in one of the game's own reactions (`BasicOverrideAnim`:
+  falling over, getting up), the AI does nothing (its `CanMove`), so the crew get their few seconds to finish it. The
+  entity does nothing then either: its moves are refused ("You're down") and it doesn't move. The squid gets up once
+  (its own check: down, no longer burning, then `GetUp`); a montage that cuts that get-up short leaves it down for
+  good, so a squid lying unburnt with nothing playing for 3 seconds is got up by the host the same way (playtest 9:
+  a friend's lash cut it short, and the squid lay there on the host, dragged along, unable to vent).
+- **One press, one command.** The game binds two events to each action, so a press acts once, however many events
+  it brings, until the key is let go.
 
 ## How Mike's moves work
 

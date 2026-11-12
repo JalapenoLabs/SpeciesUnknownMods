@@ -94,27 +94,68 @@ function vents.openingOf(vent, fromInside)
   return { X = floor.X, Y = floor.Y, Z = floor.Z }
 end
 
--- Frames to wait between asking the entity to crouch and teleporting it: the crouch applies on its next movement
--- update, and only the crouched capsule fits the ducts.
-local CROUCH_FRAMES = 2
+-- How often a move into the ducts checks whether the entity has crouched, and how long it waits at most. Only the
+-- crouched capsule fits the ducts. Played on the host the crouch applies on the host's next movement update; played
+-- by another player, it applies once their own machine has crouched it and its moves say so (movement.lua), a round
+-- trip over the network.
+local CROUCH_CHECK_FRAMES = 3
+local CROUCH_WAIT_SECONDS = 3
+
+-- Moves waiting for the entity to crouch, by the monster's address: { spot, onArrived, giveUpAt }. A newer move for
+-- the same monster replaces the waiting one, so a lair pulling the entity back every tick doesn't stack teleports.
+local waitingMoves = {}
+
+local function teleportInto(monster, move)
+  if not monster:K2_TeleportTo(move.spot, monster:K2_GetActorRotation()) then
+    local spot = move.spot
+    game.log("No room to teleport the entity to %.0f, %.0f, %.0f; placing it there", spot.X, spot.Y, spot.Z)
+    monster:K2_SetActorLocation(spot, false, {}, true)
+  end
+  if move.onArrived then
+    move.onArrived()
+  end
+end
+
+-- Teleports the entity once it has crouched, checking every few frames; one that hasn't crouched in time is placed
+-- anyway, and the log says so.
+local function teleportWhenCrouched(monster, address)
+  if not monster:IsValid() then
+    waitingMoves[address] = nil
+    game.log("The entity was gone before it could be moved into the vents")
+    return
+  end
+  local move = waitingMoves[address]
+  local now = game.timeSeconds(monster)
+  if not monster.bIsCrouched and now < move.giveUpAt then
+    ExecuteInGameThreadAfterFrames(CROUCH_CHECK_FRAMES, function()
+      teleportWhenCrouched(monster, address)
+    end)
+    return
+  end
+  waitingMoves[address] = nil
+  if not monster.bIsCrouched then
+    game.log("The entity hadn't crouched after %d seconds; moving it into the vents standing", CROUCH_WAIT_SECONDS)
+  end
+  teleportInto(monster, move)
+end
 
 -- Puts the entity inside the ducts at a spot, then runs `onArrived` (optional) once it's there. SetInVent is what the
--- vents' own trigger calls: it replicates the state and crouches the entity. The teleport waits for the crouch to
--- apply; a teleport that still finds no room places the entity without the check, and says so in the log.
+-- vents' own trigger calls: it replicates the state and crouches the entity, on the host. The teleport waits for the
+-- crouch to apply (see CROUCH_WAIT_SECONDS).
 function vents.moveInto(monster, spot, onArrived)
+  local address = monster:GetAddress()
+  local isWaiting = waitingMoves[address] ~= nil
+  waitingMoves[address] = {
+    spot = spot,
+    onArrived = onArrived,
+    giveUpAt = game.timeSeconds(monster) + CROUCH_WAIT_SECONDS,
+  }
+  if isWaiting then
+    return
+  end
   monster:BPI_Monster_SetInVent(true)
-  ExecuteInGameThreadAfterFrames(CROUCH_FRAMES, function()
-    if not monster:IsValid() then
-      game.log("The entity was gone before it could be moved into the vents")
-      return
-    end
-    if not monster:K2_TeleportTo(spot, monster:K2_GetActorRotation()) then
-      game.log("No room to teleport the entity to %.0f, %.0f, %.0f; placing it there", spot.X, spot.Y, spot.Z)
-      monster:K2_SetActorLocation(spot, false, {}, true)
-    end
-    if onArrived then
-      onArrived()
-    end
+  ExecuteInGameThreadAfterFrames(CROUCH_CHECK_FRAMES, function()
+    teleportWhenCrouched(monster, address)
   end)
 end
 

@@ -251,6 +251,35 @@ assert(linkOf(crewController).Health == 0.5 and linkOf(crewController).Downed ==
 squid.IsOnGround = true
 fake.runLoops(200)
 assert(linkOf(crewController).Health == 0.2 and linkOf(crewController).Downed == true, "down: the real health")
+-- Regression (playtest 9): a friend's lash while the squid was down cut its get-up short, and the game never got it up
+-- again: on the host it lay there for good, dragged along, unable to vent. Down, it does nothing, as the AI's doesn't
+local setSimpleAttacks = #fake.callsTo(squid, "BPI_BasicMonster_SetSimpleAttack")
+fake.now = 50
+command(crewController, "Primary", { X = 1, Y = 0, Z = 0 })
+assert(lastEvent(crewController) == "Denied.Down", "a downed squid can't lash")
+assert(#fake.callsTo(squid, "BPI_BasicMonster_SetSimpleAttack") == setSimpleAttacks, "and nothing is played")
+squid.IsOnGround, squid.BasicOverrideAnim = false, true
+command(crewController, "Mobility")
+assert(lastEvent(crewController) == "Denied.Down", "nor vent while it gets up")
+squid.BasicOverrideAnim = false
+
+-- And if its get-up is cut short anyway, the host gets it up once it has lain unburnt with nothing playing for longer
+-- than the game's own wait
+squid.IsOnGround, squid.HealthTemporal = true, 0
+fake.runLoops(33)
+fake.now = 52
+fake.runLoops(33)
+assert(#fake.callsTo(squid, "GetUp (Multi)") == 0, "the game's own get-up gets its chance")
+squid.HeatValue = 0.5
+fake.now = 60
+fake.runLoops(33)
+assert(#fake.callsTo(squid, "GetUp (Multi)") == 0, "and a burning squid stays down, as the game keeps it")
+squid.HeatValue = 0
+fake.runLoops(33)
+fake.now = 63.5
+fake.runLoops(33)
+assert(#fake.callsTo(squid, "GetUp (Multi)") == 1, "a squid stuck down is got up")
+assert(squid.HealthTemporal == squid.MaxHealthTemporal, "with its stagger pool refilled, as the game's own get-up does")
 squid.IsOnGround = false
 assert(linkOf(crewController).Stamina == 1, "and the stamina, full before any sprint")
 

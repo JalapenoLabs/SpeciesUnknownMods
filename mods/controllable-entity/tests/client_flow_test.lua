@@ -213,6 +213,32 @@ local moves = fake.callsTo(squid, "AddMovementInput")
 assert(#moves == 2, "forward and right movement")
 assert(math.abs(moves[1].args[1].Y - 1) < 1e-9 and moves[1].args[2] == 1, "forward follows the camera's yaw")
 
+-- Regression (playtest 9): a downed squid was dragged around on the host while its player walked; down, it stays put
+-- until it's back up, as the AI's does. The host says so through the link
+link.Downed = true
+moveHook(fake.param(controller), fake.param({ X = 0, Y = 1 }))
+assert(#fake.callsTo(squid, "AddMovementInput") == 2, "a downed squid doesn't move")
+link.Downed = false
+squid.BasicOverrideAnim = true
+moveHook(fake.param(controller), fake.param({ X = 0, Y = 1 }))
+assert(#fake.callsTo(squid, "AddMovementInput") == 2, "nor while it gets up")
+squid.BasicOverrideAnim = false
+
+-- Regression (playtest 9): a friend's squid stood up in the ducts, didn't fit, and fell out of the vent it was put in.
+-- Only its player's machine can crouch it (its moves carry the crouch to the host), so it follows the vent state
+local playerMovement = require("entity.movement")
+squid.CharacterMovement.bWantsToCrouch = false
+squid.InVent = true
+playerMovement.followPlayer(controller, squid)
+assert(#fake.callsTo(squid, "Crouch") == 1, "in the ducts, the player's machine crouches the squid")
+squid.CharacterMovement.bWantsToCrouch = true
+playerMovement.followPlayer(controller, squid)
+assert(#fake.callsTo(squid, "Crouch") == 1, "once")
+squid.InVent = false
+playerMovement.followPlayer(controller, squid)
+assert(#fake.callsTo(squid, "UnCrouch") == 1, "and stands it up outside them")
+squid.CharacterMovement.bWantsToCrouch = false
+
 -- Shoot may be held (the Terminator's gatling): a press sends the move, a release its release, and the game's second
 -- event for the same press sends nothing more
 local commandsBeforeShooting = #fake.callsTo(link, "EntityServerCommand")
@@ -231,6 +257,15 @@ assert(#commands == commandsBeforeShooting + 2 and commands[#commands].args[1]:T
 holdToolHook(fake.param(controller), fake.param({ pressed = true }))
 commands = fake.callsTo(link, "EntityServerCommand")
 assert(commands[#commands].args[1]:ToString() == "Mobility", "Space vents")
+-- Regression (playtest 9): Space answered "Not yet" as the game's events for one press reached the host as several
+-- vents. A press acts once, however many events it brings, until the key is let go
+local commandsAfterVent = #commands
+holdToolHook(fake.param(controller), fake.param({ pressed = true }))
+assert(#fake.callsTo(link, "EntityServerCommand") == commandsAfterVent, "one press, one vent")
+holdToolHook(fake.param(controller), fake.param({ pressed = false }))
+holdToolHook(fake.param(controller), fake.param({ pressed = true }))
+assert(#fake.callsTo(link, "EntityServerCommand") == commandsAfterVent + 1, "the next press vents again")
+holdToolHook(fake.param(controller), fake.param({ pressed = false }))
 interactHook(fake.param(controller), fake.param({ pressed = true }))
 commands = fake.callsTo(link, "EntityServerCommand")
 assert(commands[#commands].args[1]:ToString() == "Ultimate", "Interact fires the ultimate")

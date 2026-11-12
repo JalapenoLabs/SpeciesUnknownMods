@@ -52,7 +52,8 @@ local function reportValue(kind, controller, value)
 end
 
 -- Mirrors BP_Character.BPI_PlayerInput_Move: forward and right along the camera's yaw. A monster lying powered down
--- (the Terminator, until the lair wakes it) doesn't move: nothing in the game stops movement input reaching it.
+-- (the Terminator, until the lair wakes it) or knocked down doesn't move: nothing in the game stops movement input
+-- reaching it.
 local function move(controller, actionValueParameter)
   local monster = game.monsterDrivenBy(controller)
   if not monster then
@@ -60,6 +61,13 @@ local function move(controller, actionValueParameter)
   end
   local poweredFlag = kits.forMonster(monster).poweredFlag
   if poweredFlag and not monster[poweredFlag] then
+    return
+  end
+  -- Down, or in one of the game's own reactions (falling over, getting up), the monster stays put, as the AI's does,
+  -- so the crew get their few seconds to finish it (playtest 9). The host says when it's down, through the link: the
+  -- fall itself may not play on this machine
+  local link = links.own()
+  if (link and link.Downed == true) or monster.BasicOverrideAnim == true then
     return
   end
   local value = axisValue(actionValueParameter)
@@ -81,33 +89,48 @@ local function look(controller, actionValueParameter)
   monster:AddControllerPitchInput(value.Y * config.look.sensitivity)
 end
 
+-- Whether each command's button is held, by command, so a press acts once however many events the game sends for it:
+-- its bindings come in pairs per action, and a held key may repeat (playtest 9: Space answered "Not yet" while the vent
+-- it had just started was cooling down). Not driving a monster (any more: it was lost with a button held), nothing is.
+local heldByCommand = {}
+
+-- Whether this event is the button going down, after being up.
+local function isNewPress(command, actionValueParameter)
+  local wasHeld = heldByCommand[command] == true
+  local isPressed = buttonPressed(actionValueParameter)
+  heldByCommand[command] = isPressed
+  return isPressed and not wasHeld
+end
+
 local function button(command)
   return function(controller, actionValueParameter)
-    if not game.monsterDrivenBy(controller) or not buttonPressed(actionValueParameter) then
+    if not game.monsterDrivenBy(controller) then
+      heldByCommand[command] = false
       return
     end
-    links.sendCommand(command, aimOf(controller), nil)
+    if isNewPress(command, actionValueParameter) then
+      links.sendCommand(command, aimOf(controller), nil)
+    end
   end
 end
 
 -- A button an entity's move may be held on (the Terminator fires its gatling while Shoot is held): the command when
--- pressed, and <command>Release when let go, which the host passes to the move that is held. The game binds more than
--- one event per action (its handlers come in pairs), so only a change between held and let go is sent.
+-- pressed, and <command>Release when let go, which the host passes to the move that is held.
 local function heldButton(command)
   local releaseCommand = command .. "Release"
-  local isHeld = false
   return function(controller, actionValueParameter)
-    -- Not driving a monster (any more: it was lost with the button held), nothing is held
     if not game.monsterDrivenBy(controller) then
-      isHeld = false
+      heldByCommand[command] = false
       return
     end
-    local isPressed = buttonPressed(actionValueParameter)
-    if isPressed == isHeld then
+    local wasHeld = heldByCommand[command] == true
+    if isNewPress(command, actionValueParameter) then
+      links.sendCommand(command, aimOf(controller), nil)
       return
     end
-    isHeld = isPressed
-    links.sendCommand(isPressed and command or releaseCommand, aimOf(controller), nil)
+    if wasHeld and not heldByCommand[command] then
+      links.sendCommand(releaseCommand, aimOf(controller), nil)
+    end
   end
 end
 

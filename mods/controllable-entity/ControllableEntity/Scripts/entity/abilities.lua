@@ -81,6 +81,16 @@ local function runCommand(command)
       return
     end
 
+    -- Down (the squid knocked over, Mike stunned, the Terminator shut down) or in one of the game's own reactions
+    -- (BasicOverrideAnim: falling over, getting up), the monster does nothing, as the AI's doesn't (its CanMove): the
+    -- crew get their few seconds to finish it, and a move then cut the squid's get-up short, which left it down for
+    -- good on the host (playtest 9)
+    local monster = entity.monster
+    if monster[entity.kit.healthFields.downed] == true or monster.BasicOverrideAnim == true then
+      links.sendEvent(controller, "Denied.Down")
+      return
+    end
+
     local slotMove = entity.kit.moves[command]
     local isHeld = slotMove ~= nil and slotMove.heldByLair
     if isHeld and lair.isLeashed(entity.monster) then

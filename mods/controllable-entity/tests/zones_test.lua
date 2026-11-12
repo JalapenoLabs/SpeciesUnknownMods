@@ -66,7 +66,8 @@ local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false, location = lo
     self.location = destination
     return true
   end,
-  BPI_Monster_SetInVent = function(self, inVent) self.InVent = inVent end,
+  -- The host's own crouch, as when the host plays the entity: it applies at once
+  BPI_Monster_SetInVent = function(self, inVent) self.InVent, self.bIsCrouched = inVent, inVent end,
 })
 local entity = { monster = squid, kit = kits.byId.Squid, controller = fake.object("BP_MyPlayerController_C") }
 

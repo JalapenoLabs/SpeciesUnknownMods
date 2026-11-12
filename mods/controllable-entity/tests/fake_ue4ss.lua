@@ -142,7 +142,14 @@ function fake.giveSquidState(squid)
   squid.Health, squid.MaxHealth = 100, 100
   squid.HealthTemporal, squid.MaxHealthTemporal = 60, 60
   squid.IsOnGround = false
+  squid.BasicOverrideAnim = false
+  squid.HeatValue = 0
   squid.CharacterMovement = fake.object("CharacterMovementComponent", { MaxWalkSpeed = 0, MaxWalkSpeedCrouched = 0 })
+  -- The vent state crouches it on the host at once, as when the host plays it (calls are recorded)
+  squid.BPI_Monster_SetInVent = function(self, inVent)
+    table.insert(fake.calls, { object = self, method = "BPI_Monster_SetInVent", args = { inVent } })
+    self.InVent, self.bIsCrouched = inVent, inVent
+  end
   squid.BPI_Monster_GetSpeedByType = function(_, speedType, out) out.Speed = 400 + speedType end
   squid.BPI_Monster_SetSpeed = function(self, speed)
     table.insert(fake.calls, { object = self, method = "BPI_Monster_SetSpeed", args = { speed } })

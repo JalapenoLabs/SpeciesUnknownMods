@@ -80,8 +80,25 @@ end
 -- The entity player's side: whether Shift was held at the last check, and whether the host says they're out of breath.
 local player = { holdsSprint = false, isTired = false }
 
+-- Crouches the monster in the ducts and stands it up outside them, on the entity player's own machine. A character
+-- another player drives crouches only when their machine says so: its moves carry the crouch to the host and override
+-- the host's own Crouch, which is all the game's SetInVent does (it crouches on the host alone). Without this, a
+-- friend's monster stood up in the ducts, didn't fit, and fell out of the vent it was put in (playtest 9).
+local function followVentCrouch(monster)
+  local inVent = monster.InVent == true
+  if inVent == (monster.CharacterMovement.bWantsToCrouch == true) then
+    return
+  end
+  if inVent then
+    monster:Crouch(false)
+    return
+  end
+  monster:UnCrouch(false)
+end
+
 -- Runs about ten times a second on the entity player's machine while they drive the entity.
 function movement.followPlayer(controller, monster)
+  followVentCrouch(monster)
   -- An FKey is its name to Lua; UE4SS builds the struct from the table
   local holdsSprint = controller:IsInputKeyDown({ KeyName = FName(config.keys.sprint) }) == true
   if holdsSprint ~= player.holdsSprint then
