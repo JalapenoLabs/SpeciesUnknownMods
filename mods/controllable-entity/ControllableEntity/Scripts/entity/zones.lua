@@ -102,6 +102,36 @@ end
 -- The forbidden areas this machine has loaded, as boxes: the trigger boxes carrying the forbidden navigation area
 -- (Hawking's lab wing, in a streamed section) and the forbidden blocks spawned at runtime (Polar). For the markings
 -- only; the host's check asks the navigation, which knows them all.
+-- The crew's elevators (Polar's two; Hawking has none). One won't start while a monster is in its car: its trigger box
+-- counts any monster it overlaps (BP_ElevatorParent.MonsterInside), and a refused start leaves the landing's call
+-- screen dead until someone rides the car, so an entity standing in one strands the crew (playtest 9). Each car is a
+-- no-go area for the entity: its trigger box, read again every tick since it rides with the car. The concrete classes
+-- are listed, so a lookup that doesn't match subclasses still finds them.
+local ELEVATOR_CLASS_NAMES = { "BP_Elevator_Cargo_C", "BP_Elevator_Simple_C" }
+
+function zones.elevatorBoxes()
+  local boxes = {}
+  for _, className in ipairs(ELEVATOR_CLASS_NAMES) do
+    for _, elevator in ipairs(FindAllOf(className) or {}) do
+      local trigger = elevator:IsValid() and elevator.TriggerVolume
+      local box = trigger and trigger:IsValid() and zones.componentBox(trigger)
+      if box then
+        table.insert(boxes, box)
+      end
+    end
+  end
+  return boxes
+end
+
+local function isInAnElevator(location)
+  for _, box in ipairs(zones.elevatorBoxes()) do
+    if zones.isInside(box, location, config.zones.elevatorMargin) then
+      return true
+    end
+  end
+  return false
+end
+
 function zones.forbiddenBoxes()
   local boxes = {}
   for _, trigger in ipairs(FindAllOf(TRIGGER_BOX_CLASS_NAME) or {}) do
@@ -179,6 +209,8 @@ function zones.tickHost(entity, now)
   -- Only capture contracts let the entity aboard (capture.lua)
   if isAboard and game.contractType() ~= game.contractTypes.Capture then
     putBack(entity, now, "Denied.Shuttle")
+  elseif isInAnElevator(location) then
+    putBack(entity, now, "Denied.Elevator")
   -- The shuttle is never a forbidden area, but its closed doors lay an obstacle area the forbidden filter also excludes
   elseif not isAboard and isOnForbiddenFloor(monster, location) then
     putBack(entity, now, "Denied.Forbidden")

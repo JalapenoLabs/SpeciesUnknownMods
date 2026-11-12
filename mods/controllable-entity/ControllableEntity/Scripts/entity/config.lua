@@ -87,6 +87,9 @@ return {
     shuttleApproach = 1500,
     -- The shortest gap between two "keep out" messages while the player pushes against a forbidden place.
     warningInterval = 3,
+    -- How far beyond an elevator car's trigger box the entity is kept: its capsule (radius 50) must never touch the
+    -- box, even sprinting for the fifth of a second between checks, or the elevator refuses to start (zones.lua).
+    elevatorMargin = 150,
   },
 
   -- The areas of the ship the entity stands in (areas.lua).

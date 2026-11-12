@@ -109,6 +109,7 @@ local messageByEvent = {
   ["Denied.PowerOff"] = "The vents hold you until the power is on.",
   ["Denied.UltimateNotReady"] = "Your hunger isn't ready.",
   ["Denied.Shuttle"] = "Hunt them away from their shuttle: you can't board it.",
+  ["Denied.Elevator"] = "Keep off the crew's elevator.",
   ["Denied.Forbidden"] = "Hunt elsewhere: this area is forbidden to you.",
   ["Denied.ShuttleNoKill"] = "Your grab can't kill this close to the shuttle.",
   ["Denied.ShuttleZone"] = "Save your hunger: it can't kill this close to the shuttle.",

@@ -149,6 +149,11 @@ The AI keeps out of the game's forbidden areas and never guards the crew's shutt
   the ducts, never in mid-air (playtest 9: a spot remembered while falling down a shaft over Polar's underground put
   the squid back above the hole, to fall in again and again). Back into the ducts, the move waits for the squid to
   crouch, which a friend's machine applies a moment later.
+- **The crew's elevators are theirs.** On Polar (Hawking has none), an elevator won't start while a monster is in its
+  car (its trigger box counts any monster it overlaps, `BP_ElevatorParent.MonsterInside`), and a refused start leaves
+  the landing's call screen dead until someone rides the car, so an entity standing in one could strand the crew
+  (playtest 9). The host keeps the entity 1.5 m clear of each car's box, which it follows as the car moves ("Keep off
+  the crew's elevator"), and the car is marked like the forbidden areas.
 - **The entity sees the edges:** glowing posts, only on its machine, red where it may not go and amber around the
   shuttle's approach. The forbidden areas' posts come from the trigger boxes carrying the forbidden area, which load
   with their section of the ship, so they appear as the squid gets near.
@@ -824,4 +829,6 @@ one friend.
 27. **Seen as the crew see it (with a friend as the entity).** On Hawking, as the entity: the engineering water shows,
     and once the crew unlock the reactor room, the core shows, turns and shakes the camera nearby. Walk to an
     unlocked reactor door: if it stays shut for the squid, send the log. On Polar: the minimap matches where you are
-    from the first second, the visor never frosts outside, and the indoor fog shows indoors.
+    from the first second, the visor never frosts outside, and the indoor fog shows indoors. Walk into either
+    elevator car with its doors open: you're put back with "Keep off the crew's elevator", red posts mark the car, and
+    afterwards the crew can still call it from both landings.

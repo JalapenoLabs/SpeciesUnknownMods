@@ -152,6 +152,30 @@ squidMovement.isOnGround = true
 tick(43, location(-8450, -3550, -150))
 assert(squid.location.X == -6000 and squid.location.Z == -150, "put back where it last stood, not where it fell from")
 
+-- Playtest 9: a crew elevator won't start with a monster in its car, and a refused start leaves its call screens dead,
+-- so the entity could strand the crew on Polar by standing in one. The car is a no-go area, out to a margin, and it is
+-- followed as it moves
+local carCentre = location(23250, 200, -65)
+local carTrigger = fake.object("BoxComponent", nil, {
+  K2_GetComponentLocation = function() return carCentre end,
+  GetScaledBoxExtent = function() return location(250, 500, 200) end,
+  K2_GetComponentRotation = function() return { Pitch = 0, Yaw = 0, Roll = 0 } end,
+})
+fake.object("BP_Elevator_Cargo_C", { TriggerVolume = carTrigger })
+squid.InVent = false
+tick(50, location(23250 + 250 + config.zones.elevatorMargin + 100, 200, -170))
+tick(51, location(23250 + 250 + config.zones.elevatorMargin - 20, 200, -170))
+assert(events[#events] == "Denied.Elevator" and squid.location.X == 23250 + 250 + config.zones.elevatorMargin + 100,
+  "the squid is kept out of the car, short of its margin")
+-- The car travels down its tunnel: its box goes with it, and the landing it left is free
+carCentre = location(28000, 200, -2765)
+fake.now = 60
+tick(60, location(23250, 200, -170))
+assert(squid.location.X == 23250, "with the car gone, its landing is free")
+tick(61, location(28000, 200, -2870))
+assert(squid.location.X == 23250, "and the car is kept clear where it now is")
+assert(#zones.elevatorBoxes() == 1, "the elevator's box is found by its class")
+
 -- The entity's markings: the forbidden trigger boxes this machine has loaded, not the game's other trigger boxes
 local function triggerBox(areaName, centre)
   return fake.object("TriggerBox", {

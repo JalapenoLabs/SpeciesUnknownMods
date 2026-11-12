@@ -150,6 +150,10 @@ local function markedZones()
   for _, box in ipairs(zones.forbiddenBoxes()) do
     table.insert(marked, { box = box, margin = 0, color = config.vision.forbiddenColor })
   end
+  -- The elevator cars, where the entity is kept out to their margin
+  for _, box in ipairs(zones.elevatorBoxes()) do
+    table.insert(marked, { box = box, margin = config.zones.elevatorMargin, color = config.vision.forbiddenColor })
+  end
   return marked
 end
 
