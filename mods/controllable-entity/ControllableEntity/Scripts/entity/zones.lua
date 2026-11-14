@@ -5,7 +5,9 @@
 --
 --   - Forbidden areas are where the game's own AI may not path (NavArea_Forbidden: the genetics lab's wing on Hawking,
 --     the electrical area on Polar). The host asks the navigation itself whether the entity stands in one: a point
---     projects onto the navmesh through the game's QuerryFilter_CheckForbidden only outside them.
+--     projects onto the navmesh through the game's QuerryFilter_CheckForbidden only outside them. The AI also keeps out
+--     of the dangerous areas (NavArea_DangerousArea: Hawking's reactor room, whose pulse knocks anything inside down),
+--     which that filter doesn't exclude, so their volumes are read as boxes (playtest 9: the squid leapt in).
 --   - Aboard the shuttle (BP_PlayerShip) is its own bay box, the one its launch check uses. The entity may not board,
 --     except in capture contracts (capture.lua). A wider box around it takes in the approach: there the entity can't
 --     sprint, use its ultimate, or kill, so the crew can get to and from their shuttle.
@@ -25,6 +27,8 @@ local FORBIDDEN_FILTER =
 local FORBIDDEN_AREA_CLASS_NAME = "NavArea_Forbidden_C"
 local TRIGGER_BOX_CLASS_NAME = "TriggerBox"
 local DYNAMIC_FORBIDDEN_CLASS_NAME = "BP_DynamicNav_Forbidden_C"
+local NAV_MODIFIER_CLASS_NAME = "NavModifierVolume"
+local DANGEROUS_AREA_CLASS_NAME = "NavArea_DangerousArea_C"
 -- How far around the entity the navigation looks for floor under it: the entity's centre stands about its half height
 -- above the floor, and a narrow reach keeps an allowed floor just outside a forbidden area from counting.
 local FLOOR_PROBE_EXTENT = { X = 60, Y = 60, Z = 250 }
@@ -48,9 +52,9 @@ local held = freshHold(nil)
 
 -- A box zone is { centre, extent, yaw }: its half extents along its own axes, turned by yaw degrees about Z. An
 -- actor's bounding box (its colliding parts), as a zone square to the world.
-local function boundsBox(actor)
+local function boundsBox(actor, isAnyComponent)
   local origin, extent = {}, {}
-  actor:GetActorBounds(true, origin, extent, false)
+  actor:GetActorBounds(isAnyComponent ~= true, origin, extent, false)
   if not origin.X or not extent.X then
     return nil
   end
@@ -98,9 +102,6 @@ function zones.isNearShuttle(location)
   return box ~= nil and zones.isInside(box, location, config.zones.shuttleApproach)
 end
 
--- The forbidden areas this machine has loaded, as boxes: the trigger boxes carrying the forbidden navigation area
--- (Hawking's lab wing, in a streamed section) and the forbidden blocks spawned at runtime (Polar). For the markings
--- only; the host's check asks the navigation, which knows them all.
 -- The crew's elevators (Polar's two; Hawking has none). One won't start while a monster is in its car: its trigger box
 -- counts any monster it overlaps (BP_ElevatorParent.MonsterInside), and a refused start leaves the landing's call
 -- screen dead until someone rides the car, so an entity standing in one strands the crew (playtest 9). Each car is a
@@ -131,8 +132,47 @@ local function isInAnElevator(location)
   return false
 end
 
-function zones.forbiddenBoxes()
+-- The dangerous areas' boxes (the reactor room), cached per world and looked for again every config.areas.rescanSeconds:
+-- the host checks them five times a second, each lookup walks every object in the game, and a section streams its
+-- volumes in with it. A navigation volume's brush doesn't collide, so its box takes every component.
+local dangerous = { worldKey = nil, nextScanAt = 0, boxes = {} }
+
+function zones.dangerousBoxes(monster)
+  local worldKey = monster:GetWorld():GetAddress()
+  local now = game.timeSeconds(monster)
+  if worldKey == dangerous.worldKey and now < dangerous.nextScanAt then
+    return dangerous.boxes
+  end
   local boxes = {}
+  for _, volume in ipairs(FindAllOf(NAV_MODIFIER_CLASS_NAME) or {}) do
+    local area = volume:IsValid() and volume.AreaClass
+    local isDangerous = area and area:IsValid() and area:GetFName():ToString() == DANGEROUS_AREA_CLASS_NAME
+    local box = isDangerous and boundsBox(volume, true)
+    if box then
+      table.insert(boxes, box)
+    end
+  end
+  dangerous = { worldKey = worldKey, nextScanAt = now + config.areas.rescanSeconds, boxes = boxes }
+  return boxes
+end
+
+local function isInDangerousArea(monster, location)
+  for _, box in ipairs(zones.dangerousBoxes(monster)) do
+    if zones.isInside(box, location) then
+      return true
+    end
+  end
+  return false
+end
+
+-- Every place the entity may not go, as boxes, for the red posts that mark them (vision.lua): the dangerous areas, the
+-- trigger boxes carrying the forbidden navigation area (Hawking's lab wing, in a streamed section) and the forbidden
+-- blocks spawned at runtime (Polar). The host's check of forbidden floor asks the navigation, which knows them all.
+function zones.forbiddenBoxes(monster)
+  local boxes = {}
+  for _, box in ipairs(zones.dangerousBoxes(monster)) do
+    table.insert(boxes, box)
+  end
   for _, trigger in ipairs(FindAllOf(TRIGGER_BOX_CLASS_NAME) or {}) do
     local area = trigger:IsValid() and trigger.CollisionComponent.AreaClass
     local isForbidden = area and area:IsValid() and area:GetFName():ToString() == FORBIDDEN_AREA_CLASS_NAME
@@ -168,8 +208,10 @@ local function isOnForbiddenFloor(monster, location)
   return navigation:K2_ProjectPointToNavigation(monster, location, anyFloor, nil, nil, FLOOR_PROBE_EXTENT) == true
 end
 
--- Whether a spot is forbidden floor for a monster, for the unstuck (unstuck.lua), which mustn't put it in one.
-zones.isForbiddenAt = isOnForbiddenFloor
+-- Whether a spot is somewhere the entity may not go, for the unstuck (unstuck.lua), which mustn't put it in one.
+function zones.isForbiddenAt(monster, location)
+  return isInDangerousArea(monster, location) or isOnForbiddenFloor(monster, location)
+end
 
 -- Puts the entity back where it last stood allowed. Back into the ducts, the move waits for the entity to crouch,
 -- which a friend's own machine applies a moment later (vents.moveInto): teleported there at once, still standing, it
@@ -210,6 +252,9 @@ function zones.tickHost(entity, now)
     putBack(entity, now, "Denied.Shuttle")
   elseif isInAnElevator(location) then
     putBack(entity, now, "Denied.Elevator")
+  -- The AI never paths into a dangerous area (the reactor room), so neither does the entity
+  elseif isInDangerousArea(monster, location) then
+    putBack(entity, now, "Denied.Forbidden")
   -- The shuttle is never a forbidden area, but its closed doors lay an obstacle area the forbidden filter also excludes
   elseif not isAboard and isOnForbiddenFloor(monster, location) then
     putBack(entity, now, "Denied.Forbidden")

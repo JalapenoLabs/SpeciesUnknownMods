@@ -9,6 +9,7 @@ package.path = "mods/controllable-entity/ControllableEntity/Scripts/?.lua;mods/c
 
 local fake = require("fake_ue4ss")
 fake.install()
+fake.world = fake.object("World")
 
 local kits = require("entity.kits")
 
@@ -176,6 +177,35 @@ tick(61, location(28000, 200, -2870))
 assert(squid.location.X == 23250, "and the car is kept clear where it now is")
 assert(#zones.elevatorBoxes() == 1, "the elevator's box is found by its class")
 
+-- Playtest 9: the squid got into Hawking's reactor room, where the reactor's pulse knocked it down. The AI never paths
+-- into a dangerous area, and the forbidden filter doesn't exclude it, so its volume is read as a box: the entity is put
+-- back out of it, and the unstuck never puts it there
+local function navVolume(areaName, centre)
+  local area = fake.object(areaName)
+  area.GetFName = function() return fake.name(areaName) end
+  return fake.object("NavModifierVolume", { AreaClass = area }, {
+    GetActorBounds = function(_, onlyColliding, origin, extent)
+      -- A navigation volume's brush doesn't collide: a box of only its colliding parts is empty
+      if onlyColliding then
+        return
+      end
+      origin.X, origin.Y, origin.Z = centre.X, centre.Y, centre.Z
+      extent.X, extent.Y, extent.Z = 1337, 1150, 150
+    end,
+  })
+end
+navVolume("NavArea_DangerousArea_C", location(-9200, 0, -200))
+navVolume("NavArea_Null", location(-20000, 0, -200))
+squidMovement.isOnGround = true
+-- The dangerous areas are looked for again every rescanSeconds
+fake.now = 70 + config.areas.rescanSeconds
+tick(fake.now, location(-6000, 0, -260))
+tick(fake.now + 0.2, location(-9000, 0, -260))
+assert(events[#events] == "Denied.Forbidden" and squid.location.X == -6000, "the squid is kept out of the reactor room")
+tick(fake.now + 0.4, location(-20000, 0, -260))
+assert(squid.location.X == -20000, "another navigation area is no bar")
+assert(zones.isForbiddenAt(squid, location(-9000, 0, -260)), "and the unstuck never puts the entity in the room")
+
 -- The entity's markings: the forbidden trigger boxes this machine has loaded, not the game's other trigger boxes
 local function triggerBox(areaName, centre)
   return fake.object("TriggerBox", {
@@ -191,8 +221,9 @@ for _, area in ipairs({ "NavArea_Forbidden_C", "NavArea_Default" }) do
   local trigger = triggerBox(area, location(-8450, -3550, -150))
   trigger.CollisionComponent.AreaClass.GetFName = function() return fake.name(area) end
 end
-local marked = zones.forbiddenBoxes()
-assert(#marked == 1 and marked[1].centre.X == -8450, "only the forbidden trigger box is marked")
+local marked = zones.forbiddenBoxes(squid)
+assert(#marked == 2 and marked[1].centre.X == -9200 and marked[2].centre.X == -8450,
+  "the reactor room and the forbidden trigger box are marked, and nothing else")
 
 -- Polar's shuttle uses a volume outside it for aboard
 shuttle.UseExteriorTrigger = true

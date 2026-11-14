@@ -137,8 +137,8 @@ local function spawnMarkers(world)
 end
 
 -- The places to mark, each a box (zones.lua), how far its edge is grown, and its colour: the shuttle's approach, the
--- shuttle itself unless the entity may board it, and the forbidden areas this machine has loaded.
-local function markedZones()
+-- shuttle itself unless the entity may board it, and the forbidden and dangerous areas this machine has loaded.
+local function markedZones(monster)
   local marked = {}
   local shuttle = zones.shuttleBox()
   if shuttle then
@@ -147,7 +147,7 @@ local function markedZones()
       table.insert(marked, { box = shuttle, margin = 0, color = config.vision.forbiddenColor })
     end
   end
-  for _, box in ipairs(zones.forbiddenBoxes()) do
+  for _, box in ipairs(zones.forbiddenBoxes(monster)) do
     table.insert(marked, { box = box, margin = 0, color = config.vision.forbiddenColor })
   end
   -- The elevator cars, where the entity is kept out to their margin
@@ -207,8 +207,8 @@ local function removePosts()
 end
 
 -- Rebuilds the posts when the places to mark have changed.
-local function refreshPosts(world)
-  local marked = markedZones()
+local function refreshPosts(world, monster)
+  local marked = markedZones(monster)
   local key = zonesKey(marked)
   if key == built.postsKey then
     return
@@ -294,7 +294,7 @@ function vision.follow(controller, monster)
   local now = game.timeSeconds(controller)
   if now >= built.nextZoneRefreshAt then
     built.nextZoneRefreshAt = now + config.vision.zoneRefreshSeconds
-    refreshPosts(world)
+    refreshPosts(world, monster)
   end
   if now < built.nextRefreshAt then
     return
