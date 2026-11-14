@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Pulse ring: the entity's sense of a crew member, a dot with a ring spreading from it and a fainter one beyond.
+       White, so the HUD tints it by kind. -->
+  <g fill="none" stroke="#000" stroke-opacity="0.4">
+    <circle cx="64" cy="64" r="54" stroke-width="12"/>
+    <circle cx="64" cy="64" r="34" stroke-width="14"/>
+  </g>
+  <circle cx="64" cy="64" r="15" fill="#000" fill-opacity="0.4"/>
+  <circle cx="64" cy="64" r="54" fill="none" stroke="#fff" stroke-opacity="0.45" stroke-width="6"/>
+  <circle cx="64" cy="64" r="34" fill="none" stroke="#fff" stroke-width="8"/>
+  <circle cx="64" cy="64" r="11" fill="#fff"/>
+</svg>

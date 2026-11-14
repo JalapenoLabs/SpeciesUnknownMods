@@ -98,6 +98,7 @@ namespace {
 		{TEXT("Random"), TEXT("random")},
 		{TEXT("Player"), TEXT("player")},
 		{TEXT("AiOnly"), TEXT("ai-only")},
+		{TEXT("PulseRing"), TEXT("pulse-ring")},
 	};
 
 	FString IconAssetPath(const TCHAR* IconName) {
@@ -306,14 +307,16 @@ namespace {
 		Spec.Elements.Add(MakeText(TEXT("RespawnsText"), FAnchors(1.0f, 1.0f), FVector2D(1.0f, 1.0f),
 			FVector2D(-56.0, -48.0), 20, Hint, TEXT("")));
 
-		// Markers are positioned in screen pixels from the top-left corner, so they anchor there
+		// The pings: a pulse ring each (playtest 9: plain squares read as placeholders), which Lua tints by kind and
+		// scales. Positioned in screen pixels from the top-left corner, so they anchor there
 		for (int32 PingIndex = 0; PingIndex < PingMarkerCount; ++PingIndex) {
 			FModWidgetElement Ping;
 			Ping.Name = FName(*FString::Printf(TEXT("Ping%d"), PingIndex));
-			Ping.Kind = EModWidgetKind::Box;
+			Ping.Kind = EModWidgetKind::Image;
+			Ping.TexturePath = IconAssetPath(TEXT("PulseRing"));
 			Ping.Anchors = FAnchors(0.0f, 0.0f);
 			Ping.Alignment = FVector2D(0.5f, 0.5f);
-			Ping.Size = FVector2D(14.0, 14.0);
+			Ping.Size = FVector2D(20.0, 20.0);
 			Ping.bHidden = true;
 			Spec.Elements.Add(Ping);
 		}

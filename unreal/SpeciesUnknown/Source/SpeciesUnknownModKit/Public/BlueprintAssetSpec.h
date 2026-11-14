@@ -95,7 +95,8 @@ struct FModWidgetElement {
 	FName Name;
 	EModWidgetKind Kind = EModWidgetKind::Text;
 	// Where on screen the element is pinned (0..1 per axis), and which point of the element sits there. Only for
-	// elements on the canvas; a row places its children itself.
+	// elements on the canvas; a row places its children itself. Anchors that span an area (FAnchors(0, 0, 1, 1): the
+	// whole screen) stretch the element over exactly that area, ignoring Position and Size.
 	FAnchors Anchors = FAnchors(0.5f, 0.5f);
 	FVector2D Alignment = FVector2D(0.5f, 0.5f);
 	// Offset from the anchor, in pixels.

@@ -187,7 +187,7 @@ return {
     -- One footstep ping per walker per this many seconds; footsteps arrive every step.
     footstepInterval = 0.7,
     pingSeconds = 1.5,
-    -- Marker size by kind of noise, as a multiple of the 14-pixel marker: gunshots stand out.
+    -- Marker size by kind of noise, as a multiple of the 20-pixel pulse ring: gunshots stand out.
     pingScaleByKind = { Gunshot = 2.2, Footstep = 1.0, Alarm = 1.6, Sense = 1.8 },
     -- With nothing heard for this long, the entity senses every living crew member: a pink ping each, blurred this
     -- much more than a heard noise, so it gives a direction and a rough distance, never a position (playtest 9: lost

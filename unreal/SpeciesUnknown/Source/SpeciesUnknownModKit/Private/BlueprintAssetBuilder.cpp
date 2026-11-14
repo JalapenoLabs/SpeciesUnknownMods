@@ -337,6 +337,15 @@ bool FBlueprintAssetBuilder::AddWidgetElement(UWidgetBlueprint* WidgetBlueprint,
 	UCanvasPanelSlot* Slot = Canvas->AddChildToCanvas(Widget);
 	Slot->SetAnchors(Element.Anchors);
 	Slot->SetAlignment(Element.Alignment);
+
+	// Anchors that span an area (a full-screen backdrop or vignette) stretch the element over it exactly: its offsets
+	// become margins, all zero
+	if (Element.Anchors.IsStretchedHorizontal() || Element.Anchors.IsStretchedVertical()) {
+		Slot->SetAutoSize(false);
+		Slot->SetOffsets(FMargin(0.0f));
+		return true;
+	}
+
 	Slot->SetPosition(Element.Position);
 	const bool bSizeToContent = Element.Size.IsZero();
 	Slot->SetAutoSize(bSizeToContent);
