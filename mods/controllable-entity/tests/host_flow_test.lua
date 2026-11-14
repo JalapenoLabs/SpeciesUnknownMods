@@ -496,10 +496,18 @@ fake.runLoops(33)
 squid.CharacterMovement = movementBeforeDeath
 
 -- Playtest 6: once the entity has lost, its player talks to everyone again ("You kill it and then it can talk")
-squid.destroyed = true
+-- Killed, the squid's corpse stays where it fell until the mission ends (IsDead): that is the loss, and its player
+-- lets go of it (playtest 9: the corpse still counted as theirs)
+local unpossessions = 0
+crewController.UnPossess = function(self)
+  unpossessions = unpossessions + 1
+  self.Pawn = fake.invalid()
+end
+squid.IsDead = true
 fake.runLoops()
 fake.runLoops()
 assert(lastEvent(crewController) == "Lost", "the crew killed the entity")
+assert(unpossessions == 1, "its player lets go of the corpse")
 local released = fake.callsTo(entityTalker, "SetMutedOnVoiceChannel")
 assert(released[#released].args[1] == false and released[#released - 1].args[1] == false,
   "the lost entity is unmuted on both channels")
@@ -509,9 +517,9 @@ local unmuted = fake.param(false)
 fake.hooks[talkerPath .. "SetMutedOnVoiceChannel"](fake.param(entityTalker), unmuted, fake.param(0))
 assert(unmuted:get() == false, "and the game's own mute settings are theirs again")
 
--- Playtest 9: the game's capture flow replaces a captured specimen with a fresh one, which went straight back to the
--- same player. Once the entity has lost, its player is out for the rest of the mission: a monster the game spawns
--- afterwards stays the game's own AI
+-- Playtest 9: a fresh specimen appeared at the spawn after a capture, and went straight back to the same player. Once
+-- the entity has lost, its player is out for the rest of the mission: a monster the game spawns afterwards stays the
+-- game's own AI
 local freshAi = fake.object("BP_Basic_AI_Controller_C", nil, { IsPlayerController = function() return false end })
 local freshSquid = fake.object("BP_Monster_Poulpi_C", { Controller = freshAi, InVent = false }, {
   K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,

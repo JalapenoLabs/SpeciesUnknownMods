@@ -38,8 +38,8 @@ local activeEntity = nil
 -- The world the volunteer was last told their status in, so each new world tells them once.
 local announcedWorldKey = nil
 -- The world whose entity was killed or captured: its player's turn as the entity is over for that mission, so any
--- monster the game spawns there afterwards stays the game's AI (playtest 9: the game's capture flow replaces the
--- captured specimen with a fresh one, which went straight back to the same player). A hot reload of the mod forgets it.
+-- monster the game spawns there afterwards stays the game's AI (playtest 9: a fresh specimen appeared at the spawn
+-- after a capture and went straight back to the same player). A hot reload of the mod forgets it.
 local lostWorldKey = nil
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
@@ -347,13 +347,14 @@ end
 
 -- The mission's specimen, when it is the entity: the monster BP_GameManager spawned (its Monster property). Other
 -- monsters of its class exist too, like the specimen on display in the lobby, and must never be taken over.
+-- A dead or captured specimen stays where it is until the mission ends, and is never anyone's to take.
 local function missionMonster()
   local gameManager = FindFirstOf(game.classNames.gameManager)
   if not gameManager or not gameManager:IsValid() then
     return nil
   end
   local monster = gameManager.Monster
-  if not kits.forMonster(monster) then
+  if not kits.forMonster(monster) or monster.IsDead == true or monster.IsCaptured == true then
     return nil
   end
   return monster
@@ -511,10 +512,30 @@ function takeover.isEntityController(controller)
     and activeEntity.controller:IsValid() and controller:GetAddress() == activeEntity.controller:GetAddress()
 end
 
+-- How the entity lost, by the event its player is told: "Captured" (BPI_BasicMonster_SetIsCaptured), "Lost" (killed:
+-- its corpse stays where it fell, IsDead, until the mission ends; or its monster gone mid-mission), or nil once the
+-- game has finished the mission (FinishedGame), when its monster goes with the mission's end: that is no loss, and the
+-- entity's result comes with the game's end (ending.lua). Playtest 9: the mission's end read as "the crew got you".
+local function lossOf(entity)
+  local monster = entity.monster
+  if monster:IsValid() and monster.IsCaptured == true then
+    return "Captured"
+  end
+  if monster:IsValid() and monster.IsDead == true then
+    return "Lost"
+  end
+  local gameState = FindFirstOf(game.classNames.gameState)
+  if gameState and gameState:IsValid() and gameState.FinishedGame == true then
+    return nil
+  end
+  return "Lost"
+end
+
 local function noticeLoss()
   local entity = activeEntity
   activeEntity = nil
   lostWorldKey = entity.worldKey
+  local loss = lossOf(entity)
   game.log("The entity's player is out for the rest of this mission; any monster the game spawns stays its AI")
   -- What the entity left running stops with it (the Terminator's gatling: nothing in the game stops a firing gun)
   if entity.monster:IsValid() then
@@ -524,11 +545,18 @@ local function noticeLoss()
   if not entity.controller:IsValid() then
     return
   end
+  if not loss then
+    game.log("The entity's monster went with the mission's end")
+    return
+  end
 
-  links.sendEvent(entity.controller, "Lost")
-  game.log("The entity lost: its monster is gone")
-
-  -- Watch the surviving crew; the player is out of this mission
+  -- The player lets go of the corpse, or of the specimen in its cell, which no longer moves for them, and watches the
+  -- surviving crew: they're out of this mission
+  if entity.controller.Pawn:IsValid() then
+    entity.controller:UnPossess()
+  end
+  links.sendEvent(entity.controller, loss)
+  game.log("The entity lost (%s)", loss)
   local crewMember = FindFirstOf(game.classNames.crewCharacter)
   if crewMember and crewMember:IsValid() then
     entity.controller:SetViewTargetWithBlend(crewMember, 0.5, 0, 0, false)
@@ -597,10 +625,11 @@ function takeover.reconcile()
   end
 
   if activeEntity then
-    local monsterAlive = activeEntity.monster:IsValid() and activeEntity.controller:IsValid()
+    local monster = activeEntity.monster
+    local isDriven = monster:IsValid() and activeEntity.controller:IsValid()
       and activeEntity.controller.Pawn:IsValid()
-      and activeEntity.controller.Pawn:GetAddress() == activeEntity.monster:GetAddress()
-    if not monsterAlive then
+      and activeEntity.controller.Pawn:GetAddress() == monster:GetAddress()
+    if not isDriven or monster.IsDead == true or monster.IsCaptured == true then
       noticeLoss()
       return
     end

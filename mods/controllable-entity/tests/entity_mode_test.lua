@@ -204,9 +204,8 @@ assert(lastEvent(crewController) == "Volunteered", "the random pick doesn't hold
 command(crewController, "Volunteer")
 assert(lastEvent(crewController) == "Unvolunteered")
 
--- Plays a mission, whose squid goes to whoever is to be the entity, then travels back to the lobby. Returns who took
--- the squid.
-local function playMission()
+-- Starts a mission, whose squid goes to whoever is to be the entity. Returns the squid.
+local function startMission()
   lobbyGameMode.destroyed = true
   gameState.destroyed = true
   gameState = fake.object("BP_MyGameState_C", { ["In Game Player State "] = fake.array({ hostState, crewState }) },
@@ -221,13 +220,23 @@ local function playMission()
   fake.giveSquidState(missionSquid)
   gameManager.Monster = missionSquid
   fake.runLoops(1000)
-  local takenBy = missionSquid.Controller
+  return missionSquid
+end
 
+-- Travels back to the lobby, the mission's squid going with it.
+local function returnToLobby(missionSquid)
   missionSquid.destroyed = true
   gameState.destroyed = true
   gameState = fake.object("BP_MyGameState_C", { ["In Game Player State "] = fake.array({}) }, nil, { "GameStateBase" })
   lobbyGameMode = fake.object("BP_LobbyGameMode_C")
   fake.runLoops(1000)
+end
+
+-- Plays a mission and travels back to the lobby. Returns who took the squid.
+local function playMission()
+  local missionSquid = startMission()
+  local takenBy = missionSquid.Controller
+  returnToLobby(missionSquid)
   return takenBy
 end
 
@@ -255,6 +264,24 @@ takeover.choosePlayer("lobby:1")
 assert(playMission() == crewController, "the host's pick takes the mission's squid")
 assert(takeover.choice.player == "lobby:1", "and is still the host's pick back in the lobby")
 assert(playMission() == crewController, "and takes the next mission's squid too")
+
+-- Playtest 9 (#3): the mission's end is no loss. The game finishes the mission, then its monster goes with it: no
+-- "the crew got you", the entity's result comes with the game's end
+local endingSquid = startMission()
+assert(endingSquid.Controller == crewController, "the picked player is the entity")
+gameState.FinishedGame = true
+endingSquid.destroyed = true
+fake.runLoops(1000)
+assert(lastEvent(crewController) == "BecameEntity", "the mission's end isn't a loss")
+returnToLobby(endingSquid)
+
+-- Captured, the specimen stays in its cell, and its player lets go of it and is told
+crewController.UnPossess = function(self) self.Pawn = fake.invalid() end
+local capturedSquid = startMission()
+capturedSquid.IsCaptured = true
+fake.runLoops(1000)
+assert(lastEvent(crewController) == "Captured" and not crewController.Pawn:IsValid(), "captured: the entity lost")
+returnToLobby(capturedSquid)
 
 -- A picked player who leaves leaves the pick to chance again, and the host is told
 

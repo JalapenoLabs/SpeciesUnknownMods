@@ -228,12 +228,26 @@ crew holds the weapon that can kill it with one of them within 15 m. Its machine
 
 The crew body the player drove before keeps its owner's vignette and heartbeat running on their machine; those stop.
 
-### Losing
+### Losing, and the end of the mission
 
-If the crew kills or captures the entity, the entity player loses: no respawn, and their camera follows a crew member
-for the rest of the mission. Their turn as the entity is over for that mission: any monster the game spawns afterwards
-(the game replaces a captured specimen with a fresh one) stays the game's own AI. A hot reload of the mod mid-mission
-forgets the loss.
+If the crew kills or captures the entity, the entity player loses: no respawn. They let go of the corpse (or the
+specimen in its cell) and watch a crew member for the rest of the mission. Their turn as the entity is over for that
+mission: any monster the game spawns afterwards stays the game's own AI. A hot reload of the mod mid-mission forgets
+the loss. The mission's end is never a loss: once the game has finished the mission, its monster going with it is just
+the mission ending (playtest 9: the end of every mission read as "the crew got you").
+
+The entity gets its own full-screen result, where the crew get the game's end screens (playtest 9: the entity got a
+banner, a false loss, or nothing, its camera left out in the snow):
+
+- **Lost mid-mission:** "YOU WERE KILLED" or "YOU WERE CAPTURED", for six seconds, then it watches the crew.
+- **When the game finishes the mission:** what the crew achieved, unless the entity already lost: "THE CREW ESCAPED"
+  (alone, or with the black box), or the kill or capture again.
+- **The crew wiped out with no respawns left:** "YOU WIN". The game then fades to white and travels back to the lobby,
+  with no score screen for anyone.
+- **Then the crew's score screen**, as the crew see it: once the scores reach the entity's machine, a seat's score page
+  is launched for it (a free seat's, or the first's when every seat is taken), seen through a camera at that seat
+  where a seated crew member's eyes would be. Its tab shows it dead. The entity is never paid, win or lose: it plays
+  for the fun of it.
 
 ### Only what it hears, seen through walls
 
@@ -450,6 +464,7 @@ create: network events and a widget layout.
   | `areas.lua` | entity player | The map sections, the minimap's deck and everything else that switches on near the local player, which the game only follows for crew; the maps' triggered level loads |
   | `minimap.lua` | entity player | The game's minimap in the corner, north up, centred on the entity |
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
+  | `ending.lua` | entity player | Its full-screen result at a loss or the mission's end, then the crew's score screen from a seat |
   | `fear.lua` | host, entity player | How afraid the entity is, and the crew's heartbeat, vignette and blur on its machine |
   | `flee.lua` | host, crew | The entity's flight: the RUN and its escape, and the crew's notice where the level has none |
   | `postprocess.lua` | entity player | A screen effect of the entity's own: one of the game's post-process materials on an unbound component |
@@ -551,6 +566,8 @@ that finds nobody stands the kill down again, and the meter stays full.
 - `tests/capture_test.lua`: the entity killed off or aboard the shuttle in capture contracts.
 - `tests/voice_test.lua`: the entity's mic and radio click, and crew radio speech sent nearby too.
 - `tests/vision_test.lua`: the entity's light and the vent markers.
+- `tests/ending_test.lua`: the entity's results (killed, the crew escaped, a win), the score screen on a free seat's
+  page or a taken one, the camera at the seat, and nothing for a crew member's machine.
 - `tests/fear_test.lua`: how afraid the host weighs the entity, and the heartbeat, vignette, flashes and blur.
 - `tests/flee_test.lua`: the crew's notice of the flight where the level has none, and not twice where it does.
 - `tests/puzzles_test.lua`: the keycards, pipes and printers sized for the crew, each once, never harder.
@@ -756,9 +773,12 @@ it appears:
    Terminator), and drops the last monster finished; it is weighted by how often the host has met each monster. Until
    then `MonsterToSpawn` holds the placed game manager's default (3, Mike), which is what a construction hook sees.
 2. **The spawn:** 2 seconds after begin play, but only if the level's game manager has `AutoSpawnMonster` on.
-   Hawking has it off: its level script spawns the monster the first time a crew member walks into `TriggerVolume_6`
-   on the way out of the shuttle (`InitMonster(true, ...)`, which calls `SpawnMonster` when no monster exists yet).
-   A respawn after a capture goes through `InitMonster` too, from `BP_MyGameState`.
+   Hawking has it off: its level script spawns the monster the first time a crew member walks into `TriggerVolume_1`
+   on the way out of the shuttle (`BP_IA_Director.InitMonster(true, ...)`, which calls `SpawnMonster` when no monster
+   exists yet; `TriggerVolume_6` starts the sections' loads). The game's own capture never respawns the monster (it
+   stays in the cell, `IsCaptured`); `InitMonster` otherwise runs only from a debug reset and the AI's stuck check,
+   which the takeover turns off. Playtest 9 still saw a fresh specimen at the spawn after a capture, from a caller not
+   yet found; whatever spawns it, it stays the game's AI once the entity has lost.
 
 The game instance survives map travel, so setting `spawnForceSessionMonster` on the host while still in the lobby
 makes the next mission spawn the entity's monster, through the game's own spawn path (`GetMonsterSoftClass` ->
@@ -867,7 +887,12 @@ one friend.
 13. **Frenzy.** On an extraction contract, pick up the black box: `FRENZY` appears and grabs kill without meter, each
    re-arming after 7 s.
 14. **Launching.** The crew board the shuttle and launch without the entity; with the squid aboard, it doesn't launch.
-15. **Losing.** Kill the squid: the entity player sees "The crew got you" and watches a crew member.
+15. **Losing, and the end.** Kill the squid: the entity player sees "YOU WERE KILLED" full screen for six seconds, then
+   watches a crew member; their corpse no longer moves for them. When the crew sit down to leave, the entity's view
+   moves onto a seat's screen showing the crew's score page (its tab dead), and no money is added for it. In other
+   missions: let the crew escape (an extraction or a self destruct): "THE CREW ESCAPED", then the score screen;
+   capture it: "YOU WERE CAPTURED"; kill every crew member with no respawns left: "YOU WIN", then the game's white
+   fade. No "The crew got you" banner at any mission's end.
 16. **Objectives (alone).** As the squid, hold Tab: the crew's objectives overlay shows "THE ENTITY" with Kill all
     humans, Leave them no respawns (with the count), and Stay alive, and no contract icon. Letting go hides it. If it
     shows the header but no rows, or nothing at all, send the log.

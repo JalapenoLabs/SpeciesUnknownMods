@@ -96,6 +96,15 @@ return {
     highestPitch = 1.2,
   },
 
+  -- The end of the mission for the entity (ending.lua): how long its result stays up after it loses mid-mission
+  -- before it watches the crew; how high a seated crew member's eyes are above the seat when no one sits to measure;
+  -- and how long the view takes to move onto the seat's score screen.
+  ending = {
+    lossSeconds = 6,
+    seatedEyeHeight = 60,
+    cameraBlendSeconds = 0.5,
+  },
+
   hud = {
     -- How long a word in the huge red banner stays up (RUN, as the flight starts); it fades over its last second.
     bannerSeconds = 3,

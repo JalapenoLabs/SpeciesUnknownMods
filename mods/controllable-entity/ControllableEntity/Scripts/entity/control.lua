@@ -11,6 +11,7 @@
 local areas = require("entity.areas")
 local camera = require("entity.camera")
 local config = require("entity.config")
+local ending = require("entity.ending")
 local fear = require("entity.fear")
 local hud = require("entity.hud")
 local kits = require("entity.kits")
@@ -290,6 +291,9 @@ function control.register()
   end)
   LoopInGameThreadWithDelay(33, function()
     local controller = game.localController()
+    if controller then
+      ending.follow(controller, game.timeSeconds(controller))
+    end
     local monster = controller and game.monsterDrivenBy(controller)
     if monster then
       local now = game.timeSeconds(monster)
@@ -332,6 +336,7 @@ function control.register()
   end)
   links.onClientEvent("BecameEntity", onBecameEntity)
   links.onClientEvent("Lost", camera.reset)
+  links.onClientEvent("Captured", camera.reset)
 end
 
 return control

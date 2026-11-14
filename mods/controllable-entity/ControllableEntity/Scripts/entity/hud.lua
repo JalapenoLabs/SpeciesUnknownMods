@@ -91,7 +91,6 @@ local messageByEvent = {
   Dormant = "You lie powered down until the crew turns the power on.",
   DormantAlone = "You lie powered down until the power is on. Playing alone, F8 turns it on.",
   Awake = "The power is on. You wake. Hunt.",
-  Lost = "The crew got you. You're out of this mission.",
   KillStarted = "Got one.",
   FrenzyStarted = "FRENZY: every grab kills.",
   FrenzyPartial = "They have the weapon. Your hunger grows faster, and the vents won't hide you for long.",
@@ -547,6 +546,13 @@ local function showMessage(kind)
   state.messageUntil = game.timeSeconds(controller) + seconds
 end
 
+local function loseEntity()
+  state.isEntity = false
+  state.isLeashed = false
+  state.persistentStatus = nil
+  state.pings = {}
+end
+
 -- What each host event changes beyond its message.
 local stateChangeByEvent = {
   Volunteered = function()
@@ -599,12 +605,9 @@ local stateChangeByEvent = {
     state.isLeashed = false
     state.persistentStatus = nil
   end,
-  Lost = function()
-    state.isEntity = false
-    state.isLeashed = false
-    state.persistentStatus = nil
-    state.pings = {}
-  end,
+  -- The entity lost (killed, or captured): its full-screen result says so (ending.lua)
+  Lost = loseEntity,
+  Captured = loseEntity,
 }
 
 local function onPing(location, _, kind, source)
