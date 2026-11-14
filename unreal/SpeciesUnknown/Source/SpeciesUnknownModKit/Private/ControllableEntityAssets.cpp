@@ -302,6 +302,11 @@ namespace {
 		Spec.Elements.Add(MakeText(TEXT("StatusText"), BottomCentre, SitOnEdge, FVector2D(0.0, -110.0), 22,
 			FLinearColor::White, TEXT("")));
 
+		// Above the centre: a word in huge red letters at the moments that matter most, which Lua fades out ("RUN" as
+		// the entity's fleeing phase starts)
+		Spec.Elements.Add(MakeText(TEXT("BannerText"), FAnchors(0.5f, 0.5f), FVector2D(0.5f, 0.5f),
+			FVector2D(0.0, -200.0), 150, Frenzy, TEXT("")));
+
 		// Bottom right (playtest 8): how many respawns the crew has left, which Lua keeps up to date. The entity wins
 		// when the crew is all dead with none left
 		Spec.Elements.Add(MakeText(TEXT("RespawnsText"), FAnchors(1.0f, 1.0f), FVector2D(1.0f, 1.0f),

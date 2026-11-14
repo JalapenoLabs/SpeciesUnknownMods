@@ -151,6 +151,10 @@ The AI keeps out of the game's forbidden areas and never guards the crew's shutt
   the ducts, never in mid-air (playtest 9: a spot remembered while falling down a shaft over Polar's underground put
   the squid back above the hole, to fall in again and again). Back into the ducts, the move waits for the squid to
   crouch, which a friend's machine applies a moment later.
+- **So are its dangerous areas:** Hawking's reactor room (`NavArea_DangerousArea`, whose pulse knocks anything inside
+  down), which nearly every AI filter excludes but the forbidden filter doesn't. The squid got in with a leap in
+  playtest 9. Their volumes (`NavModifierVolume` with that area) are read as boxes, and the entity is put back out
+  like a forbidden area; the unstuck never puts it there.
 - **The crew's elevators are theirs.** On Polar (Hawking has none), an elevator won't start while a monster is in its
   car (its trigger box counts any monster it overlaps, `BP_ElevatorParent.MonsterInside`), and a refused start leaves
   the landing's call screen dead until someone rides the car, so an entity standing in one could strand the crew
@@ -158,7 +162,7 @@ The AI keeps out of the game's forbidden areas and never guards the crew's shutt
   the crew's elevator"), and the car is marked like the forbidden areas.
 - **The entity sees the edges:** glowing posts, only on its machine, red where it may not go and amber around the
   shuttle's approach. The forbidden areas' posts come from the trigger boxes carrying the forbidden area, which load
-  with their section of the ship, so they appear as the squid gets near.
+  with their section of the ship, so they appear as the squid gets near; the dangerous areas' from their volumes.
 
 ### Capture contracts: kill it off the shuttle
 
