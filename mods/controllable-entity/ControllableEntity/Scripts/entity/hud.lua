@@ -8,14 +8,16 @@
 --   - bottom centre, the frenzy banner and short messages from the host's events;
 --   - bottom right, how many respawns the crew has left (playtest 8).
 -- Keys show as the game's own glyphs (its /Game/KeyIcons textures, as in its "press E" prompts).
--- Noise pings are drawn over the world. While the player is the entity, the crew HUD their parked body left behind is
--- hidden. The bars, the health and the stamina come from the player's link, which the host fills (abilities.lua).
+-- What the entity hears shows through walls (silhouettes.lua); a noise whose source this machine can't show, and the
+-- entity's sense of the crew, are markers drawn over the world. While the player is the entity, the crew HUD their
+-- parked body left behind is hidden. The bars, the health and the stamina come from the player's link, which the host fills (abilities.lua).
 
 local config = require("entity.config")
 local game = require("entity.game")
 local kits = require("entity.kits")
 local links = require("entity.links")
 local objectives = require("entity.objectives")
+local silhouettes = require("entity.silhouettes")
 local vents = require("entity.vents")
 
 local hud = {}
@@ -42,6 +44,7 @@ local pingColorByKind = {
   Gunshot = { R = 1.0, G = 0.29, B = 0.24 },
   Footstep = { R = 0.37, G = 0.89, B = 1.0 },
   Alarm = { R = 1.0, G = 0.70, B = 0.23 },
+  Overload = { R = 1.0, G = 0.45, B = 0.15 },
   -- The entity's sense of the crew when nothing has been heard (senses.lua)
   Sense = { R = 1.0, G = 0.42, B = 0.85 },
 }
@@ -125,6 +128,13 @@ local messageByEvent = {
   ["Denied.NoThrow"] = "No clear throw there.",
   ["Denied.TooClose"] = "Too close: the blast would hit your own gatling.",
   ["Denied.OutOfBreath"] = "Out of breath: catch it before you leap.",
+  EnginesStarted = "They've started the engines.",
+}
+
+-- The sounds some events play on the entity player's machine alone: the engines spinning up as the crew start them.
+local soundByEvent = {
+  EnginesStarted = "/Game/SciFiSpacecraft/wav/Turbine/SpinUpAndRecharge/"
+    .. "Turbine_Spin_Up_Accelerate_05_Cue.Turbine_Spin_Up_Accelerate_05_Cue",
 }
 
 -- Everything the HUD knows comes from the host's events in the current world; a new world starts blank and the host
@@ -571,12 +581,17 @@ local stateChangeByEvent = {
   end,
 }
 
-local function onPing(location, _, kind)
+local function onPing(location, _, kind, source)
   local controller = game.localController()
   if not controller then
     return
   end
-  state.pings[state.nextPingSlot] = { location = location, kind = kind, bornAt = game.timeSeconds(controller) }
+  local now = game.timeSeconds(controller)
+  -- A noise whose source this machine can show is seen through walls instead
+  if silhouettes.show(kind, source, now) then
+    return
+  end
+  state.pings[state.nextPingSlot] = { location = location, kind = kind, bornAt = now }
   state.nextPingSlot = state.nextPingSlot % PING_MARKER_COUNT + 1
 end
 
@@ -605,6 +620,11 @@ function hud.register()
         changeState()
       end
       showMessage(kind)
+      local soundPath = soundByEvent[kind]
+      local sound = soundPath and game.loadGameAsset(soundPath)
+      if sound and controller then
+        StaticFindObject(game.paths.gameplayStatics):PlaySound2D(controller, sound, 1.0, 1.0, 0, nil, nil, true)
+      end
     end)
   end
 

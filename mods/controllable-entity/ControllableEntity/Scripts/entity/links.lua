@@ -121,12 +121,13 @@ function links.sendEvent(controller, kind, value)
   link:EntityClientEvent(FName(kind), value or 0)
 end
 
-function links.sendPing(controller, location, loudness, kind)
+-- A noise for the entity player's HUD: where it was, how loud, its kind, and the actor that made it (nil for none).
+function links.sendPing(controller, location, loudness, kind, source)
   local link = links.forController(controller)
   if not link then
     return
   end
-  link:EntityClientPing(location, loudness, FName(kind))
+  link:EntityClientPing(location, loudness, FName(kind), source)
 end
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
@@ -194,13 +195,19 @@ function links.registerEvents()
     end
   end)
 
-  RegisterCustomEvent("EntityClientPing", function(_, locationParameter, loudnessParameter, kindParameter)
+  RegisterCustomEvent("EntityClientPing", function(_, locationParameter, loudnessParameter, kindParameter,
+      sourceParameter)
     if not pingHandler then
       return
     end
     local location = locationParameter:get()
+    -- The actor that made the noise, when this machine has it
+    local source = sourceParameter and sourceParameter:get()
+    if source and not source:IsValid() then
+      source = nil
+    end
     pingHandler({ X = location.X, Y = location.Y, Z = location.Z }, loudnessParameter:get(),
-      kindParameter:get():ToString())
+      kindParameter:get():ToString(), source)
   end)
 end
 

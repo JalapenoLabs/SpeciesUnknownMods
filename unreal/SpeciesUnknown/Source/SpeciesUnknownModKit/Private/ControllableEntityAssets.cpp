@@ -35,7 +35,10 @@ namespace {
 			},
 		});
 
-		// Host -> entity player: a noise the entity heard. Unreliable: a dropped ping is better than a late one
+		// Host -> entity player: a noise the entity heard, and what made it (a crew member, a door, an engine), whose
+		// body the entity's machine shows through walls; none for the entity's sense of the crew, a marker only. The
+		// source arrives as nothing when the entity's machine doesn't have that actor. Unreliable: a dropped ping is
+		// better than a late one
 		Spec.Events.Add({
 			TEXT("EntityClientPing"),
 			EModNetworkEventTarget::OwningClient,
@@ -44,6 +47,7 @@ namespace {
 				{TEXT("Location"), ModPinTypes::Vector()},
 				{TEXT("Loudness"), ModPinTypes::Float()},
 				{TEXT("Kind"), ModPinTypes::Name()},
+				{TEXT("Source"), ModPinTypes::Object(AActor::StaticClass())},
 			},
 		});
 

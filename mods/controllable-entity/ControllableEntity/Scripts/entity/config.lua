@@ -181,17 +181,17 @@ return {
     -- The AI monster's hearing range (BP_Basic_AI_Controller's hearing sense, 4000 units); a noise is heard when
     -- it is within this range times its loudness and within the noise's own range.
     hearingRange = 4000,
-    -- Position blur: a ping lands within this fraction of its distance from the true spot, capped.
-    blurFraction = 0.12,
-    blurMax = 600,
     -- One footstep ping per walker per this many seconds; footsteps arrive every step.
     footstepInterval = 0.7,
+    -- How long a marker fades over, for a noise whose source the entity's machine can't show (silhouettes.lua).
     pingSeconds = 1.5,
+    -- How often an overloading engine is pinged, at any distance, while the overload lasts.
+    overloadPingSeconds = 1,
     -- Marker size by kind of noise, as a multiple of the 20-pixel pulse ring: gunshots stand out.
-    pingScaleByKind = { Gunshot = 2.2, Footstep = 1.0, Alarm = 1.6, Sense = 1.8 },
-    -- With nothing heard for this long, the entity senses every living crew member: a pink ping each, blurred this
-    -- much more than a heard noise, so it gives a direction and a rough distance, never a position (playtest 9: lost
-    -- in the vents with nothing to go on, the entity "may as well have lost the game").
+    pingScaleByKind = { Gunshot = 2.2, Footstep = 1.0, Alarm = 1.6, Overload = 1.6, Sense = 1.8 },
+    -- With nothing heard for this long, the entity senses every living crew member: a pink ping each, blurred within
+    -- this fraction of its distance, capped, so it gives a direction and a rough distance, never a position
+    -- (playtest 9: lost in the vents with nothing to go on, the entity "may as well have lost the game").
     senseSeconds = 15,
     senseBlurFraction = 0.3,
     senseBlurMax = 2500,
@@ -199,6 +199,23 @@ return {
     -- nearest screen edge, drawn this much bigger.
     ringRadiusFraction = 0.35,
     ringScale = 1.3,
+  },
+
+  -- What the entity hears, seen through walls (silhouettes.lua): the outline's colour and thickness, how each kind of
+  -- noise shows (its brightness, how long after the last news of it, and whether it pulses meanwhile), how fast the
+  -- pulse goes, and how often the crew are kept out of the outline.
+  silhouettes = {
+    color = { R = 1.0, G = 0.08, B = 0.05, A = 1 },
+    thickness = 2.5,
+    pulseSeconds = 1.0,
+    crewSweepSeconds = 0.5,
+    byKind = {
+      Gunshot = { strength = 1.0, seconds = 1.5 },
+      Footstep = { strength = 0.35, seconds = 0.6 },
+      -- A door's alarm beats every half second, an overload is told every second: each lasts a little longer
+      Alarm = { strength = 1.0, seconds = 1.0, pulses = true },
+      Overload = { strength = 1.0, seconds = 1.5, pulses = true },
+    },
   },
 
   keys = {

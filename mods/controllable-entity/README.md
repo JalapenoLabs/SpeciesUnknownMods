@@ -197,22 +197,30 @@ for the rest of the mission. Their turn as the entity is over for that mission: 
 (the game replaces a captured specimen with a fresh one) stays the game's own AI. A hot reload of the mod mid-mission
 forgets the loss.
 
-### No wallhacks, only sound
+### Only what it hears, seen through walls
 
-- The entity never sees players through walls.
-- Every noise the game's AI would hear shows through walls as a ping at its rough position: gunfire, footsteps,
-  doors, the airlock alarm, explosions. It fades over 1.5 seconds. The further away a noise is, the further its
-  ping lands from the true spot (12% of the distance, up to 6 m), so distant noises give a direction, not a spot.
-- This is fair by construction: the pings come from the same noises, under the same range rules, that the AI
+- The entity never sees players through walls unless it hears them.
+- **Every noise the game's AI would hear shows the body of what made it, outlined in red through walls** (playtest 9:
+  "see a red-colored skin ... through the walls pulsing ... like how some video games show see-through-wall x-ray
+  stuff"): a gunshot flashes the shooter in full, fading over 1.5 seconds; a footstep flashes the walker faintly and
+  briefly. It is exact: the real body, where it is.
+- This is fair by construction: the silhouettes come from the same noises, under the same range rules, that the AI
   monsters' hearing uses (see [How the game makes noise](#how-the-game-makes-noise)).
-- **A sense of the crew.** With nothing heard for 15 seconds, the entity senses every living crew member: a pink ping
-  each, blurred far more than a noise (30% of the distance, up to 25 m), so it gives a direction and a rough distance,
-  and again every 15 seconds while the quiet lasts. Playtest 9: lost in the vents with nothing heard, the entity "may
-  as well have lost the game".
-- Louder kinds draw bigger (gunshots more than twice the size of a footstep). A noise behind the camera or off the
-  screen sits on a ring around the screen's centre instead, in its direction, like a hit indicator: straight ahead is
-  the top of the ring, behind is the bottom.
-- On the roadmap: longer pings for louder noises.
+- **Two things reach the entity at any distance, for as long as they last** (playtest 9: the host, as the entity, only
+  saw a door's alarm from the same room, and reached the engines too late): any door's alarm (Hawking's and Polar's
+  big doors on every difficulty, and the airlocks) pulses that door's body, and the engines overloading pulse the
+  engines' bodies. Starting the engines also plays their spin-up and says "They've started the engines."
+- The outline is the game's own (its spectator's post-process material), one colour for everything shown at once, so
+  its brightness follows the loudest noise being shown. The game already outlines teammates for the crew's Tab
+  overlay, so on the entity's machine the crew are kept out of the outline except while a noise shows them.
+- What the entity's machine doesn't have can't be drawn (a section of the ship it hasn't loaded, a crew member too far
+  away to be sent to it): such a noise shows as a pulse ring where it was instead, fading over 1.5 seconds, bigger for
+  louder kinds. A ring behind the camera or off the screen sits on a ring around the screen's centre, in its
+  direction, like a hit indicator: straight ahead is the top, behind is the bottom.
+- **A sense of the crew.** With nothing heard for 15 seconds, the entity senses every living crew member: a pink pulse
+  ring each, blurred (30% of the distance, up to 25 m), so it gives a direction and a rough distance, never a
+  position, and again every 15 seconds while the quiet lasts. Playtest 9: lost in the vents with nothing heard, the
+  entity "may as well have lost the game".
 
 ### Vents
 
@@ -397,13 +405,14 @@ create: network events and a widget layout.
   | `zones.lua` | both | The shuttle, its approach and the forbidden areas: where the entity may not go |
   | `unstuck.lua` | both | F7 held: getting the entity out of somewhere it can't leave |
   | `capture.lua` | host | In capture contracts, the entity killed off the shuttle counts as captured |
-  | `senses.lua` | host | Noise sources to blurred pings |
+  | `senses.lua` | host | Noise sources, door alarms and engine overloads to pings with their source; the sense of the crew |
   | `control.lua` | entity player | Input to movement and commands; the mod's keys |
   | `camera.lua` | entity player | Third and first person |
   | `vision.lua` | entity player | The entity's own light and the vent-opening markers |
   | `areas.lua` | entity player | The map sections, the minimap's deck and everything else that switches on near the local player, which the game only follows for crew; the maps' triggered level loads |
   | `minimap.lua` | entity player | The game's minimap in the corner, north up, centred on the entity |
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
+  | `silhouettes.lua` | entity player | What the entity hears, outlined through walls; the crew kept out of the outline otherwise |
   | `objectives.lua` | entity player | The entity's objectives, in the crew's objectives overlay |
   | `voice.lua` | both | The entity's silence, and the crew's radio heard by the entity only nearby |
   | `kits.lua`, `kits/<monster>.lua` | both | The playable entities, as data: each monster's class, MonsterList value, health pools, cries, its moves' icons, cooldowns and numbers, and the lookups by class and value |
@@ -500,6 +509,8 @@ that finds nobody stands the kill down again, and the meter stays full.
 - `tests/capture_test.lua`: the entity killed off or aboard the shuttle in capture contracts.
 - `tests/voice_test.lua`: the entity's mic and radio click, and crew radio speech sent nearby too.
 - `tests/vision_test.lua`: the entity's light and the vent markers.
+- `tests/silhouettes_test.lua`: the outline on the entity's machine, each kind of noise's flash or pulse, the crew
+  kept out of it, the engine's hidden body, the markers where nothing can be shown, and both ways the outline goes on.
 - `tests/areas_test.lua`: the map sections, the minimap's deck and the audit's local-player switches around the
   entity (the shuttle's moving box, the explosion's sphere, the fog, the lab), the triggered level loads, and that the
   actors are looked for every few seconds, not every pass.
@@ -642,7 +653,13 @@ Monsters have no sight sense; they hunt by hearing, through two channels:
   (no parameters; read `PawnOwner`, `HearingLoudness`, `HearingRange` from the weapon),
   `BP_ParentCharacter_C:BPI_Footsteps_PlaySound` and `BP_MyGameState_C:BPI_GameState_ForceSound`. It applies the
   same range rules the AI would (the AI controller's hearing range reads as 4000 units, to be confirmed live) and
-  sends each surviving noise to the squid player as a ping.
+  sends each surviving noise to the entity player with the actor that made it, whose body their machine outlines
+  (`silhouettes.lua`).
+- Doors' alarms bypass the hearing range: each door's `LightSwitchOpenning` runs every half second while its alarm
+  sounds, on every machine and every difficulty (`BP_BigDoor1`, `BP_BigDoor_POLAR` and its rover child,
+  `BP_SAS_Door`), and the host sends each beat. Their `ForceSound` reports are skipped, since the beat covers them.
+  The engines (`BP_Engine.EngineState`: 1 starting, 2 turning while the overload builds, 3 critical and final) are
+  pinged every second while starting or turning.
 - None of these hooks read a native function's parameters, so they don't depend on how UE4SS exposes them.
 - Possible gap: on a listen server, the host's own gunshots may never call `MakeNoiseAI` (the call path runs only for
   shooters who aren't locally controlled). Test in play.

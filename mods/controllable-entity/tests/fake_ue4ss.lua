@@ -295,7 +295,18 @@ function fake.install()
   _G.FName = function(text) return fake.name(text) end
   _G.FText = function(text) return { text = text } end
   _G.Key = setmetatable({}, { __index = function(_, key) return key end })
-  _G.RegisterHook = function(path, callback) fake.hooks[path] = callback end
+  -- Every hook on a function runs, as UE4SS runs them all
+  _G.RegisterHook = function(path, callback)
+    local earlier = fake.hooks[path]
+    if not earlier then
+      fake.hooks[path] = callback
+      return
+    end
+    fake.hooks[path] = function(...)
+      earlier(...)
+      callback(...)
+    end
+  end
   _G.NotifyOnNewObject = function(path, callback)
     fake.watchers[path] = fake.watchers[path] or {}
     table.insert(fake.watchers[path], callback)

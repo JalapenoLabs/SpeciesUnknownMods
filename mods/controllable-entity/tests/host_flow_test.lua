@@ -262,6 +262,8 @@ local weapon = fake.object("BP_LaserGun_C", { PawnOwner = crewBody, HearingLoudn
 fake.hooks[game.paths.weaponClass .. ":MakeNoiseAI"](fake.param(weapon))
 local pings = fake.callsTo(linkOf(crewController), "EntityClientPing")
 assert(#pings == 1 and pings[1].args[3]:ToString() == "Gunshot", "the shot is heard")
+assert(pings[1].args[1].X == 200 and pings[1].args[4] == crewBody,
+  "exactly where the shooter is, with the shooter, whose body the entity's machine shows through walls (#18)")
 
 -- Playtest 9: lost in the vents with nothing heard, the entity had nothing to go on. After a quiet spell it senses
 -- every living crew member, roughly, and again after every quiet spell
@@ -360,6 +362,61 @@ assert(#fake.callsTo(squid, "BPI_Monster_SetSpecialAttack") == leapsBefore + 1, 
 fake.runLoops(200)
 assert(math.abs(linkOf(crewController).Stamina - (1 - kits.byId.Squid.moves.Secondary.staminaCost)) < 1e-9,
   "for a share of its stamina")
+
+-- Playtest 9 (#19, #9): a door's alarm reaches the entity across the map, on every difficulty, with the door, for as
+-- long as it sounds (each beat of it)
+local doorPath = "/Game/Blueprints/Polar/Doors/BP_BigDoor_POLAR.BP_BigDoor_POLAR_C"
+fake.loadClass(doorPath)
+local farDoor = fake.object("BP_BigDoor_POLAR_C", nil, {
+  K2_GetActorLocation = function() return { X = 90000, Y = 0, Z = 0 } end,
+})
+local pingsBefore = #fake.callsTo(linkOf(crewController), "EntityClientPing")
+fake.hooks[doorPath .. ":LightSwitchOpenning"](fake.param(farDoor))
+pings = fake.callsTo(linkOf(crewController), "EntityClientPing")
+assert(#pings == pingsBefore + 1 and pings[#pings].args[3]:ToString() == "Alarm" and pings[#pings].args[4] == farDoor,
+  "a door's alarm reaches the entity at any distance")
+-- The door's own report to the AI, on the harder difficulties, is left to its alarm
+fake.hooks[game.paths.gameStateClass .. ":BPI_GameState_ForceSound"](fake.param(gameState), fake.param(farDoor),
+  fake.param({ X = 100, Y = 0, Z = 0 }), fake.param(0), fake.param(0))
+assert(#fake.callsTo(linkOf(crewController), "EntityClientPing") == pingsBefore + 1, "and isn't told twice")
+
+-- The engines: their start is told once (both start together), with a sound and a line, and their overload reaches
+-- the entity at any distance every second while it builds, with the engine
+fake.loadClass(game.paths.engineClass)
+local function engine(x)
+  return fake.object("BP_Engine_C", { EngineState = 1 }, {
+    K2_GetActorLocation = function() return { X = x, Y = 0, Z = 0 } end,
+  })
+end
+local engineA, engineB = engine(-90000), engine(-91000)
+fake.hooks[game.paths.engineClass .. ":OnRep_EngineState"](fake.param(engineA))
+fake.hooks[game.paths.engineClass .. ":OnRep_EngineState"](fake.param(engineB))
+local startsTold = 0
+for _, event in ipairs(fake.callsTo(linkOf(crewController), "EntityClientEvent")) do
+  if event.args[1]:ToString() == "EnginesStarted" then
+    startsTold = startsTold + 1
+  end
+end
+assert(startsTold == 1, "the engines' start is told once")
+local function overloadPings()
+  local found = {}
+  for _, ping in ipairs(fake.callsTo(linkOf(crewController), "EntityClientPing")) do
+    if ping.args[3]:ToString() == "Overload" then
+      table.insert(found, ping.args[4])
+    end
+  end
+  return found
+end
+fake.now = fake.now + config.areas.rescanSeconds
+fake.runLoops(200)
+local overloads = overloadPings()
+assert(#overloads == 2 and overloads[1] ~= overloads[2], "each overloading engine pings, across the map")
+fake.runLoops(200)
+assert(#overloadPings() == 2, "once a second")
+engineA.EngineState, engineB.EngineState = 3, 3
+fake.now = fake.now + config.senses.overloadPingSeconds
+fake.runLoops(200)
+assert(#overloadPings() == 2, "and no more once both are critical")
 
 -- Regression (playtest 9): a dying squid lost its movement component a moment before the takeover noticed it was
 -- gone, and the host's speed tripped over it every tick. Its systems leave it be meanwhile

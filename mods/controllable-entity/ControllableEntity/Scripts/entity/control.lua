@@ -17,6 +17,7 @@ local minimap = require("entity.minimap")
 local movement = require("entity.movement")
 local objectives = require("entity.objectives")
 local picker = require("entity.picker")
+local silhouettes = require("entity.silhouettes")
 local unstuck = require("entity.unstuck")
 local vision = require("entity.vision")
 local game = require("entity.game")
@@ -291,9 +292,11 @@ function control.register()
     local monster = controller and game.monsterDrivenBy(controller)
     if monster then
       minimap.follow(controller, monster)
+      silhouettes.follow(monster, game.timeSeconds(monster))
       return
     end
     minimap.forget()
+    silhouettes.forget()
   end)
   -- The entity this machine last drove, so the areas it stood in can be handed back once it stops
   local lastMonster = nil
