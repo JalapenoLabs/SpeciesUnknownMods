@@ -227,4 +227,23 @@ assert(entityLink.VentTime == 1 and lastEvent() == "BackUp", "back up, the vent 
 command("Mobility")
 assert(lastEvent() ~= "Denied.VentsShut", "and the vents take the squid")
 
+-- #12: a stun the crew can repeat every few seconds (Mike's weakness) doesn't refill the vents each time: getting back
+-- up refills them at most once a minute
+squid.InVent = true
+runSeconds(175.6, 180)
+squid.InVent = false
+squid.IsOnGround = true
+runSeconds(180.2, 181)
+squid.IsOnGround = false
+runSeconds(181.2, 181.4)
+assert(entityLink.VentTime < 1 and lastEvent() ~= "BackUp", "back up again so soon, no second refill")
+squid.InVent = true
+runSeconds(181.6, 183)
+squid.InVent = false
+squid.IsOnGround = true
+runSeconds(175.2 + 60, 175.2 + 61)
+squid.IsOnGround = false
+runSeconds(175.2 + 61.2, 175.2 + 61.4)
+assert(entityLink.VentTime == 1 and lastEvent() == "BackUp", "a minute on, getting up refills them again")
+
 print("hunt test passed")

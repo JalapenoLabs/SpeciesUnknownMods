@@ -124,6 +124,9 @@ return {
     stuckSeconds = 10,
     -- The hunted entity cries out this often, so the crew can follow it.
     crySeconds = 12,
+    -- Getting back up refills the vent time at most this often: Mike's stun (his weakness, the electric gun) can come
+    -- every few seconds, and a refill each time would make his vents bottomless (#12).
+    backUpRefillSeconds = 60,
   },
 
   -- Where the entity may not go, and the shuttle's approach (zones.lua).

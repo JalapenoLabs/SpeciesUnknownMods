@@ -126,6 +126,8 @@ holds the special weapon (the same trigger as partial frenzy), the vents are onl
 - The lair lets the squid go when the hunt starts, even with the power still off.
 - Getting back up after the crew knocked it down, the entity has its whole vent time back and the vents open to it
   again ("Back up, with your vent time full: run."): its chance to escape, as the AI flees once it's up (playtest 9).
+  At most once a minute: Mike's stun (his weakness) can come every few seconds, and would otherwise make his vents
+  bottomless.
 - A squid still in the vents 10 seconds after being forced out (a spot the drop can't reach) is moved to the floor in
   front of the screen that restores the power (`BP_Screen_RestorePower`, one per map, found on the navigation).
 - The hunted squid is loud: every 12 seconds it cries out, so the crew can follow it. The AI's cries come from its
@@ -986,3 +988,15 @@ one friend.
     for 4 cards (the host's log: `The crew needs 4 keycards`), and in engineering 6 of each pipe's 8 valves start on
     (`Turned 2 more engineering valves on`), the reactor's terminal counting them. On Polar, each printer starts with
     a lone player's stock (`A printer starts with 3.50 units`).
+32. **Five players or more, one entity (Unlimited Lobby Size on the host, both mods on everyone).** Everyone joins the
+    lobby and nobody is kicked; the host's log shows `playerLobbyCapacity` raised. The host's F9 picker lists every
+    player: pick the fifth (or later) as the entity and start a contract. Four crew sit and the rest stand, and the
+    shuttle takes off without the entity aboard. In the mission the picked player is the entity and everyone else is
+    crew, with voice and radio as in step 21 and the respawn count right. Finish once by the crew escaping (the shuttle
+    leaves without the entity; the entity watches the first seat's score screen when every seat is taken) and once by
+    the entity winning (every crew member dead, none left). Repeat once with Random as the player, and once with Multi
+    Entity's extra monsters on the contract (they stay the game's AI). Note anything that differs from four players,
+    with each player's `UE4SS.log`.
+33. **Mike's stuns (with a friend, a kill contract with Mike).** Stun Mike with the electric gun twice within a minute
+    during the hunt: the first time he gets up, "Back up, with your vent time full"; the second, his vent time stays as
+    it was. If that's still too generous or too stingy, the gap is `config.hunt.backUpRefillSeconds`.

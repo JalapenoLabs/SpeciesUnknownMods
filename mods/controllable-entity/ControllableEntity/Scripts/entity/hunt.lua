@@ -110,8 +110,9 @@ local function begin()
     forcedOutAt = nil,
     lastTickAt = nil,
     nextCryAt = 0,
-    -- Whether the entity was down at the last tick, so getting back up is seen
+    -- Whether the entity was down at the last tick, so getting back up is seen, and when getting up last refilled it
     wasDown = false,
+    lastBackUpRefillAt = -math.huge,
   }
   -- The lair can't hold an entity the vents won't keep
   lair.release()
@@ -164,12 +165,18 @@ function hunt.tick(entity, now)
   current.lastTickAt = now
 
   -- Getting back up after the crew knocked it down, the entity has its whole vent time back and the vents open to it
-  -- again: its chance to run, as the AI flees once it's up (the squid's get-up sets it escaping; playtest 9)
+  -- again: its chance to run, as the AI flees once it's up (the squid's get-up sets it escaping; playtest 9). At most
+  -- once every backUpRefillSeconds, so a stun the crew can repeat every few seconds doesn't refill it each time
   local isDown = monster[entity.kit.healthFields.downed] == true
   if current.wasDown and not isDown then
-    hunt.refill()
-    links.sendEvent(entity.controller, "BackUp")
-    game.log("The entity is back up: its vent time is full again")
+    if now - current.lastBackUpRefillAt >= config.hunt.backUpRefillSeconds then
+      current.lastBackUpRefillAt = now
+      hunt.refill()
+      links.sendEvent(entity.controller, "BackUp")
+      game.log("The entity is back up: its vent time is full again")
+    else
+      game.log("The entity is back up; its vent time was refilled too recently to refill again")
+    end
   end
   current.wasDown = isDown
   local isInVent = monster.InVent == true
