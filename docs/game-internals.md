@@ -187,7 +187,17 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
   camera shake has its own `TriggerVolumeShake`) and the engineering water (`BP_Water`, in `SpaceShip.umap`, hidden
   until `BeginOverlap` on its `TriggerVolume` runs `InitWater(true)`). A possessed monster's collision never fires
   those overlaps. The reactor's pulse (`CheckPawnKill`, on the host) hurts every Character in its box regardless.
-- **The reactor room** (Hawking) is `NavArea_DangerousArea`, which nearly every AI query filter excludes, and its
+  The same gate decides: the shuttle's inside (`BP_PlayerShip.BeginOverlapVisual` → `PlayerLocalInside`, its
+  interior sound, low-pass and lights, from its `TriggerBoxOverlapVisual` box or, with `UseExteriorTrigger`, the
+  `ExtTriggerVisual` actor; it broadcasts `LocalInsideDispatch`, which `BP_AmbientMain_POLAR` follows to go quiet
+  aboard), the genetics lab's decor (`BP_GeneticsLab_Manager.TriggerVisual`, handed to the jars and creature tables it
+  spawns as their `TriggerVolume`, and to each moray as `Infos.TriggerVisual_11_...`), the final explosion's vortex
+  sound (`BP_FinalExplosion.SphereOverlapVisual` → `PushSoundMixModifier(VortexSoundMix)`) and Polar's volumetric fog
+  (`BP_SplineCollision`'s `Box` → `SetIC`, comparing with `GetPlayerPawn` rather than the gate). Two level scripts
+  load parts of their maps once a local pawn first crosses a trigger, through the same DoOnce as their `LoadLevel`:
+  `SpaceShip` (`Hawking_StaticMap_Central` and on) and `PolarMap` (`POLAR_StaticMap_Workshop`).
+- **The reactor room** (Hawking) is `NavArea_DangerousArea` (`NavModifierVolume_89`, x -10537 to -7862, y ±1150,
+  z -349 to -49; its brush doesn't collide), which nearly every AI query filter excludes, and its
   doors (`BP_Door_Reactor`) are placed locked. An unlocked door opens for a `BPI_PawnInfo` actor whose `CanOpenDoors`
   is true entering its `BoxEnter`; monsters inherit `CanOpenDoors = true` from `BP_ParentMonster`.
 - **Polar's elevators** (`BP_Elevator_Cargo`, `BP_Elevator_Simple`, children of `BP_ElevatorParent`; Hawking has
