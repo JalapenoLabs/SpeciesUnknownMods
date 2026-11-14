@@ -9,6 +9,7 @@
 local abilities = require("entity.abilities")
 local capture = require("entity.capture")
 local crawl = require("entity.crawl")
+local fear = require("entity.fear")
 local cries = require("entity.cries")
 local config = require("entity.config")
 local control = require("entity.control")
@@ -42,11 +43,12 @@ movement.register(takeover.isEntityController)
 senses.register(abilities, takeover)
 control.register()
 hud.register()
+fear.register()
 picker.register()
 game.hookLoadedClasses()
 
--- Host loops: links, the takeover and the puzzles' sizes reconcile once a second; the entity's speed, the meter and the lair's leash run
--- five times a second.
+-- Host loops: links, the takeover and the puzzles' sizes reconcile once a second; the entity's speed, the meter and the
+-- lair's leash run five times a second.
 LoopInGameThreadWithDelay(1000, function()
   if not game.isHost() then
     return

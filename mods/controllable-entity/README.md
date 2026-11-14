@@ -212,6 +212,22 @@ level has it, and the escape's run needs the AI (playtest 9: on Polar the crew n
 - The game's escape hangs on montages finishing on the host, so a squid whose eye broke without an escape 12 seconds
   later gets the game's own ink get-up from the host, which ends in it.
 
+### Fear
+
+The crew's own fear effects, on the entity player's machine (playtest 9: "there's no heart racing, there's no hud
+making you panic"). The host weighs how afraid the entity is: wholly while down or fleeing; from a quarter at 30% of its
+health bar to wholly at 10%, as the crew's heartbeat starts and quickens; partly while the squid burns, and while the
+crew holds the weapon that can kill it with one of them within 15 m. Its machine turns that into:
+
+- **The heartbeat**, the crew's own beat: one every 4 seconds at a quarter's fear down to one a second, higher pitched
+  and louder the more afraid.
+- **The red vignette**, the crew's own post-process: closing in as the health bar drains, wholly while down, pulsing
+  with each beat, and flashing red on every hit.
+- **The adrenaline blur**, the crew's radial blur, for a second and a half on a knockdown, a hard hit, or as the flight
+  starts.
+
+The crew body the player drove before keeps its owner's vignette and heartbeat running on their machine; those stop.
+
 ### Losing
 
 If the crew kills or captures the entity, the entity player loses: no respawn, and their camera follows a crew member
@@ -434,6 +450,7 @@ create: network events and a widget layout.
   | `areas.lua` | entity player | The map sections, the minimap's deck and everything else that switches on near the local player, which the game only follows for crew; the maps' triggered level loads |
   | `minimap.lua` | entity player | The game's minimap in the corner, north up, centred on the entity |
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
+  | `fear.lua` | host, entity player | How afraid the entity is, and the crew's heartbeat, vignette and blur on its machine |
   | `flee.lua` | host, crew | The entity's flight: the RUN and its escape, and the crew's notice where the level has none |
   | `postprocess.lua` | entity player | A screen effect of the entity's own: one of the game's post-process materials on an unbound component |
   | `puzzles.lua` | host | The crew's puzzles sized for the crew alone, once there is an entity |
@@ -534,6 +551,7 @@ that finds nobody stands the kill down again, and the meter stays full.
 - `tests/capture_test.lua`: the entity killed off or aboard the shuttle in capture contracts.
 - `tests/voice_test.lua`: the entity's mic and radio click, and crew radio speech sent nearby too.
 - `tests/vision_test.lua`: the entity's light and the vent markers.
+- `tests/fear_test.lua`: how afraid the host weighs the entity, and the heartbeat, vignette, flashes and blur.
 - `tests/flee_test.lua`: the crew's notice of the flight where the level has none, and not twice where it does.
 - `tests/puzzles_test.lua`: the keycards, pipes and printers sized for the crew, each once, never harder.
 - `tests/silhouettes_test.lua`: the outline on the entity's machine, each kind of noise's flash or pulse, the crew

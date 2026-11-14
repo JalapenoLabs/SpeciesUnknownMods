@@ -31,6 +31,8 @@ local squid = {
   -- refill is kept. A rise of more than maxNaturalRise between two of the host's checks (a thirtieth of a second) is
   -- one of the game's full refills (getting up, and after an eye breaks), which stay as they are.
   staggerRefill = { keptShare = 0.5, maxNaturalRise = 2 },
+  -- How hot it burns (above config.fear.burningHeat, it's afraid).
+  burningField = "HeatValue",
 
   -- What the HUD's action stack shows for each of its moves (moves/squid.lua), the cooldown each starts, and whether
   -- the lair holds it back until the power is on: the leap, and the ultimate that leaps, would leave the ducts.

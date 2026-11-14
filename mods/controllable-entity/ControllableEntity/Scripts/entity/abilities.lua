@@ -9,6 +9,7 @@
 local config = require("entity.config")
 local cries = require("entity.cries")
 local ducts = require("entity.moves.ducts")
+local fear = require("entity.fear")
 local game = require("entity.game")
 local hunt = require("entity.hunt")
 local kits = require("entity.kits")
@@ -259,6 +260,7 @@ function abilities.tick()
   end
   link.Stamina = movement.stamina()
   link.VentTime = hunt.ventTimeLeft()
+  link.Fear = fear.levelOnHost(entity, link.Health, link.Downed)
 end
 
 -- Letting go of a move that is held (the Terminator's gatling, on Shoot) stops it, cooldown or not. An entity whose

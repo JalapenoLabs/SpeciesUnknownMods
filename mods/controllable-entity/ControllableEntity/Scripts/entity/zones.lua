@@ -132,9 +132,10 @@ local function isInAnElevator(location)
   return false
 end
 
--- The dangerous areas' boxes (the reactor room), cached per world and looked for again every config.areas.rescanSeconds:
--- the host checks them five times a second, each lookup walks every object in the game, and a section streams its
--- volumes in with it. A navigation volume's brush doesn't collide, so its box takes every component.
+-- The dangerous areas' boxes (the reactor room), cached per world and looked for again every
+-- config.areas.rescanSeconds: the host checks them five times a second, each lookup walks every object in the game,
+-- and a section streams its volumes in with it. A navigation volume's brush doesn't collide, so its box takes every
+-- component.
 local dangerous = { worldKey = nil, nextScanAt = 0, boxes = {} }
 
 function zones.dangerousBoxes(monster)

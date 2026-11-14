@@ -10,7 +10,8 @@
 -- Keys show as the game's own glyphs (its /Game/KeyIcons textures, as in its "press E" prompts).
 -- What the entity hears shows through walls (silhouettes.lua); a noise whose source this machine can't show, and the
 -- entity's sense of the crew, are markers drawn over the world. While the player is the entity, the crew HUD their
--- parked body left behind is hidden. The bars, the health and the stamina come from the player's link, which the host fills (abilities.lua).
+-- parked body left behind is hidden. The bars, the health and the stamina come from the player's link, which the host
+-- fills (abilities.lua).
 
 local config = require("entity.config")
 local game = require("entity.game")

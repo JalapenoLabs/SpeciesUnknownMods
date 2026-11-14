@@ -75,6 +75,27 @@ return {
     escapeWaitSeconds = 12,
   },
 
+  -- The entity's fear (fear.lua): the health bar's share under which its heart starts racing (as the crew's below 30%
+  -- health), at a quarter's fear, and the share at which it races fastest; the heat at which the squid counts as
+  -- burning and the fear that brings; how near a crew member must be, once the crew holds the weapon that can kill it,
+  -- for it to feel hunted, and that fear. A drop of hitShare in the health bar between two frames is a hit (a red
+  -- flash), of hardHitShare a hard one (the blur). The heartbeat's volume at the least fear, and its pitch from the
+  -- least fear to the most (the crew's: 0.85 to 1.2).
+  fear = {
+    lowHealthShare = 0.3,
+    lowestHealthShare = 0.1,
+    lowHealthFear = 0.25,
+    burningHeat = 0.25,
+    burningFear = 0.8,
+    huntedDistance = 1500,
+    huntedFear = 0.5,
+    hitShare = 0.02,
+    hardHitShare = 0.25,
+    quietestBeat = 0.5,
+    lowestPitch = 0.85,
+    highestPitch = 1.2,
+  },
+
   hud = {
     -- How long a word in the huge red banner stays up (RUN, as the flight starts); it fades over its last second.
     bannerSeconds = 3,

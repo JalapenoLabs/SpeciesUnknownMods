@@ -11,6 +11,7 @@
 local areas = require("entity.areas")
 local camera = require("entity.camera")
 local config = require("entity.config")
+local fear = require("entity.fear")
 local hud = require("entity.hud")
 local kits = require("entity.kits")
 local minimap = require("entity.minimap")
@@ -291,12 +292,15 @@ function control.register()
     local controller = game.localController()
     local monster = controller and game.monsterDrivenBy(controller)
     if monster then
+      local now = game.timeSeconds(monster)
       minimap.follow(controller, monster)
-      silhouettes.follow(monster, game.timeSeconds(monster))
+      silhouettes.follow(monster, now)
+      fear.follow(monster, links.own(), now)
       return
     end
     minimap.forget()
     silhouettes.forget()
+    fear.forget()
   end)
   -- The entity this machine last drove, so the areas it stood in can be handed back once it stops
   local lastMonster = nil

@@ -105,7 +105,7 @@ local crewBody = fake.object("BP_Character_C")
 fake.giveView(controller, crewBody)
 local cameraManager = controller.PlayerCameraManager
 local link = fake.object("BP_EntityLink_C", {
-  Owner = controller, Meter = 0.5, Frenzy = false, Health = 0.8, Downed = false, Stamina = 1, VentTime = 1,
+  Owner = controller, Meter = 0.5, Frenzy = false, Health = 0.8, Downed = false, Stamina = 1, VentTime = 1, Fear = 0,
 })
 local squid = fake.object("BP_Monster_Poulpi_C", { InVent = false, Mesh = fake.object("SkeletalMeshComponent") }, {
   K2_GetActorLocation = function() return { X = 0, Y = 300, Z = 0 } end,

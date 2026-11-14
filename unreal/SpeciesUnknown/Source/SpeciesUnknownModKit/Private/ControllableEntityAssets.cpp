@@ -73,6 +73,9 @@ namespace {
 		Spec.Variables.Add({TEXT("Stamina"), ModPinTypes::Float(), COND_OwnerOnly});
 		// How much of the entity's time in the vents is left, 0 to 1, once the crew holds the weapon that can kill it
 		Spec.Variables.Add({TEXT("VentTime"), ModPinTypes::Float(), COND_OwnerOnly});
+		// How afraid the entity is, 0 to 1 (low on health, down, burning, hunted, fleeing), which its machine turns into
+		// the crew's own heartbeat and vignette
+		Spec.Variables.Add({TEXT("Fear"), ModPinTypes::Float(), COND_OwnerOnly});
 		return Spec;
 	}
 

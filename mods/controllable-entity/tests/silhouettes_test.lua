@@ -95,7 +95,8 @@ assert(outlineComponent.bUnbound and outlineComponent.bEnabled and outlineCompon
   "drawn on every view of this machine")
 local blendables = fake.callsTo(outlineComponent, "AddOrUpdateBlendable")
 assert(#blendables == 1 and blendables[1].args[1] == material, "with the outline as its blendable")
-assert(not inCustomDepth(shooter) and not inCustomDepth(walker), "the crew are out of the outline while nothing's heard")
+assert(not inCustomDepth(shooter) and not inCustomDepth(walker),
+  "the crew are out of the outline while nothing's heard")
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 -- Noises
