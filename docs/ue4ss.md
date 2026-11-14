@@ -79,6 +79,26 @@ Mods/<ModName>/
   Blueprint function is loaded only once its asset is, so register those from a `NotifyOnNewObject` callback or a
   `RegisterBeginPlayPostHook` once the owning actor exists. A Blueprint function library never gets instances, so
   register its hooks when an instance of a class that calls it appears: that class's asset references the library.
+- Several hooks on one function all run, in the order they were registered, so two modules can hook the same function
+  (the mods' test fake runs them the same way).
+- A function called by a timer (`SetTimerByFunctionName`) or a montage callback still goes through `ProcessEvent`, so
+  its hooks run too.
+
+### Costs and limits worth knowing
+
+- **`FindAllOf` and `FindFirstOf` walk the whole object array** on each call. Calling them for dozens of classes four
+  times a second is a measurable cost: look actors up once per world and again every few seconds instead (Controllable
+  Entity's `areas.lua` rescans every 2 s).
+- **Interface parameters.** A `TScriptInterface` parameter (`AddOrUpdateBlendable`'s blendable) is pushed only from a
+  `UInterface` userdata; whether a plain `UObject` from Lua passes is unconfirmed. Where it matters, try the call and
+  fall back to writing the property it feeds (for a post-process, `Settings.WeightedBlendables = { Array = { { Weight
+  = 1, Object = material } } }`), as Controllable Entity's `postprocess.lua` does.
+- **Push-model replication.** Many of the game's replicated properties use the push model: writing one from Lua on the
+  host replicates only once it is marked dirty, through
+  `/Script/Engine.Default__NetPushModelHelpers:MarkPropertyDirtyFromRepIndex(object, index, FName(name))` with the index
+  the game's own Blueprint passes. The game calls its `OnRep_` itself on the host after each change; so must the mod.
+- **Struct conversions are per call.** Every struct argument (a colour, a vector) is converted from its Lua table on
+  each call; write such values only when they change rather than every frame.
 
 ### Changing what an async Blueprint node does
 
