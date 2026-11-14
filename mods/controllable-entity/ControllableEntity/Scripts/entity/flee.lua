@@ -37,10 +37,10 @@ local NOTICE_ICON_SIZE = 64
 local TEXT_LIBRARY = "/Script/Engine.Default__KismetTextLibrary"
 
 -- On the host: the flight under way, { monsterAddress, endsAt }, or nil; the monsters whose flight the crew were told
--- of (once each, as the game tells them); and when the squid's eye broke, waiting for its escape.
+-- of (once each, as the game tells them); and the squid whose eye broke, waiting for its escape: { monsterAddress, at }.
 local fleeing = nil
 local toldCrewOf = {}
-local eyeBrokenAt = nil
+local eyeBroken = nil
 
 -- Tells every crew member's machine the specimen has fled, as the game's notice would: once per monster, on kill and
 -- capture contracts, and not once the self destruct is armed (BP_BaseMonster.LaunchFleeTuto's own rules).
@@ -64,7 +64,7 @@ end
 local function start(entity, now)
   local monster = entity.monster
   fleeing = { monsterAddress = monster:GetAddress(), endsAt = now + config.flee.seconds }
-  eyeBrokenAt = nil
+  eyeBroken = nil
   movement.setFleeing(entity, true)
   hunt.refill()
   links.sendEvent(entity.controller, "Fleeing")
@@ -76,13 +76,21 @@ end
 -- broken without an escape up the game's way.
 function flee.tickHost(entity, now)
   local monster = entity.monster
-  if fleeing and (fleeing.monsterAddress ~= monster:GetAddress() or now >= fleeing.endsAt) then
+  -- A flight or a broken eye left by an earlier entity is forgotten (a new entity's movement starts afresh)
+  local address = monster:GetAddress()
+  if fleeing and fleeing.monsterAddress ~= address then
+    fleeing = nil
+  end
+  if eyeBroken and eyeBroken.monsterAddress ~= address then
+    eyeBroken = nil
+  end
+  if fleeing and now >= fleeing.endsAt then
     fleeing = nil
     movement.setFleeing(entity, false)
     links.sendEvent(entity.controller, "FleeEnded")
   end
-  if eyeBrokenAt and now - eyeBrokenAt >= config.flee.escapeWaitSeconds then
-    eyeBrokenAt = nil
+  if eyeBroken and now - eyeBroken.at >= config.flee.escapeWaitSeconds then
+    eyeBroken = nil
     game.log("The squid's eye broke without an escape; getting it up the game's way")
     monster["GetUpWithInk (multi)"](monster, 1.0)
   end
@@ -126,7 +134,7 @@ function flee.register(takeover)
     local monster = context:get()
     local entity = takeover.activeEntity()
     if entity and monster:HasAuthority() and monster:GetAddress() == entity.monster:GetAddress() then
-      eyeBrokenAt = game.timeSeconds(monster)
+      eyeBroken = { monsterAddress = monster:GetAddress(), at = game.timeSeconds(monster) }
     end
   end)
   links.onClientEvent("SpecimenFled", showCrewNotice)

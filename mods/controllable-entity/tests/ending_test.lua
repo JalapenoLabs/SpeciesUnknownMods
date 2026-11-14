@@ -112,12 +112,29 @@ controller.Pawn = fake.invalid()
 hostSays("Lost")
 assert(#results == 1 and lastText(results[1].TitleText) == "YOU WERE KILLED", "the entity's own result, full screen")
 assert(fake.callsTo(results[1], "AddToViewport")[1].args[1] == 100, "over everything")
-fake.now = 10 + config.ending.lossSeconds - 0.5
+fake.now = 10 + config.ending.resultSeconds - 0.5
 ending.follow(controller, fake.now)
 assert(fake.callsTo(results[1], "SetRenderOpacity")[1].args[1] == 0.5, "fading over its last second")
-fake.now = 10 + config.ending.lossSeconds
+fake.now = 10 + config.ending.resultSeconds
 ending.follow(controller, fake.now)
 assert(results[1].removed, "then it watches the crew")
+-- With no pawn of its own any more, its view stays on a living crew member, whatever took it away
+fake.object("BP_Character_C", { bHidden = false, IsDead = false })
+local function watchesLivingCrew()
+  local watched = controller.viewTarget
+  return watched ~= controller and watched:GetClass():GetFName():ToString() == "BP_Character_C"
+    and watched.IsDead ~= true, watched
+end
+controller.viewTarget = controller
+fake.now = fake.now + 1
+ending.follow(controller, fake.now)
+local isWatching, watched = watchesLivingCrew()
+assert(isWatching, "the lost entity watches a living crew member")
+watched.IsDead = true
+fake.now = fake.now + 1
+ending.follow(controller, fake.now)
+assert(watchesLivingCrew() and controller.viewTarget ~= watched, "and another when that one dies")
+watched.IsDead = false
 
 -- The game finishes the mission with the kill: the result again, until the score screen
 gameSays("FinishGame(Multi)", true, 0, 2)

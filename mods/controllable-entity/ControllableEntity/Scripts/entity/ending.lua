@@ -3,9 +3,10 @@
 -- The end of the mission for the entity player, on their own machine (playtest 9: the crew got the game's end screens,
 -- while the entity got a banner, a false "the crew got you", or nothing, its camera left out in the snow).
 --
--- The entity's own result, full screen (WBP_EntityResult):
---   - when it loses mid-mission, killed or captured (the host's Lost or Captured), for a few seconds, then it watches
---     the crew;
+-- The entity's own result, full screen (WBP_EntityResult), for a few seconds each, so that what the game shows next
+-- (a self destruct's white flash, the white fade of a win) is seen:
+--   - when it loses mid-mission, killed or captured (the host's Lost or Captured); then it watches the crew, a living
+--     crew member always, since it has no pawn of its own any more;
 --   - when the game finishes the mission (FinishGame(Multi), on every machine, with what the crew achieved), unless it
 --     already lost: the crew escaped, alone or with the black box;
 --   - when the crew is wiped out with no respawns left (GameOver(Multi)): the entity wins. The game then fades to white
@@ -24,8 +25,8 @@ local links = require("entity.links")
 local ending = {}
 
 local CAMERA_CLASS = "/Script/Engine.CameraActor"
--- The game's white fade and travel follow GameOver; nothing to fade out for.
-local STAYS_UP = math.huge
+-- How often a lost entity's view is checked to be on a living crew member.
+local WATCH_CHECK_SECONDS = 1
 
 -- What the entity is shown, by result: its title, what happened, and whether it won.
 local resultByKind = {
@@ -41,10 +42,10 @@ local resultKindByAccomplished = { [0] = "Lost", [1] = "Escaped", [2] = "Capture
 local lossColor = { R = 1.0, G = 0.29, B = 0.24, A = 1 }
 local winColor = { R = 0.45, G = 1.0, B = 0.55, A = 1 }
 
--- This machine's ending in the current world: whether the player was the entity in it, the result on screen
--- ({ widget, kind, hidesAt }), and the score screen's camera.
+-- This machine's ending in the current world: whether the player was the entity in it and whether it lost, the result
+-- on screen ({ widget, kind, hidesAt }), the score screen's camera, and when a lost entity's view is next checked.
 local function freshEnding(worldKey)
-  return { worldKey = worldKey, wasEntity = false, result = nil, camera = nil }
+  return { worldKey = worldKey, wasEntity = false, hasLost = false, result = nil, camera = nil, nextWatchCheckAt = 0 }
 end
 
 local current = freshEnding(nil)
@@ -63,8 +64,8 @@ local function removeResult()
   current.result = nil
 end
 
--- Puts the entity's result on screen, for `seconds` (STAYS_UP: until the world ends), with a line on what comes next.
-local function showResult(controller, kind, seconds, footer)
+-- Puts the entity's result on screen for its few seconds, with a line on what comes next.
+local function showResult(controller, kind, footer)
   local widgetClass = game.loadModAsset(game.modAssets.result)
   if not widgetClass then
     return
@@ -77,7 +78,7 @@ local function showResult(controller, kind, seconds, footer)
   widget.TitleText:SetColorAndOpacity({ SpecifiedColor = result.isWin and winColor or lossColor, ColorUseRule = 0 })
   widget.DetailText:SetText(FText(result.detail))
   widget.FooterText:SetText(FText(footer))
-  current.result = { widget = widget, kind = kind, hidesAt = game.timeSeconds(controller) + seconds }
+  current.result = { widget = widget, kind = kind, hidesAt = game.timeSeconds(controller) + config.ending.resultSeconds }
   game.log("The entity's result: %s", result.title)
 end
 
@@ -148,13 +149,36 @@ local function showScore(controller)
   game.log("The entity watches the crew's score screen")
 end
 
--- Runs about thirty times a second on every machine: notes whether its player is the entity in this world, and takes
--- a passing result off once its time is up, the last second fading.
+-- A lost entity has no pawn: the host puts its view on a crew member, which its machine's camera manager may set back
+-- to the controller when the pawn's loss arrives, and which a crew member's death takes away. Its view is kept on a
+-- living crew member until the score screen's camera takes over.
+local function keepWatchingCrew(controller, now)
+  if not current.hasLost or current.camera or controller.Pawn:IsValid() or now < current.nextWatchCheckAt then
+    return
+  end
+  current.nextWatchCheckAt = now + WATCH_CHECK_SECONDS
+  local watched = controller:GetViewTarget()
+  local isWatchingCrew = watched and watched:IsValid() and watched.IsDead ~= true
+    and watched:GetClass():GetFName():ToString() == game.classNames.crewCharacter
+  if isWatchingCrew then
+    return
+  end
+  for _, crewMember in ipairs(FindAllOf(game.classNames.crewCharacter) or {}) do
+    if crewMember:IsValid() and not crewMember.bHidden and crewMember.IsDead ~= true then
+      controller:SetViewTargetWithBlend(crewMember, config.ending.cameraBlendSeconds, 0, 0, false)
+      return
+    end
+  end
+end
+
+-- Runs about thirty times a second on every machine: notes whether its player is the entity in this world, keeps a
+-- lost entity watching the crew, and takes a result off once its time is up, the last second fading.
 function ending.follow(controller, now)
   syncWorld(controller)
   if game.monsterDrivenBy(controller) then
     current.wasEntity = true
   end
+  keepWatchingCrew(controller, now)
   local result = current.result
   if not result then
     return
@@ -190,7 +214,8 @@ function ending.register()
   end)
   for _, kind in ipairs({ "Lost", "Captured" }) do
     links.onClientEvent(kind, forTheEntity(function(controller)
-      showResult(controller, kind, config.ending.lossSeconds, "You're out of this mission. Watch the crew.")
+      current.hasLost = true
+      showResult(controller, kind, "You're out of this mission. Watch the crew.")
     end))
   end
   game.hookWhenLoaded(game.paths.gameStateClass, "FinishGame(Multi)",
@@ -200,10 +225,10 @@ function ending.register()
       if current.result and current.result.kind == kind then
         return
       end
-      showResult(controller, kind, STAYS_UP, "The crew's score follows.")
+      showResult(controller, kind, "The crew's score follows.")
     end))
   game.hookWhenLoaded(game.paths.gameStateClass, "GameOver(Multi)", forTheEntity(function(controller)
-    showResult(controller, "Won", STAYS_UP, "Back to the lobby.")
+    showResult(controller, "Won", "Back to the lobby.")
   end))
   game.hookWhenLoaded(game.paths.gameStateClass, "BPI_GameState_SetEndScore(Local)", forTheEntity(showScore))
 end

@@ -78,9 +78,12 @@ local function sizeRiddle(riddle, crew)
     local missing = target - riddle[VALVES_ON_FIELD_BY_PIPE[pipe]]
     riddle[pipe]:ForEach(function(_, element)
       local valve = element:get()
+      if missing <= 0 or not valve:IsValid() then
+        return
+      end
       local state = {}
       riddle:IsValveOn(valve, state)
-      if missing > 0 and valve:IsValid() and not state.isOn then
+      if not state.isOn then
         riddle:SetValveOn(valve, true)
         missing = missing - 1
         switched = switched + 1

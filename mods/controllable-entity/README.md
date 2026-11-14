@@ -237,9 +237,11 @@ the loss. The mission's end is never a loss: once the game has finished the miss
 the mission ending (playtest 9: the end of every mission read as "the crew got you").
 
 The entity gets its own full-screen result, where the crew get the game's end screens (playtest 9: the entity got a
-banner, a false loss, or nothing, its camera left out in the snow):
+banner, a false loss, or nothing, its camera left out in the snow). Each stays up for six seconds, so that what the game
+shows next (a self destruct's white flash and the death the entity dies in it, a win's white fade) is seen:
 
-- **Lost mid-mission:** "YOU WERE KILLED" or "YOU WERE CAPTURED", for six seconds, then it watches the crew.
+- **Lost mid-mission:** "YOU WERE KILLED" or "YOU WERE CAPTURED", then it watches the crew: a living crew member
+  always, the next one if that one dies.
 - **When the game finishes the mission:** what the crew achieved, unless the entity already lost: "THE CREW ESCAPED"
   (alone, or with the black box), or the kill or capture again.
 - **The crew wiped out with no respawns left:** "YOU WIN". The game then fades to white and travels back to the lobby,
@@ -888,7 +890,8 @@ one friend.
    re-arming after 7 s.
 14. **Launching.** The crew board the shuttle and launch without the entity; with the squid aboard, it doesn't launch.
 15. **Losing, and the end.** Kill the squid: the entity player sees "YOU WERE KILLED" full screen for six seconds, then
-   watches a crew member; their corpse no longer moves for them. When the crew sit down to leave, the entity's view
+   watches a crew member (never a black screen; when that crew member dies, another); their corpse no longer moves
+   for them. When the crew sit down to leave, the entity's view
    moves onto a seat's screen showing the crew's score page (its tab dead), and no money is added for it. In other
    missions: let the crew escape (an extraction or a self destruct): "THE CREW ESCAPED", then the score screen;
    capture it: "YOU WERE CAPTURED"; kill every crew member with no respawns left: "YOU WIN", then the game's white
