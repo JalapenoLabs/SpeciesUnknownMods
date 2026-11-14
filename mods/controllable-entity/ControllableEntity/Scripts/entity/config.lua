@@ -99,6 +99,9 @@ return {
     -- How much higher than its top a map section's volume reaches for the entity: the ducts over the labs climb past
     -- the volumes, which only reach as high as the crew can climb (playtest 9).
     sectionHeadroom = 1500,
+    -- How often the entity's machine looks for the actors whose areas it follows: each lookup walks every object in
+    -- the game, and some (the lab's jars, the morays) appear mid-mission.
+    rescanSeconds = 2,
   },
 
   -- The cries the entity makes on its own (cries.lua).

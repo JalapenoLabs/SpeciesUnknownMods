@@ -251,8 +251,14 @@ forgets the loss.
   same way: Hawking's vent wall fans (`BP_VentWall`, hidden and silent in the very vents the entity uses), its engines
   (`BP_Engine`), its electrical reactors and Polar's generators, Polar's control tower (`BP_TowerControl.Inside`), its
   rovers (`BP_Rover.PlayerLocalInside`) and its soundscape (`BP_AmbientMain_POLAR`: each area's sound and the inside
-  music). Still to do (#4): the shuttle's own inside view, the genetics lab's jars and morays, the final explosion's
-  sound, the fog and the maps' level loads.
+  music), the shuttle's inside (`BP_PlayerShip.BeginOverlapVisual`: its interior sound and lights; the crew start
+  aboard, so a new entity first leaves it, or Polar's outside would stay silent), the genetics lab's jars, creature
+  tables and morays (each shown only while the local player is in the lab's trigger), the final explosion's vortex
+  sound (`VortexSoundMix`) and Polar's volumetric fog (`BP_SplineCollision.SetIC`). The shuttle's trigger moves with
+  it and the fog's is a box component, so those are read as their own shapes, live. The machine looks for these
+  actors every 2 seconds, since some (the jars, the morays, the explosion) appear mid-mission. Hawking's and Polar's
+  level scripts also load parts of their maps once the local pawn first crosses a trigger; the entity's machine runs
+  their `LoadLevel` itself, once per world.
 - **No visor frost.** Polar's weather frosts the local camera's visor outside (Ultra Dynamic Weather's
   `Screen Frost Post Process`), the entity's too (playtest 9); on its machine alone it is turned to nothing, and the
   crew keep theirs.
@@ -391,7 +397,7 @@ create: network events and a widget layout.
   | `control.lua` | entity player | Input to movement and commands; the mod's keys |
   | `camera.lua` | entity player | Third and first person |
   | `vision.lua` | entity player | The entity's own light and the vent-opening markers |
-  | `areas.lua` | entity player | The map sections and the minimap's deck around the entity, which the game only follows for crew |
+  | `areas.lua` | entity player | The map sections, the minimap's deck and everything else that switches on near the local player, which the game only follows for crew; the maps' triggered level loads |
   | `minimap.lua` | entity player | The game's minimap in the corner, north up, centred on the entity |
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
   | `objectives.lua` | entity player | The entity's objectives, in the crew's objectives overlay |
@@ -490,7 +496,9 @@ that finds nobody stands the kill down again, and the meter stays full.
 - `tests/capture_test.lua`: the entity killed off or aboard the shuttle in capture contracts.
 - `tests/voice_test.lua`: the entity's mic and radio click, and crew radio speech sent nearby too.
 - `tests/vision_test.lua`: the entity's light and the vent markers.
-- `tests/areas_test.lua`: the map sections and the minimap's deck around the entity.
+- `tests/areas_test.lua`: the map sections, the minimap's deck and the audit's local-player switches around the
+  entity (the shuttle's moving box, the explosion's sphere, the fog, the lab), the triggered level loads, and that the
+  actors are looked for every few seconds, not every pass.
 - `tests/minimap_test.lua`: the minimap, its follower, the hidden item icons and the zoom.
 - `tests/solo_flow_test.lua` and `tests/lobby_display_squid_test.lua`: playing alone, and regressions from playtests.
 
