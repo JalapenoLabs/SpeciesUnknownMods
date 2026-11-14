@@ -13,6 +13,7 @@ game.modAssets = {
   hud = { package = "/Game/Mods/ControllableEntity/WBP_EntityHUD", name = "WBP_EntityHUD_C" },
   picker = { package = "/Game/Mods/ControllableEntity/WBP_EntityPicker", name = "WBP_EntityPicker_C" },
   pickerTile = { package = "/Game/Mods/ControllableEntity/WBP_PickerTile", name = "WBP_PickerTile_C" },
+  result = { package = "/Game/Mods/ControllableEntity/WBP_EntityResult", name = "WBP_EntityResult_C" },
 }
 
 game.paths = {

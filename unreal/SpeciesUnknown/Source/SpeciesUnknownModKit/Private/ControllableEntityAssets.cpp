@@ -429,6 +429,36 @@ namespace {
 			FLinearColor(0.82f, 0.86f, 0.88f), TEXT("F9 closes")));
 		return Spec;
 	}
+
+	// ////////////////////// //
+	//  The mission's result  //
+	// ////////////////////// //
+
+	// WBP_EntityResult: the entity player's own full-screen end of the mission (playtest 9: they got a banner, or
+	// nothing, where the crew get the game's full screens). A dark screen with the result in huge letters, a line on
+	// what happened, and one on what comes next; Lua writes all three, tints the result, and fades the screen.
+	FModWidgetSpec MakeEntityResultSpec() {
+		const FLinearColor Hint(0.82f, 0.86f, 0.88f);
+		const FAnchors Centre(0.5f, 0.5f);
+		const FVector2D Middle(0.5f, 0.5f);
+
+		FModWidgetSpec Spec;
+		Spec.AssetPath = TEXT("/Game/Mods/ControllableEntity/WBP_EntityResult");
+
+		FModWidgetElement Backdrop;
+		Backdrop.Name = TEXT("Backdrop");
+		Backdrop.Kind = EModWidgetKind::Box;
+		Backdrop.Anchors = FAnchors(0.0f, 0.0f, 1.0f, 1.0f);
+		Backdrop.Color = FLinearColor(0.008f, 0.01f, 0.014f, 0.92f);
+		Spec.Elements.Add(Backdrop);
+
+		Spec.Elements.Add(MakeText(TEXT("TitleText"), Centre, Middle, FVector2D(0.0, -70.0), 110, FLinearColor::White,
+			TEXT("")));
+		Spec.Elements.Add(MakeText(TEXT("DetailText"), Centre, Middle, FVector2D(0.0, 50.0), 30, Hint, TEXT("")));
+		Spec.Elements.Add(MakeText(TEXT("FooterText"), FAnchors(0.5f, 1.0f), FVector2D(0.5f, 1.0f),
+			FVector2D(0.0, -80.0), 20, Hint, TEXT("")));
+		return Spec;
+	}
 }
 
 bool UModAssetBuildLibrary::BuildControllableEntityAssets() {
@@ -456,6 +486,10 @@ bool UModAssetBuildLibrary::BuildControllableEntityAssets() {
 	}
 	if (!FBlueprintAssetBuilder::BuildWidget(MakeEntityPickerSpec())) {
 		UE_LOG(LogSpeciesUnknownModKit, Error, TEXT("Controllable Entity: WBP_EntityPicker failed to build"));
+		return false;
+	}
+	if (!FBlueprintAssetBuilder::BuildWidget(MakeEntityResultSpec())) {
+		UE_LOG(LogSpeciesUnknownModKit, Error, TEXT("Controllable Entity: WBP_EntityResult failed to build"));
 		return false;
 	}
 
