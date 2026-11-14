@@ -820,8 +820,8 @@ makes the next mission spawn the entity's monster, through the game's own spawn 
 
 UE4SS writes the mod's log lines, all starting `[ControllableEntity]`, to `Win64/ue4ss/UE4SS.log` on each machine.
 
-**Testing alone** works for steps 1 to 7 (volunteering, the takeover, moving, the view, the lair and the moves) and
-16 to 19 (the objectives, the crawl openings, the shuttle and the forbidden areas).
+**Testing alone** works for steps 1 to 7 (volunteering, the takeover, moving, the view, the lair and the moves), 16 to
+19 (the objectives, the crawl openings, the shuttle and the forbidden areas) and 30 (the crew's world).
 There's nobody to lash, grab or hear, and the shuttle can't launch: as the only player you stay on the crew list
 (emptying it ends the mission), and the squid can't sit. Leave through the pause menu. Steps 8 to 15 need at least
 one friend.
@@ -955,8 +955,31 @@ one friend.
     "Not yet". High in the ducts over the labs, the ship below stays visible. Lashing a crew member fills the
     ultimate's bar a tenth per hit.
 27. **Seen as the crew see it (with a friend as the entity).** On Hawking, as the entity: the engineering water shows,
-    and once the crew unlock the reactor room, the core shows, turns and shakes the camera nearby. Walk to an
-    unlocked reactor door: if it stays shut for the squid, send the log. On Polar: the minimap matches where you are
+    and once the crew unlock the reactor room, the core shows, turns and shakes the camera nearby. The reactor room
+    is red-posted: walking or leaping in puts you back with "Hunt elsewhere". On Polar: the minimap matches where you are
     from the first second, the visor never frosts outside, and the indoor fog shows indoors. Walk into either
     elevator car with its doors open: you're put back with "Keep off the crew's elevator", red posts mark the car, and
     afterwards the crew can still call it from both landings.
+28. **What it hears, through walls (with a friend as the crew).** The entity's log shows `The entity's outline of what
+    it hears went on through ...`; if it says noises show as markers, pulse rings appear instead of what follows. With
+    nothing heard, no crew member is outlined. The friend fires a gun out of sight: their body flashes red through the
+    walls, fading over 1.5 s; their footsteps nearby flash them faintly. The friend opens a big door (Hawking, or Polar
+    on any difficulty) far away: the door pulses red through walls while its alarm sounds; the decontamination
+    airlock's doors too. On a destruction contract, starting the engines plays a spin-up and "They've started the
+    engines.", and both engines pulse red through walls while they overload.
+29. **The flight and fear (with a friend as the crew, kill contract).** Get shot: each hit flashes red at the screen's
+    edges, and a red vignette closes in as the health bar drains; under about a third of the bar a heartbeat starts and
+    quickens; knocked down, the vignette closes in fully, the heart races, and the view blurs for a second. With the
+    friend holding the special weapon within 15 m, a slow heartbeat. Burn the squid down until an eye breaks: once
+    it's back up, a huge red RUN fills the screen and the squid runs at top speed for 20 s without Shift; the friend
+    sees "The specimen has fled, track it" once (on Polar too). If it lies with its eye broken, the host's log says
+    `eye broke without an escape` and it gets up. Leap at the friend ten times: no `hud.lua` error in either log.
+30. **The rest of the crew's world (alone works).** On Polar, start aboard the shuttle and walk out as the entity: the
+    outside's wind and area sounds play, not the ship's interior hum. In Colony and Electrical, the fog parts around
+    the entity. On Hawking, the genetics lab's jars and creature tables are there, and morays in the engineering water.
+    On a self destruct, inside the final explosion's sphere, the vortex sound applies. The entity's log shows `Loaded
+    the levels SpaceShip_C loads` (or `PolarMap_C`) once per mission.
+31. **Puzzles for the crew (with a friend as the entity).** On Hawking the keycard console asks the lone crew member
+    for 4 cards (the host's log: `The crew needs 4 keycards`), and in engineering 6 of each pipe's 8 valves start on
+    (`Turned 2 more engineering valves on`), the reactor's terminal counting them. On Polar, each printer starts with
+    a lone player's stock (`A printer starts with 3.50 units`).
