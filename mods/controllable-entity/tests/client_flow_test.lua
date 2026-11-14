@@ -354,10 +354,21 @@ assert(lastArgument(widget.RespawnsText, "SetText").text == "Human respawns rema
 local respawnWrites = #fake.callsTo(widget.RespawnsText, "SetText")
 fake.runLoops(33)
 assert(#fake.callsTo(widget.RespawnsText, "SetText") == respawnWrites, "written only when the count changes")
+-- A HUD rebuilt in the same world writes everything again, what's written only on change included
+widget.destroyed = true
+fake.runLoops(33)
+widget.destroyed = false
+assert(#fake.callsTo(widget.RespawnsText, "SetText") == respawnWrites + 1, "a rebuilt HUD shows the respawns again")
+assert(createdWidgets == createdForMessage + 1, "the HUD was rebuilt")
+createdForMessage = createdWidgets
 
 -- The health bar shows the pool the squid is on (playtest 6), green while it stands and red once it's down
 assert(lastArgument(widget.HealthBar, "SetPercent") == 0.8, "the health bar shows the replicated pool")
 assert(lastArgument(widget.HealthBar, "SetFillColorAndOpacity").R < 0.5, "in the crew HUD's green while standing")
+local colourWrites = #fake.callsTo(widget.HealthBar, "SetFillColorAndOpacity")
+fake.runLoops(33)
+assert(#fake.callsTo(widget.HealthBar, "SetFillColorAndOpacity") == colourWrites,
+  "the colour is written only when it changes (playtest 9's HUD failure struck converting it every frame, #16)")
 link.Downed, link.Health = true, 0.3
 fake.runLoops(33)
 assert(lastArgument(widget.HealthBar, "SetFillColorAndOpacity").R > 0.5, "and red once the squid is down")

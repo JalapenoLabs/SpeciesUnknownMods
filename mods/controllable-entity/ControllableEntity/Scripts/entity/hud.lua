@@ -146,14 +146,20 @@ local function freshState(worldKey)
     nextPeekCheckAt = 0,
     -- Each command's cooldown in progress, by command: { endsAt, seconds }, as the host started it.
     cooldowns = {},
-    -- The kit whose move icons the stack shows, so they're set again only when the entity changes.
-    kitShown = nil,
-    -- The crew's respawns left at the last draw, so the count is written only when it changes.
-    respawnsShown = nil,
+    -- What the widget shows that rarely changes, so it's written only when it does (shownFresh()).
+    shown = nil,
     pings = {},
     nextPingSlot = 1,
     widget = nil,
   }
+end
+
+-- What a newly built widget shows: nothing yet, so the first draw writes everything. The kit whose move icons the
+-- stack shows, the crew's respawns left, and the bars' colours (green or red health, the ultimate's or the frenzy's
+-- colour) are written only when they change: playtest 9's two-second HUD failure struck converting a colour on every
+-- frame (#16).
+local function shownFresh()
+  return { kit = nil, respawns = nil, isDowned = nil, inFrenzy = nil }
 end
 
 local state = freshState(nil)
@@ -227,6 +233,7 @@ local function ensureWidget(controller)
   end
 
   state.widget = widget
+  state.shown = shownFresh()
   return widget
 end
 
@@ -263,10 +270,10 @@ end
 
 -- The stack shows the entity's own moves: each slot's icon is its kit's move's.
 local function showMoveIcons(widget, kit)
-  if state.kitShown == kit then
+  if state.shown.kit == kit then
     return
   end
-  state.kitShown = kit
+  state.shown.kit = kit
   for _, slot in ipairs(kits.slots) do
     local iconName = "T_Icon_" .. kit.moves[slot].icon
     local icon = game.loadModAsset({ package = ICON_FOLDER .. iconName, name = iconName })
@@ -288,10 +295,13 @@ local function drawActions(widget, link, kit, now)
     widget[slot .. "Slot"]:SetRenderOpacity(isHeld and UNUSABLE_OPACITY or 1)
   end
 
-  local inFrenzy = link.Frenzy
+  local inFrenzy = link.Frenzy == true
   drawCharge(widget.UltimateBar, link.Meter)
-  widget.UltimateBar:SetFillColorAndOpacity(inFrenzy and frenzyColor or ultimateColor)
-  setText(widget.FrenzyText, inFrenzy and "FRENZY" or "")
+  if inFrenzy ~= state.shown.inFrenzy then
+    state.shown.inFrenzy = inFrenzy
+    widget.UltimateBar:SetFillColorAndOpacity(inFrenzy and frenzyColor or ultimateColor)
+    setText(widget.FrenzyText, inFrenzy and "FRENZY" or "")
+  end
 end
 
 -- The health bar shows the pool hits are draining (playtest 6; abilities.lua), red while the entity is down. Like
@@ -299,7 +309,11 @@ end
 -- (top centre, once the crew hunts the entity) only once the vents have used some.
 local function drawVitals(widget, link)
   widget.HealthBar:SetPercent(link.Health)
-  widget.HealthBar:SetFillColorAndOpacity(healthColorByDowned[link.Downed == true])
+  local isDowned = link.Downed == true
+  if isDowned ~= state.shown.isDowned then
+    state.shown.isDowned = isDowned
+    widget.HealthBar:SetFillColorAndOpacity(healthColorByDowned[isDowned])
+  end
   drawCharge(widget.StaminaBar, link.Stamina)
   setShown(widget.VentTime, link.VentTime < 1)
   widget.VentTimeBar:SetPercent(link.VentTime)
@@ -322,10 +336,10 @@ end
 local function drawRespawns(widget)
   local gameState = FindFirstOf(game.classNames.gameState)
   local respawnsLeft = gameState and gameState:IsValid() and gameState.Respawn
-  if not respawnsLeft or respawnsLeft == state.respawnsShown then
+  if not respawnsLeft or respawnsLeft == state.shown.respawns then
     return
   end
-  state.respawnsShown = respawnsLeft
+  state.shown.respawns = respawnsLeft
   setText(widget.RespawnsText, string.format("Human respawns remaining: %d", respawnsLeft))
 end
 
@@ -455,6 +469,8 @@ local function render()
       setShown(widget[part], false)
     end
     setText(widget.FrenzyText, "")
+    -- The frenzy's word is written again once there's an entity to show it for
+    state.shown.inFrenzy = nil
     return
   end
 
