@@ -22,12 +22,15 @@ Mods with a pak need it on every machine that installs the mod; the table above 
    these mods are tested with; the stable `v3.0.1` release predates the game's engine and won't load) and extract it
    into `SpeciesUnknown/Binaries/Win64/`, next to `SpeciesUnknown-Win64-Shipping.exe`. You should now have
    `Win64/dwmapi.dll` and a `Win64/ue4ss/` folder.
-3. **Extract each mod's zip into the game's folder** (the one holding `SpeciesUnknown/`), merging folders. A zip holds
-   the mod's Lua under `SpeciesUnknown/Binaries/Win64/ue4ss/Mods/` and, when it has one, its pak under
-   `SpeciesUnknown/Content/Paks/~mods/`.
-4. **On Linux or a Steam Deck** (Proton), also set the game's launch options in Steam to
-   `WINEDLLOVERRIDES="dwmapi=n,b" %command%`, or Proton loads its own `dwmapi.dll` instead of UE4SS. Windows needs
-   nothing more.
+3. **Extract each mod's zip into the game's folder**, the one holding `SpeciesUnknown/` (usually
+   `steamapps/common/Species Unknown/`), not into `SpeciesUnknown/` itself, and merge folders when asked. A zip
+   holds the mod's Lua under `SpeciesUnknown/Binaries/Win64/ue4ss/Mods/` and, when it has one, its pak under
+   `SpeciesUnknown/Content/Paks/~mods/`. Windows' Extract All adds the zip's name to the end of the path it offers
+   (`...\Species Unknown\ControllableEntity-v0.2`): delete that last part, so the path ends at `Species Unknown`.
+4. **On Linux or a Steam Deck only** (Proton), also set the game's launch options in Steam to
+   `WINEDLLOVERRIDES="dwmapi=n,b" %command%`, or Proton loads its own `dwmapi.dll` instead of UE4SS. **On Windows,
+   leave the launch options empty**: Windows can't run that line and refuses to start the game ("Windows cannot find
+   'WINEDLLOVERRIDES=dwmapi=n,b'").
 5. **Play in Solo or Private sessions.** With mods installed, the game disables public lobbies itself.
 
 To check it worked, launch the game and open `SpeciesUnknown/Binaries/Win64/ue4ss/UE4SS.log`: each mod logs a line
