@@ -6,6 +6,7 @@
 local ducts = require("entity.moves.ducts")
 local game = require("entity.game")
 local kits = require("entity.kits")
+local movement = require("entity.movement")
 local shared = require("entity.moves.shared")
 
 local kit = kits.byId.Squid
@@ -74,9 +75,18 @@ local function leap(monster, aim)
   return true
 end
 
+-- RMB: the leap, which costs stamina and can't be made out of breath. The ultimate's leap, which delivers the kill,
+-- costs nothing.
+local function staminaLeap(monster, aim, _, entity)
+  if not movement.spendStamina(entity, kit.moves.Secondary.staminaCost) then
+    return false, "OutOfBreath"
+  end
+  return leap(monster, aim)
+end
+
 return {
   Primary = lash,
-  Secondary = leap,
+  Secondary = staminaLeap,
   -- With the kill armed (abilities.lua), the squid leaps, or drops from the vent, at once to deliver it: both end in
   -- its head grab
   Ultimate = function(monster, aim)

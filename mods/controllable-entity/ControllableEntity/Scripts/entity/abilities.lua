@@ -35,7 +35,8 @@ end
 
 -- The ultimate arms the guaranteed kill, then the entity's own ultimate delivers it at once: armed first, so a grab
 -- the move starts right away already kills. A move that finds nobody stands the kill down again, unspent.
-local function ultimate(monster, aim, now, kitMoves)
+local function ultimate(entity, aim, now, kitMoves)
+  local monster = entity.monster
   -- Before arming, so the meter isn't spent on a kill the shuttle's approach won't allow
   if zones.isNearShuttle(monster:K2_GetActorLocation()) then
     return false, "ShuttleZone"
@@ -43,30 +44,36 @@ local function ultimate(monster, aim, now, kitMoves)
   if not meter:arm(now) then
     return false, "UltimateNotReady"
   end
-  local ok, reason = kitMoves.Ultimate(monster, aim, now)
+  local ok, reason = kitMoves.Ultimate(monster, aim, now, entity)
   if not ok then
     meter:standDown()
   end
   return ok, reason
 end
 
--- What each command does, given the entity's own moves. The four slots are the entity's (kits.slots); peeking is for
--- an entity that lives in the vents; the cries, which everyone near the entity hears, are a choice to give itself
--- away.
+-- What each command does, given the entity's own moves. The four slots are the entity's (kits.slots), each called with
+-- the monster, the aim, the time and the entity; peeking is for an entity that lives in the vents; the cries, which
+-- everyone near the entity hears, are a choice to give itself away.
+local function callSlot(slot)
+  return function(entity, aim, now, kitMoves)
+    return kitMoves[slot](entity.monster, aim, now, entity)
+  end
+end
+
 local moveByCommand = {
-  Primary = function(monster, aim, now, kitMoves) return kitMoves.Primary(monster, aim, now) end,
-  Secondary = function(monster, aim, now, kitMoves) return kitMoves.Secondary(monster, aim, now) end,
+  Primary = callSlot("Primary"),
+  Secondary = callSlot("Secondary"),
   Ultimate = ultimate,
-  Mobility = function(monster, aim, now, kitMoves) return kitMoves.Mobility(monster, aim, now) end,
-  Peek = function(monster, _, _, kitMoves)
+  Mobility = callSlot("Mobility"),
+  Peek = function(entity, _, _, kitMoves)
     if not kitMoves.Peek then
       return false, "NotInVent"
     end
-    return kitMoves.Peek(monster)
+    return kitMoves.Peek(entity.monster)
   end,
-  Roar = function(monster) return cries.play(monster, "Roar", true) end,
-  Curious = function(monster) return cries.play(monster, "Curious", true) end,
-  Call = function(monster) return cries.play(monster, "Call", true) end,
+  Roar = function(entity) return cries.play(entity.monster, "Roar", true) end,
+  Curious = function(entity) return cries.play(entity.monster, "Curious", true) end,
+  Call = function(entity) return cries.play(entity.monster, "Call", true) end,
 }
 
 -- The refusals the entity player isn't told about: a move that can't be made just yet (Mike's grab while he already
@@ -112,7 +119,7 @@ local function runCommand(command)
       return
     end
 
-    local ok, reason = moveByCommand[command](entity.monster, aim, now, moves.byKitId[entity.kit.id])
+    local ok, reason = moveByCommand[command](entity, aim, now, moves.byKitId[entity.kit.id])
     if not ok then
       if not silentReasons[reason] then
         links.sendEvent(controller, "Denied." .. reason)

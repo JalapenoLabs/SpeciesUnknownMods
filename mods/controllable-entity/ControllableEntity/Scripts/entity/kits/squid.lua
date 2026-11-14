@@ -29,10 +29,13 @@ local squid = {
   -- What the HUD's action stack shows for each of its moves (moves/squid.lua), the cooldown each starts, and whether
   -- the lair holds it back until the power is on: the leap, and the ultimate that leaps, would leave the ducts.
   moves = {
-    -- The lash lands on the crew member nearest the aim within this reach and cone.
-    Primary = { icon = "Lash", cooldown = 1.2, reach = 350, coneDegrees = 60 },
-    -- The game's own leap lands 300 to 500 units ahead; the entity always leaps this far along their aim.
-    Secondary = { icon = "Leap", cooldown = 6, heldByLair = true, distance = 450 },
+    -- The lash lands on the crew member nearest the aim within this reach and cone (playtest 9: at 1.2 s apart, the
+    -- squid stayed on top of a crew member spamming it).
+    Primary = { icon = "Lash", cooldown = 2, reach = 350, coneDegrees = 60 },
+    -- The game's own leap lands 300 to 500 units ahead; the entity always leaps this far along their aim. It costs this
+    -- share of the stamina and can't be made out of breath (playtest 9: it kept the entity up with a fleeing crew
+    -- member while nearly out of stamina).
+    Secondary = { icon = "Leap", cooldown = 6, heldByLair = true, distance = 450, staminaCost = 0.4 },
     Ultimate = { icon = "HeadGrab", cooldown = 6, heldByLair = true },
     Mobility = { icon = "Vent", cooldown = 1 },
   },

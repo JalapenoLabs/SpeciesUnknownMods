@@ -340,12 +340,26 @@ fake.runLoops(200)
 assert(lastEvent(crewController) == "Sprint.Tired", "a full sprint runs out of breath")
 assert(linkOf(crewController).Stamina == 0, "with the stamina on the entity's HUD spent")
 assert(squid.CharacterMovement.MaxWalkSpeed == 401, "and the squid slows to combat speed")
+-- Playtest 9: the leap kept the entity up with a fleeing crew member while nearly out of stamina. Out of breath, it
+-- can't leap; rested, a leap costs a share of the stamina
+local leapsBefore = #fake.callsTo(squid, "BPI_Monster_SetSpecialAttack")
+command(crewController, "Secondary", { X = 0, Y = 1, Z = 0 })
+assert(lastEvent(crewController) == "Denied.OutOfBreath", "no leap out of breath")
+assert(#fake.callsTo(squid, "BPI_Monster_SetSpecialAttack") == leapsBefore, "the squid stays put")
 fake.now = fake.now + config.movement.staminaRefillSeconds
 fake.runLoops(200)
 assert(lastEvent(crewController) == "Sprint.Rested", "catching its breath while Shift is still held")
 fake.now = fake.now + 0.2
 fake.runLoops(200)
 assert(squid.CharacterMovement.MaxWalkSpeed == 404, "then it sprints again")
+command(crewController, "SprintStop")
+fake.now = fake.now + config.movement.staminaRefillSeconds
+fake.runLoops(200)
+command(crewController, "Secondary", { X = 0, Y = 1, Z = 0 })
+assert(#fake.callsTo(squid, "BPI_Monster_SetSpecialAttack") == leapsBefore + 1, "rested, it leaps")
+fake.runLoops(200)
+assert(math.abs(linkOf(crewController).Stamina - (1 - kits.byId.Squid.moves.Secondary.staminaCost)) < 1e-9,
+  "for a share of its stamina")
 
 -- Regression (playtest 9): a dying squid lost its movement component a moment before the takeover noticed it was
 -- gone, and the host's speed tripped over it every tick. Its systems leave it be meanwhile

@@ -124,6 +124,7 @@ local messageByEvent = {
   ["Denied.CantShoot"] = "The gatling won't fire right now.",
   ["Denied.NoThrow"] = "No clear throw there.",
   ["Denied.TooClose"] = "Too close: the blast would hit your own gatling.",
+  ["Denied.OutOfBreath"] = "Out of breath: catch it before you leap.",
 }
 
 -- Everything the HUD knows comes from the host's events in the current world; a new world starts blank and the host

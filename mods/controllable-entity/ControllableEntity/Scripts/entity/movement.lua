@@ -68,6 +68,20 @@ function movement.tickHost(entity, now)
   movement.apply(entity.monster, sprinting)
 end
 
+-- A move that costs stamina (the squid's leap, playtest 9): refused while the entity is out of breath, and otherwise
+-- spends its share, leaving the entity out of breath if that empties it. Returns whether the move may go ahead.
+function movement.spendStamina(entity, share)
+  if host.isTired then
+    return false
+  end
+  host.stamina = math.max(0, host.stamina - share)
+  if host.stamina == 0 then
+    host.isTired = true
+    links.sendEvent(entity.controller, "Sprint.Tired")
+  end
+  return true
+end
+
 -- A new entity starts rested.
 function movement.resetHost()
   host = { wantsToSprint = false, isTired = false, stamina = 1, lastTickAt = nil }
