@@ -389,6 +389,40 @@ fake.runLoops(200)
 assert(math.abs(linkOf(crewController).Stamina - (1 - kits.byId.Squid.moves.Secondary.staminaCost)) < 1e-9,
   "for a share of its stamina")
 
+-- Playtest 9 (#14): the squid's last phase never told the crew. Back up after an eye breaks, the game sets it escaping:
+-- the entity flees at its top speed, Shift or not, for a while, and the crew are told once, on a hunt contract
+local monsterPath = "/Game/Blueprints/Monsters/BP_BaseMonster.BP_BaseMonster_C"
+local squidPath = kits.byId.Squid.classPath
+fake.loadClass(monsterPath)
+local contractBeforeFlight = gameState.Contract
+gameState.Contract = { ContractType_2_AD7B8E08435CF5A38556E7BA67C34760 = game.contractTypes.Elimination }
+fake.now = fake.now + 1
+fake.hooks[monsterPath .. ":BPI_Monster_SetEscaping"](fake.param(squid), fake.param(true), fake.param(true))
+assert(lastEvent(crewController) == "Fleeing", "the entity is told to run")
+assert(lastEvent(hostController) == "SpecimenFled", "the crew are told the specimen has fled")
+fake.runLoops(200)
+assert(squid.CharacterMovement.MaxWalkSpeed == 404 and linkOf(crewController).Stamina == 1,
+  "fleeing, it runs at its top speed with a full sprint, Shift or not")
+local fledTold = #fake.callsTo(linkOf(hostController), "EntityClientEvent")
+fake.hooks[monsterPath .. ":BPI_Monster_SetEscaping"](fake.param(squid), fake.param(true), fake.param(true))
+assert(#fake.callsTo(linkOf(hostController), "EntityClientEvent") == fledTold, "the crew are told once per monster")
+fake.now = fake.now + config.flee.seconds
+fake.runLoops(200)
+assert(lastEvent(crewController) == "FleeEnded", "the flight runs out")
+fake.runLoops(200)
+assert(squid.CharacterMovement.MaxWalkSpeed == 401, "back to its combat speed")
+-- The game's escape hangs on montages finishing on the host: an eye broken without one gets the game's ink get-up
+fake.loadClass(squidPath)
+fake.hooks[squidPath .. ":BreakEye (multi)"](fake.param(squid), fake.param(false))
+fake.runLoops(200)
+assert(#fake.callsTo(squid, "GetUpWithInk (multi)") == 0, "the game gets its own chance first")
+fake.now = fake.now + config.flee.escapeWaitSeconds
+fake.runLoops(200)
+assert(#fake.callsTo(squid, "GetUpWithInk (multi)") == 1, "then the host gets it up the game's way, into its escape")
+fake.runLoops(200)
+assert(#fake.callsTo(squid, "GetUpWithInk (multi)") == 1, "once")
+gameState.Contract = contractBeforeFlight
+
 -- Playtest 9 (#19, #9): a door's alarm reaches the entity across the map, on every difficulty, with the door, for as
 -- long as it sounds (each beat of it)
 local doorPath = "/Game/Blueprints/Polar/Doors/BP_BigDoor_POLAR.BP_BigDoor_POLAR_C"

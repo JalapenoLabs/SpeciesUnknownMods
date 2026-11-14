@@ -35,8 +35,9 @@ end
 -- Host: stamina
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
--- The entity's sprint on the host: whether they hold Shift, whether they're out of breath, and the stamina (0 to 1).
-local host = { wantsToSprint = false, isTired = false, stamina = 1, lastTickAt = nil }
+-- The entity's sprint on the host: whether they hold Shift, whether they're out of breath, the stamina (0 to 1), and
+-- whether it flees (flee.lua): then it runs at its top speed, Shift or not, its stamina full, as the AI escapes.
+local host = { wantsToSprint = false, isTired = false, stamina = 1, lastTickAt = nil, isFleeing = false }
 
 function movement.stamina()
   return host.stamina
@@ -49,6 +50,11 @@ function movement.tickHost(entity, now)
 
   -- No sprinting near the crew's shuttle (zones.lua), so they can get to it and away from it
   local isNearShuttle = zones.isNearShuttle(entity.monster:K2_GetActorLocation())
+  if host.isFleeing then
+    host.stamina, host.isTired = 1, false
+    movement.apply(entity.monster, not isNearShuttle)
+    return
+  end
   local sprinting = host.wantsToSprint and not host.isTired and not isNearShuttle
   if sprinting then
     host.stamina = math.max(0, host.stamina - elapsed / config.movement.sprintSeconds)
@@ -82,17 +88,25 @@ function movement.spendStamina(entity, share)
   return true
 end
 
+-- Fleeing (flee.lua): top speed and a full sprint while it lasts. The entity player's machine is told, for its own
+-- prediction.
+function movement.setFleeing(entity, isFleeing)
+  host.isFleeing = isFleeing
+  links.sendEvent(entity.controller, isFleeing and "Flee.Started" or "Flee.Ended")
+end
+
 -- A new entity starts rested.
 function movement.resetHost()
-  host = { wantsToSprint = false, isTired = false, stamina = 1, lastTickAt = nil }
+  host = { wantsToSprint = false, isTired = false, stamina = 1, lastTickAt = nil, isFleeing = false }
 end
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 -- Entity player: Shift
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 
--- The entity player's side: whether Shift was held at the last check, and whether the host says they're out of breath.
-local player = { holdsSprint = false, isTired = false }
+-- The entity player's side: whether Shift was held at the last check, and whether the host says they're out of breath
+-- or fleeing.
+local player = { holdsSprint = false, isTired = false, isFleeing = false }
 
 -- Crouches the monster in the ducts and stands it up outside them, on the entity player's own machine. A character
 -- another player drives crouches only when their machine says so: its moves carry the crouch to the host and override
@@ -122,7 +136,8 @@ function movement.followPlayer(controller, monster)
   -- The host applies the speed itself; a separate client applies the same speed for its own prediction
   if not game.isHost() then
     local isNearShuttle = zones.isNearShuttle(monster:K2_GetActorLocation())
-    movement.apply(monster, holdsSprint and not player.isTired and not isNearShuttle)
+    local sprinting = player.isFleeing or (holdsSprint and not player.isTired)
+    movement.apply(monster, sprinting and not isNearShuttle)
   end
 end
 
@@ -141,6 +156,12 @@ function movement.register(isEntityController)
 
   links.onClientEvent("Sprint.Tired", function() player.isTired = true end)
   links.onClientEvent("Sprint.Rested", function() player.isTired = false end)
+  links.onClientEvent("Flee.Started", function() player.isFleeing = true end)
+  links.onClientEvent("Flee.Ended", function() player.isFleeing = false end)
+  -- A new entity starts rested and not fleeing, whatever the last one was doing as it went
+  links.onClientEvent("BecameEntity", function()
+    player.isTired, player.isFleeing = false, false
+  end)
 end
 
 return movement

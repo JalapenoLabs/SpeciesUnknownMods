@@ -21,6 +21,7 @@
 
 local config = require("entity.config")
 local game = require("entity.game")
+local postprocess = require("entity.postprocess")
 
 local silhouettes = {}
 
@@ -29,14 +30,7 @@ local OUTLINE_MATERIALS = {
   "/Game/Materials/PostProcess_Outline.PostProcess_Outline",
   "/Game/Materials/PostProcess_Outline_Debug.PostProcess_Outline_Debug",
 }
-local POST_PROCESS_CLASS = "/Script/Engine.PostProcessComponent"
 local PRIMITIVE_CLASS = "/Script/Engine.PrimitiveComponent"
-local MATERIAL_LIBRARY = "/Script/Engine.Default__KismetMaterialLibrary"
-local IDENTITY_TRANSFORM = {
-  Rotation = { X = 0, Y = 0, Z = 0, W = 1 },
-  Translation = { X = 0, Y = 0, Z = 0 },
-  Scale3D = { X = 1, Y = 1, Z = 1 },
-}
 -- A part of the source that the game keeps hidden on this machine and that must show to be outlined, by kind: the
 -- engine's body (BP_Engine), hidden on every machine whose local player hasn't been near it.
 local hiddenBodyFieldByKind = {
@@ -45,7 +39,7 @@ local hiddenBodyFieldByKind = {
 -- Below this change in brightness, the outline's colour isn't written again.
 local BRIGHTNESS_STEP = 0.02
 
--- The outline on this machine: { monsterAddress, component, material, brightness }, or { failed = true } once it
+-- The outline on this machine: { monsterAddress, effect, material, brightness }, or { failed = true } once it
 -- couldn't be set up for this monster; nil before.
 local outline = nil
 -- What the outline shows, by actor address: { actor, kind, firstNewsAt, lastNewsAt }.
@@ -53,65 +47,26 @@ local shown = {}
 -- When the crew's custom depth is next brought back in line with what's shown.
 local nextCrewSweepAt = 0
 
--- Puts the outline material on the post-process component. AddOrUpdateBlendable takes it as an interface, which
--- UE4SS may not hand over from Lua; the settings' blendables can be written directly instead.
-local function attachMaterial(component, material)
-  local attached = pcall(function()
-    component:AddOrUpdateBlendable(material, 1.0)
-  end)
-  if attached then
-    return "AddOrUpdateBlendable"
-  end
-  attached = pcall(function()
-    component.Settings.WeightedBlendables = { Array = { { Weight = 1.0, Object = material } } }
-  end)
-  if attached then
-    return "its blendables"
-  end
-  return nil
-end
-
--- Gives the entity its outline, or marks it failed after saying why.
+-- Gives the entity its outline, or marks it failed (postprocess.lua says why).
 local function setUp(monster)
   local monsterAddress = monster:GetAddress()
   if outline and outline.monsterAddress == monsterAddress then
     return
   end
-  outline = { monsterAddress = monsterAddress, failed = true }
-
-  local parent = nil
-  for _, path in ipairs(OUTLINE_MATERIALS) do
-    parent = parent or game.loadGameAsset(path)
-  end
-  local componentClass = StaticFindObject(POST_PROCESS_CLASS)
-  if not parent or not componentClass or not componentClass:IsValid() then
-    game.log("No outline for the entity (its material or post-process class is missing); noises show as markers")
+  local effect = postprocess.add(monster, OUTLINE_MATERIALS, 1.0, "outline of what it hears")
+  if not effect then
+    outline = { monsterAddress = monsterAddress, failed = true }
+    game.log("Noises show as markers")
     return
   end
-  local component = monster:AddComponentByClass(componentClass, false, IDENTITY_TRANSFORM, false)
-  if not component or not component:IsValid() then
-    game.log("Could not give the entity a post-process for its outline; noises show as markers")
-    return
-  end
-  local material = StaticFindObject(MATERIAL_LIBRARY):CreateDynamicMaterialInstance(monster, parent, FName("None"), 0)
-  if not material or not material:IsValid() then
-    game.log("Could not make the entity's outline material; noises show as markers")
-    component:K2_DestroyComponent(component)
-    return
-  end
-  material:SetScalarParameterValue(FName("OutlineTickeness"), config.silhouettes.thickness)
-  material:SetVectorParameterValue(FName("Color"), { R = 0, G = 0, B = 0, A = 0 })
-  component.bUnbound = true
-  component.bEnabled = true
-  component.BlendWeight = 1.0
-  local how = attachMaterial(component, material)
-  if not how then
-    game.log("Could not put the outline on the entity's view; noises show as markers")
-    component:K2_DestroyComponent(component)
-    return
-  end
-  outline = { monsterAddress = monsterAddress, component = component, material = material, brightness = 0 }
-  game.log("The entity sees noises through walls (the outline went on through %s)", how)
+  effect.material:SetScalarParameterValue(FName("OutlineTickeness"), config.silhouettes.thickness)
+  effect.material:SetVectorParameterValue(FName("Color"), { R = 0, G = 0, B = 0, A = 0 })
+  outline = {
+    monsterAddress = monsterAddress,
+    effect = effect,
+    material = effect.material,
+    brightness = 0,
+  }
 end
 
 local function setCustomDepth(actor, isShown)
@@ -221,13 +176,13 @@ function silhouettes.forget()
     end
   end
   shown = {}
-  if outline and not outline.failed and outline.component:IsValid() then
+  if outline and not outline.failed then
     for _, crewMember in ipairs(FindAllOf(game.classNames.crewCharacter) or {}) do
       if crewMember:IsValid() and not crewMember:IsLocallyControlled() then
         setCustomDepth(crewMember, true)
       end
     end
-    outline.component:K2_DestroyComponent(outline.component)
+    postprocess.remove(outline.effect)
   end
   outline = nil
   nextCrewSweepAt = 0

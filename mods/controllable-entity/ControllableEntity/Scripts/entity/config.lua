@@ -67,6 +67,19 @@ return {
     crawlEntrySpeed = 50,
   },
 
+  -- The entity's flight (flee.lua): once the squid has an eye broken (Mike, a face) and is back up, it runs at its top
+  -- speed with a full sprint for this long, as the AI escapes. An eye broken without the game's escape this long after
+  -- gets the game's own ink get-up, which ends in it.
+  flee = {
+    seconds = 20,
+    escapeWaitSeconds = 12,
+  },
+
+  hud = {
+    -- How long a word in the huge red banner stays up (RUN, as the flight starts); it fades over its last second.
+    bannerSeconds = 3,
+  },
+
   -- Once a crew member holds the weapon that can kill the specimen (kill and capture contracts), the vents stop being
   -- a hiding place (hunt.lua).
   hunt = {

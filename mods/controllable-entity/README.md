@@ -199,6 +199,19 @@ engineering pipes (6, 5, 4 and 3 of each pipe's eight valves start on; the extra
 riddle's own gates) and Polar's raw materials (each printer's starting stock). A puzzle is only ever made easier: the
 game's numbers stop at four players. If the crew already has enough keycards in, the door opens as on the last card.
 
+### The flight
+
+Once the squid has an eye broken and is back up (Mike: after a face breaks), the game sets it escaping. The game's
+crew notice ("The specimen has fled, track it") comes with that, on kill and capture contracts, but only Hawking's
+level has it, and the escape's run needs the AI (playtest 9: on Polar the crew never heard). For the entity:
+
+- **The crew are told on every map**, once per monster: where the level has no notice of its own, each crew member's
+  machine shows the game's own, in the game's own words.
+- **The entity sees a huge red RUN**, with what the crew were told, and flees: its top speed and a full sprint for 20
+  seconds, Shift or not, and the vents open to it with its whole vent time.
+- The game's escape hangs on montages finishing on the host, so a squid whose eye broke without an escape 12 seconds
+  later gets the game's own ink get-up from the host, which ends in it.
+
 ### Losing
 
 If the crew kills or captures the entity, the entity player loses: no respawn, and their camera follows a crew member
@@ -421,6 +434,8 @@ create: network events and a widget layout.
   | `areas.lua` | entity player | The map sections, the minimap's deck and everything else that switches on near the local player, which the game only follows for crew; the maps' triggered level loads |
   | `minimap.lua` | entity player | The game's minimap in the corner, north up, centred on the entity |
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
+  | `flee.lua` | host, crew | The entity's flight: the RUN and its escape, and the crew's notice where the level has none |
+  | `postprocess.lua` | entity player | A screen effect of the entity's own: one of the game's post-process materials on an unbound component |
   | `puzzles.lua` | host | The crew's puzzles sized for the crew alone, once there is an entity |
   | `silhouettes.lua` | entity player | What the entity hears, outlined through walls; the crew kept out of the outline otherwise |
   | `objectives.lua` | entity player | The entity's objectives, in the crew's objectives overlay |
@@ -519,6 +534,7 @@ that finds nobody stands the kill down again, and the meter stays full.
 - `tests/capture_test.lua`: the entity killed off or aboard the shuttle in capture contracts.
 - `tests/voice_test.lua`: the entity's mic and radio click, and crew radio speech sent nearby too.
 - `tests/vision_test.lua`: the entity's light and the vent markers.
+- `tests/flee_test.lua`: the crew's notice of the flight where the level has none, and not twice where it does.
 - `tests/puzzles_test.lua`: the keycards, pipes and printers sized for the crew, each once, never harder.
 - `tests/silhouettes_test.lua`: the outline on the entity's machine, each kind of noise's flash or pulse, the crew
   kept out of it, the engine's hidden body, the markers where nothing can be shown, and both ways the outline goes on.

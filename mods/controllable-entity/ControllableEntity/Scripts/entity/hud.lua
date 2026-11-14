@@ -129,6 +129,13 @@ local messageByEvent = {
   ["Denied.TooClose"] = "Too close: the blast would hit your own gatling.",
   ["Denied.OutOfBreath"] = "Out of breath: catch it before you leap.",
   EnginesStarted = "They've started the engines.",
+  Fleeing = "They've broken you. Flee: the crew are told \"The specimen has fled, track it.\"",
+  FleeEnded = "Your burst of speed is spent.",
+}
+
+-- The words shown in huge red letters above the centre at the moments that matter most (BannerText), by event.
+local bannerByEvent = {
+  Fleeing = "RUN",
 }
 
 -- The sounds some events play on the entity player's machine alone: the engines spinning up as the crew start them.
@@ -161,6 +168,8 @@ local function freshState(worldKey)
     shown = nil,
     pings = {},
     nextPingSlot = 1,
+    -- The word above the centre and when it went up: { text, shownAt }, or nil.
+    banner = nil,
     widget = nil,
   }
 end
@@ -354,6 +363,21 @@ local function drawRespawns(widget)
   setText(widget.RespawnsText, string.format("Human respawns remaining: %d", respawnsLeft))
 end
 
+-- The banner shows in full, then fades out over its last second.
+local function drawBanner(widget, now)
+  local banner = state.banner
+  local age = banner and now - banner.shownAt or math.huge
+  if age >= config.hud.bannerSeconds then
+    if banner then
+      state.banner = nil
+      setText(widget.BannerText, "")
+    end
+    return
+  end
+  setText(widget.BannerText, banner.text)
+  widget.BannerText:SetRenderOpacity(math.min(1, config.hud.bannerSeconds - age))
+end
+
 -- Where a noise's marker goes, in widget units, and whether it is on the ring. A noise in view sits where it is, seen
 -- through walls; one behind the camera or off the screen sits on a ring around the centre, in its direction, like a
 -- hit indicator (straight ahead is up, behind is down).
@@ -473,6 +497,7 @@ local function render()
   end
   widget:SetVisibility(VISIBLE_NO_INPUT)
   setText(widget.StatusText, hasMessage and state.message or state.persistentStatus or "")
+  drawBanner(widget, now)
 
   local link = drivesMonster and links.own() or nil
   if not link then
@@ -606,6 +631,9 @@ function hud.register()
   for kind in pairs(messageByEvent) do
     eventKinds[kind] = true
   end
+  for kind in pairs(bannerByEvent) do
+    eventKinds[kind] = true
+  end
   for kind in pairs(stateChangeByEvent) do
     eventKinds[kind] = true
   end
@@ -620,6 +648,9 @@ function hud.register()
         changeState()
       end
       showMessage(kind)
+      if bannerByEvent[kind] and controller then
+        state.banner = { text = bannerByEvent[kind], shownAt = game.timeSeconds(controller) }
+      end
       local soundPath = soundByEvent[kind]
       local sound = soundPath and game.loadGameAsset(soundPath)
       if sound and controller then

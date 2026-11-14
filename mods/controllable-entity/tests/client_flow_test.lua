@@ -455,6 +455,17 @@ fake.runLoops(33)
 statusTexts = fake.callsTo(widget.StatusText, "SetText")
 assert(statusTexts[#statusTexts].args[1].text == "", "once the power is on, the hint goes")
 
+-- Playtest 9 (#14): as the flight starts, a huge red RUN, which fades out
+fake.customEvents.EntityClientEvent(fake.param(link), fake.param(fake.name("Fleeing")), fake.param(0))
+fake.runLoops(33)
+assert(lastArgument(widget.BannerText, "SetText").text == "RUN", "RUN across the screen")
+fake.now = fake.now + config.hud.bannerSeconds - 0.5
+fake.runLoops(33)
+assert(lastArgument(widget.BannerText, "SetRenderOpacity") == 0.5, "fading over its last second")
+fake.now = fake.now + 1
+fake.runLoops(33)
+assert(lastArgument(widget.BannerText, "SetText").text == "", "then gone")
+
 -- Losing the monster with Shoot held left the press counted as held, and the next mission swallowed the first press:
 -- not driving a monster, nothing is held
 shootHook(fake.param(controller), fake.param({ pressed = true }))

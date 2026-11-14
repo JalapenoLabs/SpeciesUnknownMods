@@ -119,6 +119,22 @@ local function begin()
     config.hunt.ventSeconds)
 end
 
+-- Gives the entity its whole vent time back and opens the vents to it again, once the hunt is on: on getting back up,
+-- and as it flees (flee.lua).
+function hunt.refill()
+  if not current then
+    return
+  end
+  current.ventSecondsLeft = config.hunt.ventSeconds
+  current.isShut = false
+  current.forcedOutAt = nil
+end
+
+-- Whether the crew holds the weapon that can kill the entity (the hunt is on).
+function hunt.isHunting()
+  return current ~= nil
+end
+
 -- Whether the vents are shut to the entity: its vent time ran out and hasn't refilled enough yet.
 function hunt.areVentsShut()
   return current ~= nil and current.isShut
@@ -151,9 +167,7 @@ function hunt.tick(entity, now)
   -- again: its chance to run, as the AI flees once it's up (the squid's get-up sets it escaping; playtest 9)
   local isDown = monster[entity.kit.healthFields.downed] == true
   if current.wasDown and not isDown then
-    current.ventSecondsLeft = config.hunt.ventSeconds
-    current.isShut = false
-    current.forcedOutAt = nil
+    hunt.refill()
     links.sendEvent(entity.controller, "BackUp")
     game.log("The entity is back up: its vent time is full again")
   end

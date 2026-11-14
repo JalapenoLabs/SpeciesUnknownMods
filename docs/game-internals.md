@@ -153,7 +153,16 @@ Read from the Blueprint bytecode; the mods that rely on each fact link back here
   second by `BP_MyGameState.OnsetVOIPInit_Scotch`, so lasting changes belong on the host's talker.
 - **The squid has two health pools** (`BP_Monster_Poulpi`; neither replicates). Hits drain `HealthTemporal`, its
   stagger pool; at zero the squid falls to the ground (`IsOnGround`) and `MaxHealthTemporal` grows by 10%. Only while
-  it is down and burning (`HeatValue` above 0.15) do hits drain `Health`; at zero it breaks its eye and head and dies.
+  it is down and burning (`HeatValue` above 0.15) do hits drain `Health`. The first time it reaches zero the squid's left
+  eye breaks (`BreakEye (multi)`, unhurtable meanwhile, `Health` refilled); once the cut-eye montage completes, the host
+  plays the ink get-up (`GetUpWithInk (multi)`), and as that blends out, `BPI_Monster_SetEscaping(true, true)`: the
+  flight. The second time, the head breaks and it dies. Only ever one eye. `SetEscaping` calls `SetStayFar(true)`,
+  which calls `LaunchFleeTuto` (once per monster, on kill and capture contracts, not during the self destruct):
+  `LaunchFleeTuto(Multi)` makes every machine's `BP_Tuto_Notify_MonsterFlee` show the crew "The specimen has fled,
+  track it" (`ST_Tooltip.TutoMonsterFleeText1`/`2`) through `BPI_Player_SendNotifyHUD`. Only Hawking's level places
+  that actor. The escape's run itself needs the AI (`SwitchBehavior` stops before its behaviour tree without one).
+  Mike flees the same way after each face break; the Terminator never does. The stagger pool refills by itself, a
+  literal 0.1 every host frame (`TickChildServerFonction`).
   `Health` regenerates while it isn't heated, and `HealthTemporal` refills a little every tick.
 - **The squid's basic attack** always plays `Poulpi_Attack_Small1_Montage` (`GetAttackSimpleAnim`), through the
   `AttackSimpleAnim (Clients)` multicast. Its damage is the montage's notify, a sphere check in front of the monster
