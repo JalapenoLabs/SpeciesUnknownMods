@@ -194,13 +194,50 @@ assert(lastEvent(chosen) == "BecameEntity", "and only they are told")
 
 squid.destroyed = true
 gameState.destroyed = true
-fake.object("BP_MyGameState_C", { ["In Game Player State "] = fake.array({}) }, nil, { "GameStateBase" })
+gameState = fake.object("BP_MyGameState_C", { ["In Game Player State "] = fake.array({}) }, nil, { "GameStateBase" })
 lobbyGameMode = fake.object("BP_LobbyGameMode_C")
 fake.runLoops(1000)
 assert(lastEvent(chosen) ~= "Lost", "the mission ending is not a loss")
 
 command(crewController, "Volunteer")
 assert(lastEvent(crewController) == "Volunteered", "the random pick doesn't hold the entity slot into the next mission")
+command(crewController, "Volunteer")
+assert(lastEvent(crewController) == "Unvolunteered")
+
+-- Plays a mission, whose squid goes to whoever is to be the entity, then travels back to the lobby. Returns who took
+-- the squid.
+local function playMission()
+  lobbyGameMode.destroyed = true
+  gameState.destroyed = true
+  gameState = fake.object("BP_MyGameState_C", { ["In Game Player State "] = fake.array({ hostState, crewState }) },
+    nil, { "GameStateBase" })
+  for _, player in ipairs({ hostController, crewController }) do
+    player.Pawn = fake.object("BP_Character_C", { CharacterMovement = fake.object("CharacterMovementComponent") })
+  end
+  local missionSquid = fake.object("BP_Monster_Poulpi_C", { Controller = fake.invalid() }, {
+    BPI_Monster_GetSpeedByType = function(_, _, out) out.Speed = 400 end,
+    K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
+  })
+  fake.giveSquidState(missionSquid)
+  gameManager.Monster = missionSquid
+  fake.runLoops(1000)
+  local takenBy = missionSquid.Controller
+
+  missionSquid.destroyed = true
+  gameState.destroyed = true
+  gameState = fake.object("BP_MyGameState_C", { ["In Game Player State "] = fake.array({}) }, nil, { "GameStateBase" })
+  lobbyGameMode = fake.object("BP_LobbyGameMode_C")
+  fake.runLoops(1000)
+  return takenBy
+end
+
+-- A volunteer is the entity for one mission: back in the lobby nobody is signed up, and they press F8 again to
+-- volunteer for the next (playtest 9)
+command(crewController, "Volunteer")
+assert(playMission() == crewController, "the volunteer takes the mission's squid")
+assert(lastEvent(crewController) == "BecameEntity", "and back in the lobby, isn't told they're still signed up")
+command(crewController, "Volunteer")
+assert(lastEvent(crewController) == "Volunteered", "F8 signs them up afresh, rather than backing out")
 command(crewController, "Volunteer")
 assert(lastEvent(crewController) == "Unvolunteered")
 
@@ -213,6 +250,11 @@ takeover.choosePlayer("lobby:0")
 assert(lastEvent(crewController) == "Unvolunteered", "a player the host stops picking goes back to the crew")
 assert(lastEvent(hostController) == "PickedByHost")
 takeover.choosePlayer("lobby:1")
+
+-- The host's pick is a setting: it holds mission after mission
+assert(playMission() == crewController, "the host's pick takes the mission's squid")
+assert(takeover.choice.player == "lobby:1", "and is still the host's pick back in the lobby")
+assert(playMission() == crewController, "and takes the next mission's squid too")
 
 -- A picked player who leaves leaves the pick to chance again, and the host is told
 

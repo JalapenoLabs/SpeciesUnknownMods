@@ -4,7 +4,8 @@
 -- the lobby, forcing the chosen entity's monster as the mission's specimen, taking control of it when it spawns,
 -- keeping the entity player out of the crew, and noticing when they lose.
 --
--- Lua state outlives map travel, so the volunteer is remembered from the lobby into the mission and back.
+-- Lua state outlives map travel, so the volunteer is remembered from the lobby into the mission; back in the lobby,
+-- they're signed up no more, while the host's own choices hold for the session.
 
 local game = require("entity.game")
 local kits = require("entity.kits")
@@ -27,8 +28,11 @@ local warnedUnfitPick = false
 -- unlike the controller and player state objects, which are rebuilt on every map): a volunteer, or the player picked
 -- at random this mission. The host's own pick of a player comes first (pickedController).
 local volunteerKey = nil
--- True when volunteerKey came from the random pick, which lasts one mission; a volunteer stays until they back out.
+-- True when volunteerKey came from the random pick rather than F8, which the random player can't back out of.
 local chosenAtRandom = false
+-- Whether a mission has been played since the lobby was last seen: back in the lobby, whoever was signed up for it
+-- is signed up no more.
+local hasPlayedMission = false
 -- The entity in the current world: { key, controller, monster, kit, playerState, parkedBody, worldKey }, or nil.
 local activeEntity = nil
 -- The world the volunteer was last told their status in, so each new world tells them once.
@@ -560,15 +564,20 @@ function takeover.reconcile()
     return
   end
 
-  -- A random pick lasts one mission; back in the lobby, the next mission picks again, and Random rolls its entity
-  -- again
-  if chosenAtRandom and not game.isMission() then
-    forgetVolunteer()
-  end
+  -- Random rolls its entity again for every mission
   if game.isMission() then
     rolledKit = nil
+    hasPlayedMission = true
   end
   if game.isLobby() then
+    -- Back from a mission, nobody is signed up any more: a volunteer or a random pick lasts one mission, and someone
+    -- presses F8 again to volunteer for the next (playtest 9: a volunteer stayed the entity mission after mission).
+    -- The host's own pick of a player is a setting, and holds
+    if hasPlayedMission and volunteerKey then
+      game.log("%s is no longer the entity (the mission is over)", volunteerKey)
+      forgetVolunteer()
+    end
+    hasPlayedMission = false
     -- A player the host picked who has left the session leaves the choice to chance again, and the host is told
     if takeover.choice.player ~= "Random" and not pickedController() then
       game.log("%s, whom the host picked, has left; the entity's player is random again", takeover.choice.player)

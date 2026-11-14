@@ -32,7 +32,9 @@ kills, and around sound instead of wallhacks.
   the cursor shows. Anyone else's F9 tells them the host picks; the host's F9 outside the lobby says to pick there.
 - **Volunteering:** with the player on Random, a player presses F8 in the lobby to be the entity next mission (F8
   again backs out). The choice is private: only that player sees it; the host is told over the network. There is one
-  entity per mission, and the host's pick of a player comes before a volunteer.
+  entity per mission, and the host's pick of a player comes before a volunteer. A volunteer is signed up for one
+  mission: back in the lobby nobody is, and someone presses F8 again for the next. The host's pick of a player holds
+  for the session.
 - **Random pick:** with no pick and no volunteer, in co-op a random player becomes the entity when its monster
   appears. The pick lasts one mission and stays private. Playing alone there is no random pick, only a volunteer or
   the host's pick.
@@ -763,8 +765,11 @@ one friend.
    monster is the game's own and nobody becomes it. With a friend: their F9 shows "The host picks the entity"; pick
    them and only they see "The host picked you"; when a picked friend leaves, the host sees "The player you picked
    left". If a tile can't be clicked, the cursor is missing, or a portrait is blank, send the log.
-9. **The random pick.** In co-op, with nobody volunteering, start a contract: the squid is the specimen, and when it
-   appears one random player becomes it (only they are told). The next mission picks again.
+9. **The random pick, and one mission each.** In co-op, with nobody volunteering, start a contract: the squid is the
+   specimen, and when it appears one random player becomes it (only they are told). The next mission picks again.
+   Then have a friend press F8 and play a mission as the entity: back in the lobby they have no "You'll be the entity"
+   line, and the next mission's entity is random again unless someone presses F8. Pick a friend with F9 instead: they
+   stay the entity mission after mission.
 10. **The lash and the leap.** Shoot next to a crew member: a lash, and its bar fills in the stack. Aim: a leap where
    you look; a grab on landing breaks off with "Your hunger isn't ready". Have the crew shoot the squid: the health
    bar drains, and when the squid is knocked down it turns red and shows the real health.
