@@ -188,8 +188,10 @@ entity could keep away from the shuttle for good, so with an entity:
 
 ### Losing
 
-If the crew kills the entity, the entity player loses: no respawn, and their camera follows a crew member for the
-rest of the mission. Losing to capture is still to be confirmed (see [Open questions](#open-questions)).
+If the crew kills or captures the entity, the entity player loses: no respawn, and their camera follows a crew member
+for the rest of the mission. Their turn as the entity is over for that mission: any monster the game spawns afterwards
+(the game replaces a captured specimen with a fresh one) stays the game's own AI. A hot reload of the mod mid-mission
+forgets the loss.
 
 ### No wallhacks, only sound
 
@@ -702,9 +704,7 @@ makes the next mission spawn the entity's monster, through the game's own spawn 
 ## Open questions
 
 - Partial frenzy (kill and capture contracts): it currently fills the meter faster; is that enough?
-- Whether the score screen should show the entity player as something other than a dead crew member.
 - Destruction contracts on the Polar map: no engine path was found there; `LightStatut == 2` is the fallback trigger.
-- Capture: losing on death is handled; whether a captured squid also counts as a loss is untested.
 - To confirm live with UE4SS: the AI hearing range (4000), weapon `HearingLoudness`/`HearingRange`, the special
   guns' `IsUnique` flag, and whether the host's own gunshots make noise.
 - Balance against a human entity (playtest 6), each awaiting a decision: camping in the vents once the crew holds the
@@ -806,6 +806,8 @@ one friend.
     hook error in the log on the first radio press names the voice call that needs fixing.
 22. **Capture (with a friend, capture contract).** Kill the squid away from the shuttle: the contract completes as
     captured. Kill it aboard: the contract fails, as normal. Check the lobby's specimen display after the first.
+    Capture it in the shuttle's cell: the game spawns a fresh specimen, which stays the game's AI for the rest of the
+    mission (the host's log: `any monster the game spawns stays its AI`), and the entity's player never becomes it.
 23. **Mike (alone, then with a friend).** In the picker, pick Mike and yourself, and start a contract: the specimen
     is Mike, the host's log shows `took control of the monster: Mike`, and you start in the ducts. The stack shows his
     icons: claw marks, a sidestep arrow, jaws, then the vent. Alone: Space and Crouch work as the squid's; Shoot with

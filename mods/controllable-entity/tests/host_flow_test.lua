@@ -378,6 +378,22 @@ local unmuted = fake.param(false)
 fake.hooks[talkerPath .. "SetMutedOnVoiceChannel"](fake.param(entityTalker), unmuted, fake.param(0))
 assert(unmuted:get() == false, "and the game's own mute settings are theirs again")
 
+-- Playtest 9: the game's capture flow replaces a captured specimen with a fresh one, which went straight back to the
+-- same player. Once the entity has lost, its player is out for the rest of the mission: a monster the game spawns
+-- afterwards stays the game's own AI
+local freshAi = fake.object("BP_Basic_AI_Controller_C", nil, { IsPlayerController = function() return false end })
+local freshSquid = fake.object("BP_Monster_Poulpi_C", { Controller = freshAi, InVent = false }, {
+  K2_GetActorLocation = function() return { X = 0, Y = 0, Z = 0 } end,
+  BPI_Monster_GetSpeedByType = function(_, speedType, out) out.Speed = 400 + speedType end,
+})
+fake.giveSquidState(freshSquid)
+FindFirstOf("BP_GameManager_C").Monster = freshSquid
+fake.runLoops()
+fake.runLoops()
+assert(freshSquid.Controller == freshAi, "a specimen the game spawns after the loss keeps its AI")
+assert(lastEvent(crewController) == "Lost", "and the lost player doesn't become it")
+freshSquid.destroyed = true
+
 -- Regression (playtest 9): a hot reload of the mod forgot the links but left them in the world, and the host spawned a
 -- second one per player. It wrote the HUD's values to the new link while the entity's machine read the old one, whose
 -- stamina and vent-time bars stayed frozen. After a reload, the links already in the world are taken back

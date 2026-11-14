@@ -37,6 +37,10 @@ local hasPlayedMission = false
 local activeEntity = nil
 -- The world the volunteer was last told their status in, so each new world tells them once.
 local announcedWorldKey = nil
+-- The world whose entity was killed or captured: its player's turn as the entity is over for that mission, so any
+-- monster the game spawns there afterwards stays the game's AI (playtest 9: the game's capture flow replaces the
+-- captured specimen with a fresh one, which went straight back to the same player). A hot reload of the mod forgets it.
+local lostWorldKey = nil
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////////////////// --
 -- Identity
@@ -510,6 +514,8 @@ end
 local function noticeLoss()
   local entity = activeEntity
   activeEntity = nil
+  lostWorldKey = entity.worldKey
+  game.log("The entity's player is out for the rest of this mission; any monster the game spawns stays its AI")
   -- What the entity left running stops with it (the Terminator's gatling: nothing in the game stops a firing gun)
   if entity.monster:IsValid() then
     runKitStep(entity, "finish")
@@ -603,7 +609,7 @@ function takeover.reconcile()
     return
   end
 
-  if takeover.choice.entity == "AiOnly" then
+  if takeover.choice.entity == "AiOnly" or lostWorldKey == worldKey then
     return
   end
 
