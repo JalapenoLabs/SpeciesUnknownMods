@@ -26,6 +26,12 @@ local squid = {
     downed = "IsOnGround",
   },
 
+  -- The stagger pool refills a little every host frame on its own (BP_Monster_Poulpi.TickChildServerFonction adds 0.1 a
+  -- frame), the game's tuning for its AI: a player's squid healed too fast to fight (playtest 9). This share of that
+  -- refill is kept. A rise of more than maxNaturalRise between two of the host's checks (a thirtieth of a second) is
+  -- one of the game's full refills (getting up, and after an eye breaks), which stay as they are.
+  staggerRefill = { keptShare = 0.5, maxNaturalRise = 2 },
+
   -- What the HUD's action stack shows for each of its moves (moves/squid.lua), the cooldown each starts, and whether
   -- the lair holds it back until the power is on: the leap, and the ultimate that leaps, would leave the ducts.
   moves = {
@@ -59,6 +65,15 @@ local squid = {
     functionName = "GrabHeadPlayer",
     breakMontage = "/Game/Blueprints/Monsters/Poulpi/Anim/Hit/"
       .. "Poulpi_Hit_DuringGrab_Front_Montage.Poulpi_Hit_DuringGrab_Front_Montage",
+    -- A grab broken off lands as a lash would (playtest 9: the leap bounced off a crew member for nothing): the lash's
+    -- own sphere attack (Poulpi_Attack_Small1_Montage's AnimNotify_BasicSphereAttack), at the squid's face, where it
+    -- holds the crew member's head.
+    brokenGrabHit = {
+      radius = 60,
+      forwardOffset = 50,
+      damage = 18,
+      damageType = "/Game/Blueprints/DamageType/DamageType_Punch.DamageType_Punch_C",
+    },
   },
 }
 

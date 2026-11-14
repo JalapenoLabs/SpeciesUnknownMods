@@ -296,7 +296,7 @@ gets a mod key of its own.
 |-------|---------------|
 | Move, Look (`IA_Move`, `IA_Look`) | Move and look |
 | Shoot (`IA_Shoot`) | The basic attack on the nearest crew member ahead, never lethal unless the kill is ready; with nobody in reach the entity swings at the air. The squid lashes; Mike swipes, and his swipe at a crouched crew member is his grab. The Terminator fires its gatling while Shoot is held, and punches once the crew has broken the gun |
-| Aim (`IA_ADS`) | The squid leaps where you look (a grab on landing is broken off unless the kill is ready); Mike dodges aside, the way you are moving across your view (right when you aren't), never in the vents. The Terminator lobs a grenade at the crew member along your aim, or 10 m ahead, never nearer than 4.5 m |
+| Aim (`IA_ADS`) | The squid leaps where you look, for 40% of its stamina and never out of breath (landing on a crew member hits them as a lash would, and the grab breaks off unless the kill is ready); Mike dodges aside, the way you are moving across your view (right when you aren't), never in the vents. The Terminator lobs a grenade at the crew member along your aim, or 10 m ahead, never nearer than 4.5 m |
 | Interact (`IA_Interact`, E) | Ultimate: with a full meter, the grab kills. The squid leaps (or drops) to deliver it; Mike grabs the crew member just ahead at once; the Terminator reaches for the crew member within 3 m of your aim with its arm grab |
 | Crouch (`IA_Crouch`) | Peek down through the grate while in a vent |
 | Objectives (`IA_ViewPseudo`, Tab, held) | Show the entity's objectives, in the crew's own overlay |
@@ -551,7 +551,16 @@ damage, sphere checks and the kill only run where `IsServer` is true.
 - **The head grab kills outright.** `AnimNotify_Decapitation` in the grab montages calls `Decapitation`, which
   calls the player's `BPI_Human_CustomDeath`. A shield turns it into 150 damage and a failed attack instead.
 - **The grab can be interrupted.** Enough damage to the squid triggers `KnockBack`, which calls `StopGrabPlayer`.
-- **The leap itself does no damage.** It only grabs on contact; a shield takes 25 damage and fails the leap.
+- **The leap itself does no damage.** It only grabs on contact; a shield takes 25 damage and fails the leap. For the
+  entity, a grab broken off (the kill not ready) lands a lash's hit first, through the squid's own sphere attack
+  (`BPI_BasicMonster_BasicSphereAttackDamage`, forced past its attacking gate): the game's 18 damage times the
+  difficulty, its reaction, and the meter's charge (playtest 9: the leap bounced off a crew member for nothing).
+- **The stagger pool refills by itself**, 0.1 every host frame (`TickChildServerFonction`), the game's tuning for its
+  AI. For the entity, half of that refill is taken back (playtest 9: it healed too fast to fight); the full refills,
+  on getting up and after an eye breaks, stay whole.
+- **The leap is swept.** Its movement is the montage's warped root motion, which the character movement sweeps, so
+  walls and closed doors stop it; it can still land on forbidden or dangerous floor, where the zones put the entity
+  back.
 - **Vents are navmesh.** Entering switches the squid to flying for the jump and makes it invulnerable while it plays.
   Inside, `SetInVent` crouches it automatically, and it walks crouched along the ducts. There are no splines.
 - **For the kill meter:** the head grab is the squid's only instant kill, so the meter gates it (see
@@ -810,9 +819,12 @@ one friend.
    Then have a friend press F8 and play a mission as the entity: back in the lobby they have no "You'll be the entity"
    line, and the next mission's entity is random again unless someone presses F8. Pick a friend with F9 instead: they
    stay the entity mission after mission.
-10. **The lash and the leap.** Shoot next to a crew member: a lash, and its bar fills in the stack. Aim: a leap where
-   you look; a grab on landing breaks off with "Your hunger isn't ready". Have the crew shoot the squid: the health
-   bar drains, and when the squid is knocked down it turns red and shows the real health.
+10. **The lash and the leap.** Shoot next to a crew member: a lash, and its bar fills in the stack; it's ready again
+   after 2 seconds. Aim: a leap where you look, which uses 40% of the stamina bar; landing on a crew member hurts them
+   like a lash (their health drops, the ultimate's bar fills a tenth) and the grab breaks off with "Your hunger isn't
+   ready". Sprint until out of breath, then Aim: "Out of breath". Have the crew shoot the squid: the health bar
+   drains, more slowly refilling than before, and when the squid is knocked down it turns red and shows the real
+   health.
 11. **The kill.** Lash a crew member a few times: each hit that lands fills the ultimate's bar by a tenth, and a
    shield-blocked hit doesn't. Once it fills and disappears (3 minutes alone, faster near noise and with hits), press
    E facing a crew member: the leap's grab kills. The bar comes back empty.

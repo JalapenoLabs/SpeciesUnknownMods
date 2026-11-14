@@ -23,6 +23,7 @@ fake.objects[game.paths.gameplayStatics] = fake.object("GameplayStatics", nil, {
 })
 fake.installModPak(game.modAssets)
 fake.objects[kits.byId.Squid.killGrab.breakMontage] = fake.object("AnimMontage")
+fake.objects[kits.byId.Squid.killGrab.brokenGrabHit.damageType] = fake.object("DamageType_Punch_C")
 
 local gameInstance = fake.object("BP_MyGameInstance_C", { spawnForceSessionMonster = 0, Contract = {} })
 
@@ -219,6 +220,21 @@ fake.runFrames()
 local knockbacks = fake.callsTo(squid, "KnockBack (Clients)")
 assert(#knockbacks == 1 and knockbacks[1].args[1] == fake.objects[kits.byId.Squid.killGrab.breakMontage],
   "an unarmed grab is broken off with the grab-interrupted knockback")
+-- Playtest 9: the leap bounced off a crew member for nothing. A broken grab lands as a lash would, through the squid's
+-- own sphere attack, before the knockback
+local sphereAttacks = fake.callsTo(squid, "BPI_BasicMonster_BasicSphereAttackDamage")
+assert(#sphereAttacks == 1 and sphereAttacks[1].args[4] == kits.byId.Squid.killGrab.brokenGrabHit.damage
+  and sphereAttacks[1].args[5] == fake.objects[kits.byId.Squid.killGrab.brokenGrabHit.damageType]
+  and sphereAttacks[1].args[6] == true, "the broken grab lands a lash's hit, forced past the attack's own gate")
+local hitBeforeKnockback = false
+for _, call in ipairs(fake.calls) do
+  if call.object == squid and call.method == "KnockBack (Clients)" then
+    break
+  end
+  hitBeforeKnockback = hitBeforeKnockback
+    or (call.object == squid and call.method == "BPI_BasicMonster_BasicSphereAttackDamage")
+end
+assert(hitBeforeKnockback, "while it still holds them")
 
 -- Playtest 9: the meter filled far too fast on time alone. A hit the entity lands on a crew member charges it, once
 -- per crew member a second however many times one swing hits; another monster's hit doesn't
@@ -326,6 +342,16 @@ fake.now = 63.5
 fake.runLoops(33)
 assert(#fake.callsTo(squid, "GetUp (Multi)") == 1, "a squid stuck down is got up")
 assert(squid.HealthTemporal == squid.MaxHealthTemporal, "with its stagger pool refilled, as the game's own get-up does")
+-- Playtest 9: the squid healed too fast to fight. Its stagger pool's own refill, a little every host frame, is halved;
+-- the game's full refills stay whole
+squid.IsOnGround, squid.HealthTemporal = false, 30
+fake.runLoops(33)
+squid.HealthTemporal = 31
+fake.runLoops(33)
+assert(squid.HealthTemporal == 30.5, "half of the pool's own refill is taken back")
+squid.HealthTemporal = squid.MaxHealthTemporal
+fake.runLoops(33)
+assert(squid.HealthTemporal == squid.MaxHealthTemporal, "a full refill stays whole")
 squid.IsOnGround = false
 assert(linkOf(crewController).Stamina == 1, "and the stamina, full before any sprint")
 

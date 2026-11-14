@@ -155,10 +155,18 @@ local function onGrabStarted(context)
     return
   end
 
-  -- One frame later, once the grab's own multicast has finished, so the knockback replaces it cleanly
+  -- One frame later, once the grab's own multicast has finished, so the knockback replaces it cleanly. A kit whose
+  -- broken grab still lands (the squid's leap, playtest 9) hits first, through the monster's own sphere attack: the
+  -- game's damage, sound and reaction, and the meter's charge through the crew member's HitDamageFromMonster
+  local hit = entity.kit.killGrab.brokenGrabHit
   ExecuteInGameThreadAfterFrames(1, function()
     if not monster:IsValid() then
       return
+    end
+    local damageType = hit and game.loadGameAsset(hit.damageType)
+    if damageType then
+      monster:BPI_BasicMonster_BasicSphereAttackDamage(hit.radius, hit.forwardOffset, true, hit.damage, damageType,
+        true)
     end
     local montage = StaticFindObject(entity.kit.killGrab.breakMontage)
     monster["KnockBack (Clients)"](monster, montage, 1.0)

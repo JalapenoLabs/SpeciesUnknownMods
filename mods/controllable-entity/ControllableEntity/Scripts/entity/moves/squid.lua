@@ -19,6 +19,8 @@ local STUCK_DOWN_SECONDS = 3
 
 -- When the squid began lying down, unburnt, with nothing playing; nil while it isn't.
 local stuckDownSince = nil
+-- The stagger pool at the last tick, for the squid it was read on: { monsterAddress, value }.
+local staggerSeen = { monsterAddress = nil, value = nil }
 
 -- The game gets a downed squid up once (BP_Monster_Poulpi's get-up check: GetUp, a refilled stagger pool). A montage
 -- that interrupts that get-up leaves the squid down for good on the host, lying there and dragged along while its
@@ -43,6 +45,18 @@ local function getUpIfStuck(entity)
   monster.HealthTemporal = monster.MaxHealthTemporal
   monster.ShouldFallOnGround = false
   game.log("The squid lay down with its get-up cut short; getting it up")
+end
+
+-- Takes back part of the stagger pool's own refill since the last tick (the kit's staggerRefill).
+local function slowStaggerRefill(monster)
+  local stagger = monster.HealthTemporal
+  local previous = staggerSeen.monsterAddress == monster:GetAddress() and staggerSeen.value or nil
+  local rise = previous and stagger - previous or 0
+  if rise > 0 and rise <= kit.staggerRefill.maxNaturalRise then
+    stagger = previous + rise * kit.staggerRefill.keptShare
+    monster.HealthTemporal = stagger
+  end
+  staggerSeen = { monsterAddress = monster:GetAddress(), value = stagger }
 end
 
 -- With a crew member in reach, the AI's own attack on them. With nobody, the swing at the air: its damage comes from
@@ -97,5 +111,8 @@ return {
   end,
   Mobility = ducts.vent,
   Peek = ducts.peek,
-  tick = getUpIfStuck,
+  tick = function(entity)
+    getUpIfStuck(entity)
+    slowStaggerRefill(entity.monster)
+  end,
 }
