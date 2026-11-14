@@ -190,6 +190,15 @@ entity could keep away from the shuttle for good, so with an entity:
   in, the radio winning when both are (see
   [docs/game-internals.md](../../docs/game-internals.md#gameplay-state-worth-knowing)).
 
+### The crew's puzzles are sized for the crew
+
+The game sizes its puzzles by the session's players, the entity player among them (playtest 9: a lone crew member
+needed six keycards, where a crew of one needs four). Once there is an entity, the host sizes each for one player fewer,
+with the game's own numbers, whoever the entity is: Hawking's keycards (4, 6, 7 and 8 for one to four players), its
+engineering pipes (6, 5, 4 and 3 of each pipe's eight valves start on; the extra ones are switched on through the
+riddle's own gates) and Polar's raw materials (each printer's starting stock). A puzzle is only ever made easier: the
+game's numbers stop at four players. If the crew already has enough keycards in, the door opens as on the last card.
+
 ### Losing
 
 If the crew kills or captures the entity, the entity player loses: no respawn, and their camera follows a crew member
@@ -412,6 +421,7 @@ create: network events and a widget layout.
   | `areas.lua` | entity player | The map sections, the minimap's deck and everything else that switches on near the local player, which the game only follows for crew; the maps' triggered level loads |
   | `minimap.lua` | entity player | The game's minimap in the corner, north up, centred on the entity |
   | `hud.lua` | entity player | The HUD, and hiding the crew HUD |
+  | `puzzles.lua` | host | The crew's puzzles sized for the crew alone, once there is an entity |
   | `silhouettes.lua` | entity player | What the entity hears, outlined through walls; the crew kept out of the outline otherwise |
   | `objectives.lua` | entity player | The entity's objectives, in the crew's objectives overlay |
   | `voice.lua` | both | The entity's silence, and the crew's radio heard by the entity only nearby |
@@ -509,6 +519,7 @@ that finds nobody stands the kill down again, and the meter stays full.
 - `tests/capture_test.lua`: the entity killed off or aboard the shuttle in capture contracts.
 - `tests/voice_test.lua`: the entity's mic and radio click, and crew radio speech sent nearby too.
 - `tests/vision_test.lua`: the entity's light and the vent markers.
+- `tests/puzzles_test.lua`: the keycards, pipes and printers sized for the crew, each once, never harder.
 - `tests/silhouettes_test.lua`: the outline on the entity's machine, each kind of noise's flash or pulse, the crew
   kept out of it, the engine's hidden body, the markers where nothing can be shown, and both ways the outline goes on.
 - `tests/areas_test.lua`: the map sections, the minimap's deck and the audit's local-player switches around the

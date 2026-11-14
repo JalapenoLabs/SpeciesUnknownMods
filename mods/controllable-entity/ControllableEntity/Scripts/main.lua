@@ -20,6 +20,7 @@ local lair = require("entity.lair")
 local links = require("entity.links")
 local movement = require("entity.movement")
 local picker = require("entity.picker")
+local puzzles = require("entity.puzzles")
 local senses = require("entity.senses")
 local takeover = require("entity.takeover")
 local unstuck = require("entity.unstuck")
@@ -42,7 +43,7 @@ hud.register()
 picker.register()
 game.hookLoadedClasses()
 
--- Host loops: links and the takeover reconcile once a second; the entity's speed, the meter and the lair's leash run
+-- Host loops: links, the takeover and the puzzles' sizes reconcile once a second; the entity's speed, the meter and the lair's leash run
 -- five times a second.
 LoopInGameThreadWithDelay(1000, function()
   if not game.isHost() then
@@ -50,6 +51,7 @@ LoopInGameThreadWithDelay(1000, function()
   end
   links.reconcile()
   takeover.reconcile()
+  puzzles.tickHost(takeover.activeEntity())
 end)
 
 LoopInGameThreadWithDelay(200, function()
